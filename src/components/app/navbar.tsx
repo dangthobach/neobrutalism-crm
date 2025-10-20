@@ -4,22 +4,29 @@ import Search from "@/components/app/search"
 import { ThemeSwitcher } from "@/components/app/theme-switcher"
 
 async function getRepoData() {
-  const res = await fetch(
-    "https://api.github.com/repos/ekmas/neobrutalism-components",
-    {
-      cache: "force-cache",
-      headers: {
-        "X-GitHub-Api-Version": "2022-11-28",
-        Authorization: `Bearer ${process.env.GH_API_KEY}`,
+  try {
+    const res = await fetch(
+      "https://api.github.com/repos/ekmas/neobrutalism-components",
+      {
+        cache: "force-cache",
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+          ...(process.env.GH_API_KEY && { Authorization: `Bearer ${process.env.GH_API_KEY}` }),
+        },
       },
-    },
-  )
+    )
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch data")
+    if (!res.ok) {
+      // Return fallback data if API call fails
+      return { stargazers_count: 1000 }
+    }
+
+    return res.json()
+  } catch (error) {
+    // Return fallback data if fetch fails
+    console.warn("Failed to fetch GitHub repo data:", error)
+    return { stargazers_count: 1000 }
   }
-
-  return res.json()
 }
 
 async function Navbar() {
