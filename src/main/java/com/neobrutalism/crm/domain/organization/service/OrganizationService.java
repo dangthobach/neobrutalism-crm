@@ -3,6 +3,8 @@ package com.neobrutalism.crm.domain.organization.service;
 import com.neobrutalism.crm.common.exception.ValidationException;
 import com.neobrutalism.crm.common.service.EventPublisher;
 import com.neobrutalism.crm.common.service.StatefulService;
+import com.neobrutalism.crm.domain.organization.event.OrganizationDeletedEvent;
+import com.neobrutalism.crm.domain.organization.event.OrganizationUpdatedEvent;
 import com.neobrutalism.crm.domain.organization.model.Organization;
 import com.neobrutalism.crm.domain.organization.model.OrganizationStatus;
 import com.neobrutalism.crm.domain.organization.repository.OrganizationRepository;
@@ -58,6 +60,23 @@ public class OrganizationService extends StatefulService<Organization, Organizat
     protected void afterUpdate(Organization entity) {
         super.afterUpdate(entity);
         publishDomainEvents(entity);
+        // Publish update event for read model synchronization
+        eventPublisher.publish(new OrganizationUpdatedEvent(
+                entity.getId().toString(),
+                entity.getName(),
+                entity.getUpdatedBy()
+        ));
+    }
+
+    @Override
+    protected void afterDelete(Organization entity) {
+        super.afterDelete(entity);
+        // Publish delete event for read model synchronization
+        eventPublisher.publish(new OrganizationDeletedEvent(
+                entity.getId().toString(),
+                entity.getName(),
+                entity.getUpdatedBy()
+        ));
     }
 
     /**
