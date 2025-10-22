@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { LayoutDashboard, Users, Shield, Lock, Menu, ChevronLeft } from "lucide-react"
+import { LayoutDashboard, Users, Shield, Lock, Building2, Menu, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
   { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/admin/organizations", icon: Building2, label: "Organizations" },
   { href: "/admin/users", icon: Users, label: "Users" },
   { href: "/admin/roles", icon: Shield, label: "Roles" },
   { href: "/admin/permissions", icon: Lock, label: "Permissions" },

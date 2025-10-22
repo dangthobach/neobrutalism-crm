@@ -1,8 +1,13 @@
+# ===================================
+# BACKEND (Spring Boot / Maven)
+# ===================================
+
 # Compiled class files
 *.class
 
 # Log files
 *.log
+logs/
 
 # Package Files
 *.jar
@@ -49,10 +54,112 @@ nbdist/
 # VS Code
 .vscode/
 
-# OS Files
-.DS_Store
-Thumbs.db
-
-# Application
+# Application Config (local environments)
 application-local.yml
 application-dev.yml
+application-*.properties
+
+# ===================================
+# FRONTEND (Next.js / Node.js)
+# ===================================
+
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Next.js Build Output
+.next/
+out/
+
+# Production Build
+build/
+dist/
+
+# Testing
+coverage/
+.nyc_output
+
+# Environment Variables (IMPORTANT: Don't commit secrets!)
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Velite (Content Build)
+.velite/
+
+# Vercel
+.vercel
+
+# Turbopack
+.turbo
+
+# ===================================
+# DATABASE
+# ===================================
+
+# H2 Database Files
+*.db
+*.mv.db
+*.trace.db
+
+# PostgreSQL
+*.sql.gz
+
+# ===================================
+# OS FILES
+# ===================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.nfs*
+
+# ===================================
+# MISCELLANEOUS
+# ===================================
+
+# Temporary Files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Editor Directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Lock Files (Keep pnpm-lock.yaml but ignore others if needed)
+# package-lock.json
+# yarn.lock
