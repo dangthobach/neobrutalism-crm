@@ -58,3 +58,20 @@ app:
     enabled: true
   event-sourcing:
     enabled: true
+
+# Event publishing configuration
+events:
+  use-outbox: true  # Enable Transactional Outbox Pattern (recommended for production)
+
+# Outbox publisher configuration
+outbox:
+  publisher:
+    interval: 5000  # Publish pending events every 5 seconds
+  cleanup:
+    cron: "0 0 2 * * *"  # Cleanup old events daily at 2 AM
+
+# Multi-tenancy configuration
+multitenancy:
+  enabled: true  # Enable/disable multi-tenancy
+  default-tenant: default  # Default tenant ID for development
+  tenant-header: X-Tenant-ID  # HTTP header name for tenant ID

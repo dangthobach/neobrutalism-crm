@@ -59,6 +59,15 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Validation failed", "VALIDATION_ERROR", errors));
     }
 
+    @ExceptionHandler(jakarta.validation.ValidationException.class)
+    public ResponseEntity<ApiResponse<String>> handleJakartaValidationException(
+            jakarta.validation.ValidationException ex) {
+        log.warn("Entity validation failed: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage(), "ENTITY_VALIDATION_ERROR"));
+    }
+
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException ex) {
         log.error("Application error: {}", ex.getMessage(), ex);
