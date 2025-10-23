@@ -11,26 +11,25 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.FilterDef;
 import org.hibernate.annotations.ParamDef;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Base entity with tenant awareness
- * Automatically sets tenant ID on persist
- * Filters queries by tenant_id
+ * Base aggregate root with tenant awareness
+ * Combines AggregateRoot functionality with multi-tenancy support
  */
 @Getter
+@Setter
 @MappedSuperclass
 @FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = String.class))
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public abstract class TenantAwareEntity extends AuditableEntity {
+public abstract class TenantAwareAggregateRoot<S extends Enum<S>> extends AggregateRoot<S> {
 
     @Column(name = "tenant_id", nullable = false, updatable = false, length = 50)
     private String tenantId;
 
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
-
     @PrePersist
-    protected void autoSetTenantId() {
+    protected void setTenantId() {
         if (this.tenantId == null) {
             String currentTenant = TenantContext.getCurrentTenant();
             if (currentTenant == null) {

@@ -2,6 +2,8 @@ package com.neobrutalism.crm.domain.organization.controller;
 
 import com.neobrutalism.crm.common.dto.ApiResponse;
 import com.neobrutalism.crm.common.dto.PageResponse;
+import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
+import com.neobrutalism.crm.common.util.SortValidator;
 import com.neobrutalism.crm.domain.organization.dto.OrganizationRequest;
 import com.neobrutalism.crm.domain.organization.dto.OrganizationResponse;
 import com.neobrutalism.crm.domain.organization.model.Organization;
@@ -40,8 +42,9 @@ public class OrganizationController {
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "ASC") String sortDirection) {
 
+        String validatedSortBy = SortValidator.validateOrganizationSortField(sortBy);
         Sort.Direction direction = Sort.Direction.fromString(sortDirection);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, validatedSortBy));
 
         Page<Organization> organizationPage = organizationService.findAllActive(pageable);
         Page<OrganizationResponse> responsePage = organizationPage.map(OrganizationResponse::from);
@@ -60,7 +63,7 @@ public class OrganizationController {
     @Operation(summary = "Get organization by code", description = "Retrieve a specific organization by its unique code")
     public ApiResponse<OrganizationResponse> getOrganizationByCode(@PathVariable String code) {
         Organization organization = organizationService.findByCode(code)
-                .orElseThrow(() -> new RuntimeException("Organization not found with code: " + code));
+                .orElseThrow(() -> ResourceNotFoundException.forResourceByField("Organization", "code", code));
         return ApiResponse.success(OrganizationResponse.from(organization));
     }
 

@@ -20,7 +20,19 @@
       "Bash(taskkill //F //PID 12304)",
       "Bash(taskkill //F //PID 25524)",
       "Bash(taskkill:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(set JAVA_HOME=C:Program FilesMicrosoftjdk-21.0.8.9-hotspot)",
+      "Bash(set PATH=%JAVA_HOME%bin)",
+      "Bash(%PATH%)",
+      "Bash(mvn clean spring-boot:run:*)",
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(where:*)",
+      "Bash(set \"JAVA_HOME=C:\\Program Files\\Microsoft\\jdk-21.0.8.9-hotspot\")",
+      "Bash(set \"PATH=%JAVA_HOME%\\bin;%PATH%\")",
+      "Bash(\"%JAVA_HOME%\\bin\\java.exe\" -version)",
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn compile:*)",
+      "Bash(del \"D:\\project\\neobrutalism-crm\\src\\main\\resources\\db\\migration\\V3__Update_outbox_events_schema.sql\")"
     ],
     "deny": [],
     "ask": []

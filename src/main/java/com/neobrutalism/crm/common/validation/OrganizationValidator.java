@@ -28,15 +28,8 @@ public class OrganizationValidator implements ConstraintValidator<ValidOrganizat
             isValid = false;
         }
 
-        // Rule 4: Name and code must be different
-        if (org.getName() != null && org.getCode() != null &&
-                org.getName().equalsIgnoreCase(org.getCode())) {
-            context.disableDefaultConstraintViolation();
-            context.buildConstraintViolationWithTemplate(
-                    "Organization name and code must be different"
-            ).addPropertyNode("code").addConstraintViolation();
-            isValid = false;
-        }
+        // Rule 4: Name and code can be the same (removed restriction)
+        // This allows organizations to have the same name and code if needed
 
         // Rule 5: If ACTIVE status, must have at least email or phone
         if (org.getStatus() != null && org.getStatus().toString().equals("ACTIVE")) {

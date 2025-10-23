@@ -1,19 +1,23 @@
 package com.neobrutalism.crm.common.exception;
 
 /**
- * Exception thrown when a resource is not found
+ * Exception thrown when a requested resource is not found
  */
-public class ResourceNotFoundException extends BaseException {
+public class ResourceNotFoundException extends RuntimeException {
 
     public ResourceNotFoundException(String message) {
-        super(message, "RESOURCE_NOT_FOUND");
+        super(message);
     }
 
-    public ResourceNotFoundException(String resourceName, Object id) {
-        super(String.format("%s not found with id: %s", resourceName, id), "RESOURCE_NOT_FOUND");
+    public ResourceNotFoundException(String message, Throwable cause) {
+        super(message, cause);
     }
 
-    public ResourceNotFoundException(String resourceName, String field, Object value) {
-        super(String.format("%s not found with %s: %s", resourceName, field, value), "RESOURCE_NOT_FOUND");
+    public static ResourceNotFoundException forResource(String resourceType, Object id) {
+        return new ResourceNotFoundException(String.format("%s not found with id: %s", resourceType, id));
+    }
+
+    public static ResourceNotFoundException forResourceByField(String resourceType, String field, Object value) {
+        return new ResourceNotFoundException(String.format("%s not found with %s: %s", resourceType, field, value));
     }
 }

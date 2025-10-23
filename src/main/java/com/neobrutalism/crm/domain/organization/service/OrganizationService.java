@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,17 +39,13 @@ public class OrganizationService extends StatefulService<Organization, Organizat
         return "Organization";
     }
 
-    @Override
-    protected void beforeCreate(Organization entity) {
-        super.beforeCreate(entity);
-        validateUniqueCode(entity.getCode(), null);
-    }
-
-    @Override
-    protected void beforeUpdate(Organization entity) {
-        super.beforeUpdate(entity);
-        validateUniqueCode(entity.getCode(), entity.getId());
-    }
+    // Constraint messages for database integrity violations
+    private static final Map<String, String> CONSTRAINT_MESSAGES = Map.of(
+        "code", "Organization code already exists. Please use a unique code.",
+        "unique", "This value already exists. Please use a unique value.",
+        "organizations_code_key", "Organization code already exists. Please use a unique code.",
+        "uk_organization_code", "Organization code already exists. Please use a unique code."
+    );
 
     @Override
     protected void afterCreate(Organization entity) {
@@ -77,16 +74,6 @@ public class OrganizationService extends StatefulService<Organization, Organizat
                 entity.getName(),
                 entity.getUpdatedBy()
         ));
-    }
-
-    /**
-     * Validate unique organization code
-     */
-    private void validateUniqueCode(String code, UUID excludeId) {
-        Optional<Organization> existing = organizationRepository.findByCode(code);
-        if (existing.isPresent() && !existing.get().getId().equals(excludeId)) {
-            throw new ValidationException("Organization code already exists: " + code);
-        }
     }
 
     /**
@@ -142,5 +129,48 @@ public class OrganizationService extends StatefulService<Organization, Organizat
      */
     public List<Organization> findByStatus(OrganizationStatus status) {
         return organizationRepository.findByStatus(status);
+    }
+
+    // ==================== Override CRUD with Integrity Check ====================
+
+    /**
+     * Create organization with database integrity constraint checking
+     */
+    @Override
+    @Transactional
+    public Organization create(Organization entity) {
+        return createWithIntegrityCheck(entity, CONSTRAINT_MESSAGES);
+    }
+
+    /**
+     * Update organization with database integrity constraint checking
+     */
+    @Override
+    @Transactional
+    public Organization update(UUID id, Organization entity) {
+        return updateWithIntegrityCheck(id, entity, CONSTRAINT_MESSAGES);
+    }
+
+    /**
+     * Save organization with database integrity constraint checking
+     */
+    @Override
+    @Transactional
+    public Organization save(Organization entity) {
+        if (entity.isNew()) {
+            return create(entity);
+        } else {
+            return update(entity.getId(), entity);
+        }
+    }
+
+    /**
+     * Delete organization with foreign key constraint checking
+     * Organizations might be referenced by contacts, deals, etc.
+     */
+    @Override
+    @Transactional
+    public void delete(Organization entity) {
+        deleteWithIntegrityCheck(entity, "related entities (contacts, deals, etc.)");
     }
 }

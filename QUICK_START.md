@@ -5,7 +5,7 @@ Get your Neo-Brutalist CRM up and running in 15 minutes!
 ## ⚡ Prerequisites
 
 - Node.js 18+
-- Java 17+
+- Java 21+
 - PostgreSQL 15+
 - Redis 7+
 - Docker (optional but recommended)

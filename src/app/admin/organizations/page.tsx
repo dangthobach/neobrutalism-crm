@@ -1,34 +1,38 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Search, Building2, Mail, Phone, Globe, MapPin, Pencil, Trash2, Archive, PlayCircle, PauseCircle, Filter, X } from "lucide-react"
+import { Plus, Search, Building2, Mail, Phone, Globe, MapPin, Pencil, Trash2, Archive, PlayCircle, PauseCircle, Filter, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   organizationsAPI,
   type Organization,
   type OrganizationReadModel,
-  type OrganizationStatus,
-  type OrganizationStatistics
+  type OrganizationStatus
 } from "@/lib/api/organizations"
 import { OrganizationDialog } from "./organization-dialog"
-import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 export default function OrganizationsPage() {
   const [organizations, setOrganizations] = useState<OrganizationReadModel[]>([])
   const [filteredOrganizations, setFilteredOrganizations] = useState<OrganizationReadModel[]>([])
-  const [statistics, setStatistics] = useState<OrganizationStatistics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null) // Track which action is loading
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<OrganizationStatus | "ALL">("ALL")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalElements, setTotalElements] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
   useEffect(() => {
     loadOrganizations()
-    loadStatistics()
-  }, [])
+  }, [currentPage, pageSize])
 
   useEffect(() => {
     filterOrganizations()
@@ -37,21 +41,17 @@ export default function OrganizationsPage() {
   const loadOrganizations = async () => {
     try {
       setLoading(true)
-      const data = await organizationsAPI.queryAll()
-      setOrganizations(data)
+      const response = await organizationsAPI.queryAllPaged(currentPage, pageSize, "id", "ASC")
+      setOrganizations(response.content)
+      setTotalElements(response.totalElements)
+      setTotalPages(response.totalPages)
     } catch (error) {
       console.error("Failed to load organizations:", error)
+      toast.error("Failed to load organizations", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred"
+      })
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadStatistics = async () => {
-    try {
-      const stats = await organizationsAPI.getStatistics()
-      setStatistics(stats)
-    } catch (error) {
-      console.error("Failed to load statistics:", error)
     }
   }
 
@@ -63,7 +63,7 @@ export default function OrganizationsPage() {
       filtered = filtered.filter(org => org.status === statusFilter)
     }
 
-    // Filter by search query (uses backend full-text search if query is present)
+    // Filter by search query (client-side filtering for now)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(org =>
@@ -77,6 +77,16 @@ export default function OrganizationsPage() {
     setFilteredOrganizations(filtered)
   }
 
+  // Calculate statistics from current data
+  const calculateStatistics = () => {
+    const total = organizations.length
+    const active = organizations.filter(org => org.status === "ACTIVE").length
+    const withContact = organizations.filter(org => org.email || org.phone).length
+    const deleted = organizations.filter(org => org.isDeleted).length
+    
+    return { total, active, withContact, deleted }
+  }
+
   const handleCreate = () => {
     setSelectedOrg(null)
     setDialogOpen(true)
@@ -84,23 +94,35 @@ export default function OrganizationsPage() {
 
   const handleEdit = async (org: OrganizationReadModel) => {
     try {
+      setActionLoading(`edit-${org.id}`)
       // Load full organization details from write model
       const fullOrg = await organizationsAPI.getById(org.id)
       setSelectedOrg(fullOrg)
       setDialogOpen(true)
     } catch (error) {
       console.error("Failed to load organization:", error)
+      toast.error("Failed to load organization", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred"
+      })
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const handleDelete = async (id: string) => {
     try {
+      setActionLoading(`delete-${id}`)
       await organizationsAPI.delete(id)
+      toast.success("Organization deleted successfully")
       await loadOrganizations()
-      await loadStatistics()
       setDeleteConfirm(null)
     } catch (error) {
       console.error("Failed to delete organization:", error)
+      toast.error("Failed to delete organization", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred"
+      })
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -108,6 +130,8 @@ export default function OrganizationsPage() {
     try {
       const reason = prompt(`Enter reason for ${action}:`)
       if (!reason) return
+
+      setActionLoading(`${action}-${id}`)
 
       switch (action) {
         case "activate":
@@ -121,10 +145,15 @@ export default function OrganizationsPage() {
           break
       }
 
+      toast.success(`Organization ${action}d successfully`)
       await loadOrganizations()
-      await loadStatistics()
     } catch (error) {
       console.error(`Failed to ${action} organization:`, error)
+      toast.error(`Failed to ${action} organization`, {
+        description: error instanceof Error ? error.message : "An unexpected error occurred"
+      })
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -133,7 +162,6 @@ export default function OrganizationsPage() {
     setSelectedOrg(null)
     if (success) {
       await loadOrganizations()
-      await loadStatistics()
     }
   }
 
@@ -178,13 +206,14 @@ export default function OrganizationsPage() {
       </header>
 
       {/* Statistics */}
-      {statistics && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Total", value: statistics.total || 0, icon: Building2, color: "bg-main" },
-            { label: "Active", value: statistics.active || 0, icon: PlayCircle, color: "bg-green-500" },
-            { label: "With Contact", value: statistics.withContact || 0, icon: Mail, color: "bg-blue-500" },
-            { label: "Deleted", value: statistics.deleted || 0, icon: Archive, color: "bg-red-500" },
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {(() => {
+          const stats = calculateStatistics()
+          return [
+            { label: "Total", value: stats.total, icon: Building2, color: "bg-main" },
+            { label: "Active", value: stats.active, icon: PlayCircle, color: "bg-green-500" },
+            { label: "With Contact", value: stats.withContact, icon: Mail, color: "bg-blue-500" },
+            { label: "Deleted", value: stats.deleted, icon: Archive, color: "bg-red-500" },
           ].map((stat, index) => {
             const Icon = stat.icon
             return (
@@ -203,9 +232,9 @@ export default function OrganizationsPage() {
                 </div>
               </div>
             )
-          })}
-        </div>
-      )}
+          })
+        })()}
+      </div>
 
       {/* Filters */}
       <div className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]">
@@ -230,10 +259,9 @@ export default function OrganizationsPage() {
                 variant={statusFilter === status ? "default" : "noShadow"}
                 size="sm"
                 onClick={() => setStatusFilter(status)}
-                className={cn(
-                  "border-2 border-black transition-all",
-                  statusFilter === status && "shadow-[4px_4px_0_#000]"
-                )}
+                className={`border-2 border-black transition-all ${
+                  statusFilter === status ? "shadow-[4px_4px_0_#000]" : ""
+                }`}
               >
                 {status}
               </Button>
@@ -325,9 +353,14 @@ export default function OrganizationsPage() {
                   size="sm"
                   variant="noShadow"
                   onClick={() => handleEdit(org)}
+                  disabled={actionLoading === `edit-${org.id}`}
                   className="flex-1 border-2 border-black"
                 >
-                  <Pencil className="h-3 w-3 mr-1" />
+                  {actionLoading === `edit-${org.id}` ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Pencil className="h-3 w-3 mr-1" />
+                  )}
                   Edit
                 </Button>
 
@@ -337,10 +370,15 @@ export default function OrganizationsPage() {
                     size="sm"
                     variant="noShadow"
                     onClick={() => handleStatusChange(org.id, "activate")}
+                    disabled={actionLoading === `activate-${org.id}`}
                     className="border-2 border-black bg-green-500 text-white hover:bg-green-600"
                     title="Activate"
                   >
-                    <PlayCircle className="h-3 w-3" />
+                    {actionLoading === `activate-${org.id}` ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <PlayCircle className="h-3 w-3" />
+                    )}
                   </Button>
                 )}
                 {org.status === "ACTIVE" && (
@@ -348,20 +386,30 @@ export default function OrganizationsPage() {
                     size="sm"
                     variant="noShadow"
                     onClick={() => handleStatusChange(org.id, "suspend")}
+                    disabled={actionLoading === `suspend-${org.id}`}
                     className="border-2 border-black bg-yellow-500 text-white hover:bg-yellow-600"
                     title="Suspend"
                   >
-                    <PauseCircle className="h-3 w-3" />
+                    {actionLoading === `suspend-${org.id}` ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <PauseCircle className="h-3 w-3" />
+                    )}
                   </Button>
                 )}
                 <Button
                   size="sm"
                   variant="noShadow"
                   onClick={() => handleStatusChange(org.id, "archive")}
+                  disabled={actionLoading === `archive-${org.id}`}
                   className="border-2 border-black bg-blue-500 text-white hover:bg-blue-600"
                   title="Archive"
                 >
-                  <Archive className="h-3 w-3" />
+                  {actionLoading === `archive-${org.id}` ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Archive className="h-3 w-3" />
+                  )}
                 </Button>
 
                 {/* Delete */}
@@ -371,15 +419,21 @@ export default function OrganizationsPage() {
                       size="sm"
                       variant="noShadow"
                       onClick={() => handleDelete(org.id)}
+                      disabled={actionLoading === `delete-${org.id}`}
                       className="border-2 border-black bg-red-500 text-white hover:bg-red-600"
                       title="Confirm Delete"
                     >
-                      ✓
+                      {actionLoading === `delete-${org.id}` ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "✓"
+                      )}
                     </Button>
                     <Button
                       size="sm"
                       variant="noShadow"
                       onClick={() => setDeleteConfirm(null)}
+                      disabled={actionLoading === `delete-${org.id}`}
                       className="border-2 border-black"
                       title="Cancel"
                     >
@@ -391,6 +445,7 @@ export default function OrganizationsPage() {
                     size="sm"
                     variant="noShadow"
                     onClick={() => setDeleteConfirm(org.id)}
+                    disabled={!!actionLoading}
                     className="border-2 border-black bg-red-500 text-white hover:bg-red-600"
                     title="Delete"
                   >
@@ -400,6 +455,56 @@ export default function OrganizationsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <div className="text-sm text-foreground/70">
+            Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} organizations
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => setCurrentPage(0)}
+              disabled={currentPage === 0}
+              className="border-2 border-black"
+            >
+              First
+            </Button>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="border-2 border-black"
+            >
+              Previous
+            </Button>
+            <span className="px-3 py-1 border-2 border-black bg-background">
+              {currentPage + 1} of {totalPages}
+            </span>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="border-2 border-black"
+            >
+              Next
+            </Button>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => setCurrentPage(totalPages - 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="border-2 border-black"
+            >
+              Last
+            </Button>
+          </div>
         </div>
       )}
 

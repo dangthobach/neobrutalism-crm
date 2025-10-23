@@ -1,6 +1,6 @@
 package com.neobrutalism.crm.domain.organization.model;
 
-import com.neobrutalism.crm.common.entity.AggregateRoot;
+import com.neobrutalism.crm.common.entity.TenantAwareAggregateRoot;
 import com.neobrutalism.crm.common.validation.ValidEmail;
 import com.neobrutalism.crm.common.validation.ValidOrganization;
 import com.neobrutalism.crm.common.validation.ValidPhone;
@@ -35,7 +35,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidOrganization
-public class Organization extends AggregateRoot<OrganizationStatus> {
+public class Organization extends TenantAwareAggregateRoot<OrganizationStatus> {
 
     @NotBlank(message = "Organization name is required")
     @Size(min = 2, max = 200, message = "Organization name must be between 2 and 200 characters")

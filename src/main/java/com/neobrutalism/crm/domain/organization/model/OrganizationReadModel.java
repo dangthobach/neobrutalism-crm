@@ -3,7 +3,6 @@ package com.neobrutalism.crm.domain.organization.model;
 import com.neobrutalism.crm.common.cqrs.ReadModel;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Immutable;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -27,7 +26,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Immutable
 @ReadModel(aggregate = "Organization", description = "Optimized read model for organization queries")
 public class OrganizationReadModel {
 

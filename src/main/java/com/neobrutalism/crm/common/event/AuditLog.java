@@ -1,5 +1,6 @@
 package com.neobrutalism.crm.common.event;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Audit log entity for detailed change tracking
@@ -16,7 +18,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "audit_logs", indexes = {
+@Table(name = "audit_log", indexes = {
         @Index(name = "idx_audit_entity_type_id", columnList = "entity_type, entity_id"),
         @Index(name = "idx_audit_action", columnList = "action"),
         @Index(name = "idx_audit_changed_by", columnList = "changed_by"),
@@ -25,8 +27,7 @@ import java.time.Instant;
 public class AuditLog {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id;
 
     @Column(name = "entity_type", nullable = false, length = 100)
     private String entityType;
@@ -59,6 +60,7 @@ public class AuditLog {
                                   String fieldName, String oldValue, String newValue,
                                   String changedBy, String reason) {
         return AuditLog.builder()
+                .id(UuidCreator.getTimeOrderedEpoch())
                 .entityType(entityType)
                 .entityId(entityId)
                 .action(action)
