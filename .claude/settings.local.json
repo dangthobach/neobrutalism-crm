@@ -32,7 +32,14 @@
       "Bash(\"%JAVA_HOME%\\bin\\java.exe\" -version)",
       "Bash(mvn clean compile:*)",
       "Bash(mvn compile:*)",
-      "Bash(del \"D:\\project\\neobrutalism-crm\\src\\main\\resources\\db\\migration\\V3__Update_outbox_events_schema.sql\")"
+      "Bash(del \"D:\\project\\neobrutalism-crm\\src\\main\\resources\\db\\migration\\V3__Update_outbox_events_schema.sql\")",
+      "Bash(mkdir:*)",
+      "Bash(timeout /t 30)",
+      "Bash(del \"D:\\project\\neobrutalism-crm\\src\\main\\java\\com\\neobrutalism\\crm\\common\\security\\SecurityConfig.java\")",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(del nul)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
