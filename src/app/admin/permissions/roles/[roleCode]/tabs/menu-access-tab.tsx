@@ -91,10 +91,10 @@ export default function RoleMenuAccessTab({
           <div className="flex items-center justify-between">
             <CardTitle>Menu Tree</CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={expandAll}>
+              <Button variant="neutral" size="sm" onClick={expandAll}>
                 Expand All
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll}>
+              <Button variant="neutral" size="sm" onClick={collapseAll}>
                 Collapse All
               </Button>
             </div>
@@ -157,7 +157,7 @@ export default function RoleMenuAccessTab({
                           {menu.route}
                         </div>
                       </div>
-                      <Badge variant="outline">OK</Badge>
+                      <Badge variant="neutral">OK</Badge>
                     </div>
                   ) : null;
                 })}
@@ -281,7 +281,7 @@ function MenuTreeItem({
 
         {/* Route Badge */}
         {menu.route && (
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="neutral" className="text-xs">
             {menu.route}
           </Badge>
         )}

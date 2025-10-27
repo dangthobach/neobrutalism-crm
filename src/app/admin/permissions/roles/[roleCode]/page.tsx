@@ -75,7 +75,7 @@ export default function RoleDetailPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.back()}>
+              <Button variant="noShadow" size="sm" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
@@ -84,7 +84,7 @@ export default function RoleDetailPage() {
                   <h1 className="text-2xl font-bold">{role.code}</h1>
                   <Badge
                     variant={
-                      role.status === RoleStatus.ACTIVE ? 'default' : 'secondary'
+                      role.status === RoleStatus.ACTIVE ? 'default' : 'neutral'
                     }
                   >
                     {role.status === RoleStatus.ACTIVE && (
@@ -93,7 +93,7 @@ export default function RoleDetailPage() {
                     {role.status}
                   </Badge>
                   {role.isSystem && (
-                    <Badge variant="outline">System Role</Badge>
+                    <Badge variant="neutral">System Role</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -103,7 +103,7 @@ export default function RoleDetailPage() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleCancel}>
+              <Button variant="neutral" onClick={handleCancel}>
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>

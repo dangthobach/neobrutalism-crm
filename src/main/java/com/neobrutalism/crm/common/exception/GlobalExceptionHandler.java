@@ -181,6 +181,41 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle illegal argument exceptions (400)
+     * Occurs when invalid arguments are passed to methods
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("Illegal argument: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage(), "INVALID_ARGUMENT"));
+    }
+
+    /**
+     * Handle illegal state exceptions (400)
+     * Occurs when an operation is performed in an invalid state
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException ex) {
+        log.warn("Illegal state: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage(), "INVALID_STATE"));
+    }
+
+    /**
+     * Handle business logic exceptions (422 Unprocessable Entity)
+     */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        log.warn("Business logic error: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error(ex.getMessage(), ex.getErrorCode()));
+    }
+
+    /**
      * Handle base application exceptions (500)
      */
     @ExceptionHandler(BaseException.class)

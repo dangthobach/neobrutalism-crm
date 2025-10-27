@@ -91,6 +91,10 @@ public class RoleService extends StatefulService<Role, RoleStatus> {
         return transitionTo(id, RoleStatus.ACTIVE, reason);
     }
 
+    public List<Role> findByStatus(RoleStatus status) {
+        return roleRepository.findByStatus(status);
+    }
+
     @Override
     @Transactional
     public Role create(Role entity) {

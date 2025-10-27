@@ -241,7 +241,7 @@ export default function PermissionAuditPage() {
           </div>
 
           <div className="flex justify-end mt-4">
-            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+            <Button variant="noShadow" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
@@ -308,12 +308,12 @@ export default function PermissionAuditPage() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {result.roles.slice(0, 2).map((role) => (
-                              <Badge key={role.roleCode} variant="outline">
+                              <Badge key={role.roleCode} variant="neutral">
                                 {role.roleName}
                               </Badge>
                             ))}
                             {result.roles.length > 2 && (
-                              <Badge variant="secondary">
+                              <Badge variant="neutral">
                                 +{result.roles.length - 2} more
                               </Badge>
                             )}
@@ -325,14 +325,14 @@ export default function PermissionAuditPage() {
                         <TableCell className="text-center">
                           <Badge
                             className={getRiskColor(maxRiskLevel)}
-                            variant="outline"
+                            variant="neutral"
                           >
                             {maxRiskLevel}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button
-                            variant="ghost"
+                            variant="noShadow"
                             size="sm"
                             onClick={() => handleViewDetails(result)}
                           >
@@ -417,7 +417,7 @@ export default function PermissionAuditPage() {
                               </CardTitle>
                               <Badge
                                 className={getRiskColor(role.riskLevel)}
-                                variant="outline"
+                                variant="neutral"
                               >
                                 {role.riskLevel}
                               </Badge>
@@ -451,7 +451,7 @@ export default function PermissionAuditPage() {
 
               {/* Export Button */}
               <div className="flex justify-end">
-                <Button variant="outline" onClick={handleExportCSV}>
+                <Button variant="neutral" onClick={handleExportCSV}>
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
                 </Button>

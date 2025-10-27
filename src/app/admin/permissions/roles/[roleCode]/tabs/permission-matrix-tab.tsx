@@ -150,7 +150,7 @@ export default function RolePermissionMatrixTab({
                   </SelectContent>
                 </Select>
                 <Button
-                  variant="outline"
+                  variant="neutral"
                   size="sm"
                   onClick={handleCloneFromRole}
                   disabled={!cloneFromRole}
@@ -161,7 +161,7 @@ export default function RolePermissionMatrixTab({
               </div>
             </div>
 
-            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+            <Button variant="neutral" size="sm" onClick={handleExportExcel}>
               <Download className="h-4 w-4 mr-2" />
               Export Excel
             </Button>
@@ -204,7 +204,7 @@ export default function RolePermissionMatrixTab({
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline">
+                    <Badge variant="neutral">
                       {
                         feature.actions.filter((a) =>
                           grantedPermissions.has(a.permission.actionCode)
@@ -284,7 +284,7 @@ export default function RolePermissionMatrixTab({
                               className={getRiskColor(
                                 action.permission.riskLevel
                               )}
-                              variant="outline"
+                              variant="neutral"
                             >
                               {action.permission.riskLevel}
                             </Badge>

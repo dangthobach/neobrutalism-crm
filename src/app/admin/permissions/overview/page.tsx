@@ -226,13 +226,13 @@ export default function PermissionsOverviewPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{userCount} users</Badge>
-                      <Badge variant="outline">{permCount} perms</Badge>
+                      <Badge variant="neutral">{userCount} users</Badge>
+                      <Badge variant="neutral">{permCount} perms</Badge>
                       <Badge
                         variant={
                           role.status === RoleStatus.ACTIVE
                             ? 'default'
-                            : 'secondary'
+                            : 'neutral'
                         }
                       >
                         {role.status}

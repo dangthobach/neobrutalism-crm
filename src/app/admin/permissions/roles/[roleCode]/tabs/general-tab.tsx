@@ -124,10 +124,10 @@ export default function RoleGeneralTab({
             <Label>Data Scope</Label>
             <div className="flex flex-wrap gap-2">
               {dataScopes.map((scope) => (
-                <Badge key={scope} variant="secondary" className="pr-1">
+                <Badge key={scope} variant="neutral" className="pr-1">
                   {scope}
                   <Button
-                    variant="ghost"
+                    variant="noShadow"
                     size="sm"
                     className="h-auto p-1 ml-1"
                     onClick={() => handleRemoveScope(scope)}
@@ -136,7 +136,7 @@ export default function RoleGeneralTab({
                   </Button>
                 </Badge>
               ))}
-              <Button variant="outline" size="sm">
+              <Button variant="neutral" size="sm">
                 + Add Scope
               </Button>
             </div>
@@ -221,7 +221,7 @@ export default function RoleGeneralTab({
                     <TableCell>
                       <Badge
                         variant={
-                          user.status === 'ACTIVE' ? 'default' : 'secondary'
+                          user.status === 'ACTIVE' ? 'default' : 'neutral'
                         }
                       >
                         {user.status}
@@ -229,7 +229,7 @@ export default function RoleGeneralTab({
                     </TableCell>
                     <TableCell>
                       <Button
-                        variant="ghost"
+                        variant="noShadow"
                         size="sm"
                         onClick={() => handleRemoveUser(user.id)}
                       >

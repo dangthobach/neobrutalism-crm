@@ -255,7 +255,7 @@ export default function UserManagementPage() {
                   <div className="flex flex-wrap gap-2">
                     {selectedUserWithRoles.groups.length > 0 ? (
                       selectedUserWithRoles.groups.map((group) => (
-                        <Badge key={group.id} variant="outline">
+                        <Badge key={group.id} variant="neutral">
                           {group.name}
                         </Badge>
                       ))
@@ -273,7 +273,7 @@ export default function UserManagementPage() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold">Roles</h4>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="neutral">
                       <UserPlus className="h-4 w-4 mr-1" />
                       Assign Role
                     </Button>
@@ -291,7 +291,7 @@ export default function UserManagementPage() {
                               {role.code}
                             </div>
                           </div>
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="noShadow">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
@@ -417,7 +417,7 @@ export default function UserManagementPage() {
                                   className={getRiskColor(
                                     permission.riskLevel
                                   )}
-                                  variant="outline"
+                                  variant="neutral"
                                 >
                                   {permission.riskLevel}
                                 </Badge>

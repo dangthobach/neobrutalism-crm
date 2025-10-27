@@ -95,6 +95,10 @@ public class GroupService extends StatefulService<Group, GroupStatus> {
         return transitionTo(id, GroupStatus.ACTIVE, reason);
     }
 
+    public List<Group> findByStatus(GroupStatus status) {
+        return groupRepository.findByStatus(status);
+    }
+
     @Override
     @Transactional
     public Group create(Group entity) {
