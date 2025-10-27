@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface RoleMenuRepository extends BaseRepository<RoleMenu> {
     List<RoleMenu> findByRoleId(UUID roleId);
     List<RoleMenu> findByMenuId(UUID menuId);
+    List<RoleMenu> findByRoleIdIn(java.util.Collection<UUID> roleIds);
     Optional<RoleMenu> findByRoleIdAndMenuId(UUID roleId, UUID menuId);
     boolean existsByRoleIdAndMenuId(UUID roleId, UUID menuId);
     void deleteByRoleIdAndMenuId(UUID roleId, UUID menuId);

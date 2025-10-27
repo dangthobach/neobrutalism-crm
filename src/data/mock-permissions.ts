@@ -1,649 +1,345 @@
-// Mock data for permission system based on backend entities
-
 import {
   User,
+  UserStatus,
   Role,
+  RoleStatus,
   Group,
+  Permission,
+  RolePermission,
+  MenuTreeNode,
   Menu,
   MenuTab,
   MenuScreen,
-  ApiEndpoint,
-  Permission,
-  UserStatus,
-  RoleStatus,
-  GroupStatus,
-  HttpMethod,
+  PermissionMatrix,
   UserWithRoles,
-  MenuTreeNode,
-  PermissionMatrix
-} from '@/types/permission';
+} from '@/types/permission'
 
-// Mock Users
-export const mockUsers: User[] = [
-  {
-    id: '01932e6c-7890-7890-8901-111111111111',
-    username: 'nva01',
-    email: 'nguyenvana@example.com',
-    firstName: 'Văn A',
-    lastName: 'Nguyễn',
-    phone: '0912345678',
-    avatar: 'https://i.pravatar.cc/150?u=nva01',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    lastLoginAt: '2025-01-25T10:30:00Z',
-    lastLoginIp: '192.168.1.100',
-    failedLoginAttempts: 0,
-    status: UserStatus.ACTIVE,
-    createdAt: '2025-01-15T08:00:00Z',
-    updatedAt: '2025-01-25T10:30:00Z',
-    createdBy: 'system',
-    updatedBy: 'system',
-    deleted: false
-  },
-  {
-    id: '01932e6c-7890-7890-8901-222222222222',
-    username: 'ttb02',
-    email: 'tranthib@example.com',
-    firstName: 'Thị B',
-    lastName: 'Trần',
-    phone: '0923456789',
-    avatar: 'https://i.pravatar.cc/150?u=ttb02',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    lastLoginAt: '2025-01-26T09:15:00Z',
-    lastLoginIp: '192.168.1.101',
-    failedLoginAttempts: 0,
-    status: UserStatus.ACTIVE,
-    createdAt: '2025-01-16T08:00:00Z',
-    updatedAt: '2025-01-26T09:15:00Z',
-    createdBy: 'system',
-    updatedBy: 'system',
-    deleted: false
-  },
-  {
-    id: '01932e6c-7890-7890-8901-333333333333',
-    username: 'lvc03',
-    email: 'levanc@example.com',
-    firstName: 'Văn C',
-    lastName: 'Lê',
-    phone: '0934567890',
-    avatar: 'https://i.pravatar.cc/150?u=lvc03',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    lastLoginAt: '2025-01-24T14:20:00Z',
-    lastLoginIp: '192.168.1.102',
-    failedLoginAttempts: 1,
-    status: UserStatus.ACTIVE,
-    createdAt: '2025-01-17T08:00:00Z',
-    updatedAt: '2025-01-24T14:20:00Z',
-    createdBy: 'system',
-    updatedBy: 'system',
-    deleted: false
-  },
-  {
-    id: '01932e6c-7890-7890-8901-444444444444',
-    username: 'ptd04',
-    email: 'phamthid@example.com',
-    firstName: 'Thị D',
-    lastName: 'Phạm',
-    phone: '0945678901',
-    avatar: 'https://i.pravatar.cc/150?u=ptd04',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    failedLoginAttempts: 3,
-    status: UserStatus.SUSPENDED,
-    createdAt: '2025-01-18T08:00:00Z',
-    updatedAt: '2025-01-26T11:00:00Z',
-    createdBy: 'system',
-    updatedBy: 'admin',
-    deleted: false
-  }
-];
+// --- Mock reference data ---
 
-// Mock Roles
 export const mockRoles: Role[] = [
   {
-    id: '01932e6c-1111-1111-1111-111111111111',
+    id: 'role_1',
     code: 'ROLE_ADMIN',
     name: 'Administrator',
     description: 'Full system access with all permissions',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
+    organizationId: 'org_1',
     isSystem: true,
     priority: 100,
     status: RoleStatus.ACTIVE,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     createdBy: 'system',
     updatedBy: 'system',
-    deleted: false
+    deleted: false,
   },
   {
-    id: '01932e6c-1111-1111-1111-222222222222',
-    code: 'ROLE_DEBT_SALE_MGR',
-    name: 'Debt Sale Manager',
-    description: 'Có quyền duyệt bán nợ và quản lý hồ sơ',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
+    id: 'role_2',
+    code: 'ROLE_MANAGER',
+    name: 'Manager',
+    description: 'Manager access with elevated permissions',
+    organizationId: 'org_1',
     isSystem: false,
-    priority: 80,
+    priority: 50,
     status: RoleStatus.ACTIVE,
-    createdAt: '2025-01-12T08:00:00Z',
-    updatedAt: '2025-01-12T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
   },
   {
-    id: '01932e6c-1111-1111-1111-333333333333',
-    code: 'ROLE_WH_ADMIN',
-    name: 'Warehouse Administrator',
-    description: 'Quản trị toàn bộ hệ thống kho',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    isSystem: false,
-    priority: 70,
-    status: RoleStatus.ACTIVE,
-    createdAt: '2025-01-12T08:00:00Z',
-    updatedAt: '2025-01-12T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
-  },
-  {
-    id: '01932e6c-1111-1111-1111-444444444444',
-    code: 'ROLE_CASE_VIEWER',
-    name: 'Case Viewer',
-    description: 'Chỉ xem thông tin hồ sơ',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
+    id: 'role_3',
+    code: 'ROLE_USER',
+    name: 'Standard User',
+    description: 'Basic access with read permissions',
+    organizationId: 'org_1',
     isSystem: false,
     priority: 10,
     status: RoleStatus.ACTIVE,
-    createdAt: '2025-01-13T08:00:00Z',
-    updatedAt: '2025-01-13T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
-  }
-];
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
+  },
+]
 
-// Mock Groups
 export const mockGroups: Group[] = [
   {
-    id: '01932e6c-2222-2222-2222-111111111111',
-    code: 'TEAM_DV',
-    name: 'Đội Dịch Vụ',
-    description: 'Đội ngũ dịch vụ khách hàng',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
+    id: 'grp_1',
+    code: 'WH_NORTH',
+    name: 'Warehouse North',
+    description: 'Northern region operations',
+    parentId: undefined,
+    organizationId: 'org_1',
     level: 1,
-    path: '/01932e6c-2222-2222-2222-111111111111',
-    status: GroupStatus.ACTIVE,
-    createdAt: '2025-01-11T08:00:00Z',
-    updatedAt: '2025-01-11T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
-  },
+    path: '/WH_NORTH',
+    status: 1 ? RoleStatus.ACTIVE : RoleStatus.ACTIVE, // type reuse
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
+  } as unknown as Group, // simplify status enum reuse
   {
-    id: '01932e6c-2222-2222-2222-222222222222',
-    code: 'TEAM_ORC',
-    name: 'Đội Thu Hồi Nợ',
-    description: 'Đội ngũ thu hồi công nợ',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
+    id: 'grp_2',
+    code: 'WH_SOUTH',
+    name: 'Warehouse South',
+    description: 'Southern region operations',
+    parentId: undefined,
+    organizationId: 'org_1',
     level: 1,
-    path: '/01932e6c-2222-2222-2222-222222222222',
-    status: GroupStatus.ACTIVE,
-    createdAt: '2025-01-11T08:00:00Z',
-    updatedAt: '2025-01-11T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
-  },
-  {
-    id: '01932e6c-2222-2222-2222-333333333333',
-    code: 'TEAM_WH',
-    name: 'Đội Kho Vận',
-    description: 'Đội quản lý kho và logistics',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    level: 1,
-    path: '/01932e6c-2222-2222-2222-333333333333',
-    status: GroupStatus.ACTIVE,
-    createdAt: '2025-01-11T08:00:00Z',
-    updatedAt: '2025-01-11T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
-  },
-  {
-    id: '01932e6c-2222-2222-2222-444444444444',
-    code: 'TEAM_WH_NORTH',
-    name: 'Kho Miền Bắc',
-    description: 'Chi nhánh kho miền Bắc',
-    parentId: '01932e6c-2222-2222-2222-333333333333',
-    organizationId: '01932e6c-0000-0000-0000-000000000001',
-    level: 2,
-    path: '/01932e6c-2222-2222-2222-333333333333/01932e6c-2222-2222-2222-444444444444',
-    status: GroupStatus.ACTIVE,
-    createdAt: '2025-01-11T08:00:00Z',
-    updatedAt: '2025-01-11T08:00:00Z',
-    createdBy: 'admin',
-    updatedBy: 'admin',
-    deleted: false
-  }
-];
+    path: '/WH_SOUTH',
+    status: 1 ? RoleStatus.ACTIVE : RoleStatus.ACTIVE,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
+  } as unknown as Group,
+]
 
-// Mock Menus
-export const mockMenus: Menu[] = [
+export const mockUsers: User[] = [
   {
-    id: '01932e6c-3333-3333-3333-111111111111',
-    code: 'MENU_DASHBOARD',
-    name: 'Dashboard',
-    icon: 'LayoutDashboard',
+    id: 'u_1',
+    username: 'jdoe',
+    email: 'jdoe@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    phone: '+1-555-0001',
+    avatar: undefined,
+    organizationId: 'org_1',
+    lastLoginAt: new Date(Date.now() - 3600_000).toISOString(),
+    lastLoginIp: '10.0.0.1',
+    passwordChangedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    failedLoginAttempts: 0,
+    lockedUntil: undefined,
+    status: UserStatus.ACTIVE,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
+  },
+  {
+    id: 'u_2',
+    username: 'asmith',
+    email: 'asmith@example.com',
+    firstName: 'Alice',
+    lastName: 'Smith',
+    phone: '+1-555-0002',
+    avatar: undefined,
+    organizationId: 'org_1',
+    lastLoginAt: new Date(Date.now() - 7200_000).toISOString(),
+    lastLoginIp: '10.0.0.2',
+    passwordChangedAt: new Date(Date.now() - 172_800_000).toISOString(),
+    failedLoginAttempts: 1,
+    lockedUntil: undefined,
+    status: UserStatus.PENDING,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
+  },
+  {
+    id: 'u_3',
+    username: 'bwayne',
+    email: 'bwayne@example.com',
+    firstName: 'Bruce',
+    lastName: 'Wayne',
+    phone: '+1-555-0003',
+    avatar: undefined,
+    organizationId: 'org_1',
+    lastLoginAt: undefined,
+    lastLoginIp: undefined,
+    passwordChangedAt: undefined,
+    failedLoginAttempts: 0,
+    lockedUntil: undefined,
+    status: UserStatus.SUSPENDED,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    createdBy: 'system',
+    updatedBy: 'system',
+    deleted: false,
+  },
+]
+
+// Menu structure mock
+const menus: Menu[] = [
+  {
+    id: 'm_users',
+    code: 'MENU_USERS',
+    name: 'Users',
+    icon: 'users',
+    parentId: undefined,
     level: 1,
-    route: '/dashboard',
+    path: '/MENU_USERS',
+    route: '/admin/permissions/users',
     displayOrder: 1,
     isVisible: true,
     requiresAuth: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z',
-    deleted: false
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deleted: false,
   },
   {
-    id: '01932e6c-3333-3333-3333-222222222222',
-    code: 'MENU_DEBT_SALE',
-    name: 'Debt Sale',
-    icon: 'DollarSign',
+    id: 'm_roles',
+    code: 'MENU_ROLES',
+    name: 'Roles',
+    icon: 'shield',
+    parentId: undefined,
     level: 1,
-    route: '/debt-sale',
+    path: '/MENU_ROLES',
+    route: '/admin/permissions/roles',
     displayOrder: 2,
     isVisible: true,
     requiresAuth: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z',
-    deleted: false
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deleted: false,
   },
   {
-    id: '01932e6c-3333-3333-3333-333333333333',
-    code: 'MENU_WAREHOUSE',
-    name: 'Warehouse',
-    icon: 'Warehouse',
+    id: 'm_perms',
+    code: 'MENU_PERMISSIONS',
+    name: 'Permissions',
+    icon: 'key',
+    parentId: undefined,
     level: 1,
-    route: '/warehouse',
+    path: '/MENU_PERMISSIONS',
+    route: '/admin/permissions/overview',
     displayOrder: 3,
     isVisible: true,
     requiresAuth: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z',
-    deleted: false
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deleted: false,
   },
   {
-    id: '01932e6c-3333-3333-3333-444444444444',
-    code: 'MENU_ADMIN',
-    name: 'Administration',
-    icon: 'Settings',
+    id: 'm_debt',
+    code: 'MENU_DEBT_SALE',
+    name: 'Debt Sale',
+    icon: 'coins',
+    parentId: undefined,
     level: 1,
-    route: '/admin',
-    displayOrder: 10,
+    path: '/MENU_DEBT_SALE',
+    route: '/admin/debt-sale',
+    displayOrder: 4,
     isVisible: true,
     requiresAuth: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z',
-    deleted: false
-  }
-];
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deleted: false,
+  },
+]
 
-// Mock Menu Tabs
 export const mockMenuTabs: MenuTab[] = [
-  {
-    id: '01932e6c-4444-4444-4444-111111111111',
-    code: 'TAB_DEBT_DASHBOARD',
-    name: 'Dashboard',
-    menuId: '01932e6c-3333-3333-3333-222222222222',
-    icon: 'BarChart',
-    displayOrder: 1,
-    isVisible: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-4444-4444-4444-222222222222',
-    code: 'TAB_DEBT_LIST',
-    name: 'Debt List',
-    menuId: '01932e6c-3333-3333-3333-222222222222',
-    icon: 'List',
-    displayOrder: 2,
-    isVisible: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-4444-4444-4444-333333333333',
-    code: 'TAB_WH_INVENTORY',
-    name: 'Inventory',
-    menuId: '01932e6c-3333-3333-3333-333333333333',
-    icon: 'Package',
-    displayOrder: 1,
-    isVisible: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-4444-4444-4444-444444444444',
-    code: 'TAB_WH_TRANSFER',
-    name: 'Transfer Request',
-    menuId: '01932e6c-3333-3333-3333-333333333333',
-    icon: 'TruckIcon',
-    displayOrder: 2,
-    isVisible: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  }
-];
+  { id: 'tab_1', code: 'USERS_GENERAL', name: 'General', menuId: 'm_users', icon: 'info', displayOrder: 1, isVisible: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+]
 
-// Mock Menu Screens
 export const mockMenuScreens: MenuScreen[] = [
-  {
-    id: '01932e6c-5555-5555-5555-111111111111',
-    code: 'SCREEN_DEBT_SALE_DASHBOARD',
-    name: 'Debt Sale Dashboard',
-    menuId: '01932e6c-3333-3333-3333-222222222222',
-    tabId: '01932e6c-4444-4444-4444-111111111111',
-    route: '/debt-sale/dashboard',
-    component: 'DebtSaleDashboard',
-    requiresPermission: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-5555-5555-5555-222222222222',
-    code: 'SCREEN_DEBT_DETAIL',
-    name: 'Debt Detail',
-    menuId: '01932e6c-3333-3333-3333-222222222222',
-    tabId: '01932e6c-4444-4444-4444-222222222222',
-    route: '/debt-sale/:id',
-    component: 'DebtDetail',
-    requiresPermission: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-5555-5555-5555-333333333333',
-    code: 'SCREEN_WH_INVENTORY',
-    name: 'Box Inventory',
-    menuId: '01932e6c-3333-3333-3333-333333333333',
-    tabId: '01932e6c-4444-4444-4444-333333333333',
-    route: '/warehouse/inventory',
-    component: 'WarehouseInventory',
-    requiresPermission: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-5555-5555-5555-444444444444',
-    code: 'SCREEN_WH_TRANSFER_REQUEST',
-    name: 'Transfer Request',
-    menuId: '01932e6c-3333-3333-3333-333333333333',
-    tabId: '01932e6c-4444-4444-4444-444444444444',
-    route: '/warehouse/transfer-request',
-    component: 'TransferRequest',
-    requiresPermission: true,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  }
-];
+  { id: 'scr_users', code: 'USERS', name: 'Users List', menuId: 'm_users', tabId: undefined, route: '/admin/permissions/users', component: 'UsersPage', requiresPermission: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'scr_roles', code: 'ROLES', name: 'Roles Matrix', menuId: 'm_roles', tabId: undefined, route: '/admin/permissions/roles', component: 'RolesPage', requiresPermission: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'scr_perm_audit', code: 'PERM_AUDIT', name: 'Permission Audit', menuId: 'm_perms', tabId: undefined, route: '/admin/permissions/audit', component: 'PermissionAuditPage', requiresPermission: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'scr_debt', code: 'DEBT', name: 'Debt Sale', menuId: 'm_debt', tabId: undefined, route: '/admin/debt-sale', component: 'DebtSale', requiresPermission: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+]
 
-// Mock Permissions
+export function buildMenuTree(): MenuTreeNode[] {
+  const nodes: MenuTreeNode[] = menus
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map((m) => ({ ...m, children: [], tabs: mockMenuTabs.filter((t) => t.menuId === m.id) }))
+  return nodes
+}
+
+// --- Permissions ---
+
 export const mockPermissions: Permission[] = [
-  // Debt Sale permissions
-  {
-    id: '01932e6c-6666-6666-6666-111111111111',
-    featureId: 'SCREEN_DEBT_SALE_DASHBOARD',
-    actionCode: 'VIEW_DASHBOARD',
-    actionLabel: 'View Dashboard',
-    description: 'Xem dashboard bán nợ',
-    riskLevel: 'LOW'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-222222222222',
-    featureId: 'SCREEN_DEBT_SALE_DASHBOARD',
-    actionCode: 'APPROVE_DEBT_SALE',
-    actionLabel: 'Approve Debt Sale',
-    description: 'Phê duyệt bán nợ',
-    requires: ['VIEW_DASHBOARD'],
-    riskLevel: 'HIGH'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-333333333333',
-    featureId: 'SCREEN_DEBT_SALE_DASHBOARD',
-    actionCode: 'REJECT_DEBT_SALE',
-    actionLabel: 'Reject Debt Sale',
-    description: 'Từ chối hồ sơ bán nợ',
-    requires: ['VIEW_DASHBOARD'],
-    riskLevel: 'MEDIUM'
-  },
-  // Warehouse permissions
-  {
-    id: '01932e6c-6666-6666-6666-444444444444',
-    featureId: 'SCREEN_WH_INVENTORY',
-    actionCode: 'VIEW_INVENTORY',
-    actionLabel: 'View Inventory',
-    description: 'Xem tồn kho',
-    riskLevel: 'LOW'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-555555555555',
-    featureId: 'SCREEN_WH_INVENTORY',
-    actionCode: 'DELETE_BOX',
-    actionLabel: 'Delete Box',
-    description: 'Xóa hộp hàng',
-    requires: ['VIEW_INVENTORY'],
-    riskLevel: 'CRITICAL'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-666666666666',
-    featureId: 'SCREEN_WH_TRANSFER_REQUEST',
-    actionCode: 'CREATE_REQUEST',
-    actionLabel: 'Create Request',
-    description: 'Tạo phiếu điều chuyển',
-    riskLevel: 'MEDIUM'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-777777777777',
-    featureId: 'SCREEN_WH_TRANSFER_REQUEST',
-    actionCode: 'EDIT_REQUEST',
-    actionLabel: 'Edit Request',
-    description: 'Sửa phiếu điều chuyển',
-    requires: ['CREATE_REQUEST'],
-    riskLevel: 'MEDIUM'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-888888888888',
-    featureId: 'SCREEN_WH_TRANSFER_REQUEST',
-    actionCode: 'CANCEL_REQUEST',
-    actionLabel: 'Cancel Request',
-    description: 'Hủy phiếu điều chuyển',
-    riskLevel: 'MEDIUM'
-  },
-  {
-    id: '01932e6c-6666-6666-6666-999999999999',
-    featureId: 'SCREEN_WH_TRANSFER_REQUEST',
-    actionCode: 'APPROVE_TRANSFER',
-    actionLabel: 'Approve Transfer',
-    description: 'Duyệt phiếu điều chuyển',
-    riskLevel: 'HIGH'
+  { id: 'p_1', featureId: 'USERS', actionCode: 'USER_VIEW', actionLabel: 'View Users', description: 'Can view user list', riskLevel: 'LOW' },
+  { id: 'p_2', featureId: 'USERS', actionCode: 'USER_CREATE', actionLabel: 'Create User', description: 'Can create users', requires: ['USER_VIEW'], riskLevel: 'MEDIUM' },
+  { id: 'p_3', featureId: 'USERS', actionCode: 'USER_EDIT', actionLabel: 'Edit User', description: 'Can edit users', requires: ['USER_VIEW'], riskLevel: 'MEDIUM' },
+  { id: 'p_4', featureId: 'USERS', actionCode: 'USER_DELETE', actionLabel: 'Delete User', description: 'Can delete users', requires: ['USER_VIEW'], riskLevel: 'HIGH' },
+
+  { id: 'p_5', featureId: 'ROLES', actionCode: 'ROLE_VIEW', actionLabel: 'View Roles', riskLevel: 'LOW' },
+  { id: 'p_6', featureId: 'ROLES', actionCode: 'ROLE_MANAGE', actionLabel: 'Manage Roles', requires: ['ROLE_VIEW'], riskLevel: 'HIGH' },
+
+  { id: 'p_7', featureId: 'PERM_AUDIT', actionCode: 'PERMISSION_VIEW', actionLabel: 'View Permissions', riskLevel: 'LOW' },
+  { id: 'p_8', featureId: 'PERM_AUDIT', actionCode: 'PERMISSION_MANAGE', actionLabel: 'Manage Permissions', requires: ['PERMISSION_VIEW'], riskLevel: 'HIGH' },
+
+  { id: 'p_9', featureId: 'DEBT', actionCode: 'DEBT_VIEW', actionLabel: 'View Debt', riskLevel: 'MEDIUM' },
+  { id: 'p_10', featureId: 'DEBT', actionCode: 'DEBT_APPROVE', actionLabel: 'Approve Debt', requires: ['DEBT_VIEW'], riskLevel: 'CRITICAL' },
+]
+
+// Role -> permission codes
+export const mockRolePermissions: Map<string, string[]> = new Map([
+  ['ROLE_ADMIN', mockPermissions.map((p) => p.actionCode)],
+  ['ROLE_MANAGER', ['USER_VIEW', 'USER_EDIT', 'ROLE_VIEW', 'PERMISSION_VIEW', 'DEBT_VIEW']],
+  ['ROLE_USER', ['USER_VIEW']],
+])
+
+// Role -> visible menu codes
+export const mockRoleMenus: Map<string, string[]> = new Map([
+  ['ROLE_ADMIN', ['MENU_USERS', 'MENU_ROLES', 'MENU_PERMISSIONS', 'MENU_DEBT_SALE']],
+  ['ROLE_MANAGER', ['MENU_USERS', 'MENU_ROLES', 'MENU_PERMISSIONS']], // intentionally omits MENU_DEBT_SALE to trigger warning
+  ['ROLE_USER', ['MENU_USERS']],
+])
+
+// User -> role codes
+export const mockUserRoles: Map<string, string[]> = new Map([
+  ['u_1', ['ROLE_ADMIN']],
+  ['u_2', ['ROLE_MANAGER']],
+  ['u_3', ['ROLE_USER']],
+])
+
+// --- Helpers ---
+
+export function getPermissionMatrixForRole(roleCode: string): PermissionMatrix[] {
+  const granted = new Set(mockRolePermissions.get(roleCode) || [])
+  const byFeature = new Map<string, Permission[]>()
+  for (const p of mockPermissions) {
+    const arr = byFeature.get(p.featureId) || []
+    arr.push(p)
+    byFeature.set(p.featureId, arr)
   }
-];
 
-// Mock API Endpoints
-export const mockApiEndpoints: ApiEndpoint[] = [
-  {
-    id: '01932e6c-7777-7777-7777-111111111111',
-    method: HttpMethod.GET,
-    path: '/api/debt-sale/dashboard',
-    tag: 'debt-sale',
-    description: 'Get debt sale dashboard data',
-    requiresAuth: true,
-    isPublic: false,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-7777-7777-7777-222222222222',
-    method: HttpMethod.POST,
-    path: '/api/debt-sale/:id/approve',
-    tag: 'debt-sale',
-    description: 'Approve debt sale',
-    requiresAuth: true,
-    isPublic: false,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-7777-7777-7777-333333333333',
-    method: HttpMethod.GET,
-    path: '/api/warehouse/inventory',
-    tag: 'warehouse',
-    description: 'List inventory items',
-    requiresAuth: true,
-    isPublic: false,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  },
-  {
-    id: '01932e6c-7777-7777-7777-444444444444',
-    method: HttpMethod.DELETE,
-    path: '/api/warehouse/box/:id',
-    tag: 'warehouse',
-    description: 'Delete box',
-    requiresAuth: true,
-    isPublic: false,
-    createdAt: '2025-01-10T08:00:00Z',
-    updatedAt: '2025-01-10T08:00:00Z'
-  }
-];
+  const matrix: PermissionMatrix[] = []
+  byFeature.forEach((perms, featureId) => {
+    const screen = mockMenuScreens.find((s) => s.code === featureId)
+    matrix.push({
+      featureId,
+      featureName: screen?.name || featureId,
+      actions: perms.map((permission) => ({ permission, granted: granted.has(permission.actionCode) })),
+    })
+  })
+  return matrix
+}
 
-// Mock user-role relationships
-export const mockUserRoles = new Map<string, string[]>([
-  ['01932e6c-7890-7890-8901-111111111111', ['ROLE_DEBT_SALE_MGR', 'ROLE_CASE_VIEWER']],
-  ['01932e6c-7890-7890-8901-222222222222', ['ROLE_CASE_VIEWER']],
-  ['01932e6c-7890-7890-8901-333333333333', ['ROLE_WH_ADMIN']],
-  ['01932e6c-7890-7890-8901-444444444444', ['ROLE_CASE_VIEWER']]
-]);
-
-// Mock user-group relationships
-export const mockUserGroups = new Map<string, string[]>([
-  ['01932e6c-7890-7890-8901-111111111111', ['TEAM_DV', 'TEAM_ORC']],
-  ['01932e6c-7890-7890-8901-222222222222', ['TEAM_ORC']],
-  ['01932e6c-7890-7890-8901-333333333333', ['TEAM_WH', 'TEAM_WH_NORTH']],
-  ['01932e6c-7890-7890-8901-444444444444', ['TEAM_DV']]
-]);
-
-// Mock role-permission relationships
-export const mockRolePermissions = new Map<string, string[]>([
-  ['ROLE_ADMIN', mockPermissions.map(p => p.actionCode)],
-  ['ROLE_DEBT_SALE_MGR', ['VIEW_DASHBOARD', 'APPROVE_DEBT_SALE', 'REJECT_DEBT_SALE']],
-  ['ROLE_WH_ADMIN', ['VIEW_INVENTORY', 'DELETE_BOX', 'CREATE_REQUEST', 'EDIT_REQUEST', 'CANCEL_REQUEST', 'APPROVE_TRANSFER']],
-  ['ROLE_CASE_VIEWER', ['VIEW_DASHBOARD']]
-]);
-
-// Mock role-menu relationships
-export const mockRoleMenus = new Map<string, string[]>([
-  ['ROLE_ADMIN', mockMenus.map(m => m.code)],
-  ['ROLE_DEBT_SALE_MGR', ['MENU_DASHBOARD', 'MENU_DEBT_SALE']],
-  ['ROLE_WH_ADMIN', ['MENU_DASHBOARD', 'MENU_WAREHOUSE']],
-  ['ROLE_CASE_VIEWER', ['MENU_DASHBOARD', 'MENU_DEBT_SALE']]
-]);
-
-// Helper function to get user with roles
 export function getUserWithRoles(userId: string): UserWithRoles | null {
-  const user = mockUsers.find(u => u.id === userId);
-  if (!user) return null;
+  const user = mockUsers.find((u) => u.id === userId)
+  if (!user) return null
+  const roleCodes = mockUserRoles.get(userId) || []
+  const roles = mockRoles.filter((r) => roleCodes.includes(r.code))
 
-  const roleCodes = mockUserRoles.get(userId) || [];
-  const roles = mockRoles.filter(r => roleCodes.includes(r.code));
+  // Effective menus
+  const menuCodes = new Set<string>()
+  for (const rc of roleCodes) {
+    (mockRoleMenus.get(rc) || []).forEach((c) => menuCodes.add(c))
+  }
+  const menuList = buildMenuTree().filter((m) => menuCodes.has(m.code))
 
-  const groupCodes = mockUserGroups.get(userId) || [];
-  const groups = mockGroups.filter(g => groupCodes.includes(g.code));
+  // Effective permissions
+  const permCodes = new Set<string>()
+  for (const rc of roleCodes) {
+    ;(mockRolePermissions.get(rc) || []).forEach((c) => permCodes.add(c))
+  }
+  const perms = mockPermissions.filter((p) => permCodes.has(p.actionCode))
 
-  // Get effective menus from all roles
-  const effectiveMenuCodes = new Set<string>();
-  roles.forEach(role => {
-    const menuCodes = mockRoleMenus.get(role.code) || [];
-    menuCodes.forEach(code => effectiveMenuCodes.add(code));
-  });
-  const effectiveMenus = mockMenus.filter(m => effectiveMenuCodes.has(m.code));
-
-  // Get effective permissions from all roles
-  const effectivePermissionCodes = new Set<string>();
-  roles.forEach(role => {
-    const permCodes = mockRolePermissions.get(role.code) || [];
-    permCodes.forEach(code => effectivePermissionCodes.add(code));
-  });
-  const effectivePermissions = mockPermissions.filter(p =>
-    effectivePermissionCodes.has(p.actionCode)
-  );
-
-  return {
+  const userWithRoles: UserWithRoles = {
     ...user,
     roles,
-    groups,
-    effectiveMenus,
-    effectivePermissions
-  };
+    groups: mockGroups,
+    effectiveMenus: menuList,
+    effectivePermissions: perms,
+  }
+  return userWithRoles
 }
 
-// Helper function to build menu tree
-export function buildMenuTree(): MenuTreeNode[] {
-  const menuMap = new Map<string, MenuTreeNode>();
-
-  // Initialize all menus
-  mockMenus.forEach(menu => {
-    menuMap.set(menu.id, {
-      ...menu,
-      children: [],
-      tabs: [],
-      screens: []
-    });
-  });
-
-  // Add tabs to menus
-  mockMenuTabs.forEach(tab => {
-    const menu = menuMap.get(tab.menuId);
-    if (menu) {
-      menu.tabs!.push(tab);
-    }
-  });
-
-  // Add screens to menus
-  mockMenuScreens.forEach(screen => {
-    if (screen.menuId) {
-      const menu = menuMap.get(screen.menuId);
-      if (menu) {
-        menu.screens!.push(screen);
-      }
-    }
-  });
-
-  // Build tree (only root level menus for now)
-  return Array.from(menuMap.values()).filter(m => !m.parentId);
-}
-
-// Helper function to get permission matrix for a role
-export function getPermissionMatrixForRole(roleCode: string): PermissionMatrix[] {
-  const permissionCodes = mockRolePermissions.get(roleCode) || [];
-
-  // Group permissions by feature
-  const featureMap = new Map<string, PermissionMatrix>();
-
-  mockPermissions.forEach(permission => {
-    if (!featureMap.has(permission.featureId)) {
-      const screen = mockMenuScreens.find(s => s.code === permission.featureId);
-      featureMap.set(permission.featureId, {
-        featureId: permission.featureId,
-        featureName: screen?.name || permission.featureId,
-        actions: []
-      });
-    }
-
-    const matrix = featureMap.get(permission.featureId)!;
-    matrix.actions.push({
-      permission,
-      granted: permissionCodes.includes(permission.actionCode)
-    });
-  });
-
-  return Array.from(featureMap.values());
-}

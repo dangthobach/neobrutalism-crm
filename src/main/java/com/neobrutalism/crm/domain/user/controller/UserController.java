@@ -4,8 +4,9 @@ import com.neobrutalism.crm.common.dto.ApiResponse;
 import com.neobrutalism.crm.common.dto.PageResponse;
 import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
 import com.neobrutalism.crm.common.util.SortValidator;
-import com.neobrutalism.crm.domain.user.dto.UserRequest;
-import com.neobrutalism.crm.domain.user.dto.UserResponse;
+import com.neobrutalism.crm.domain.menu.dto.UserMenuResponse;
+import com.neobrutalism.crm.domain.menu.service.MenuRenderingService;
+import com.neobrutalism.crm.domain.user.dto.*;
 import com.neobrutalism.crm.domain.user.model.User;
 import com.neobrutalism.crm.domain.user.model.UserStatus;
 import com.neobrutalism.crm.domain.user.service.UserService;
@@ -35,6 +36,7 @@ public class UserController {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final MenuRenderingService menuRenderingService;
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieve all active users with pagination")
@@ -196,5 +198,60 @@ public class UserController {
     public ApiResponse<Boolean> checkEmail(@PathVariable String email) {
         boolean exists = userService.existsByEmail(email);
         return ApiResponse.success(!exists); // Return true if available (not exists)
+    }
+
+    @PostMapping("/search")
+    @Operation(summary = "Search users", description = "Search and filter users with advanced criteria")
+    public ApiResponse<PageResponse<UserResponse>> searchUsers(@Valid @RequestBody UserSearchRequest request) {
+        String validatedSortBy = SortValidator.validateUserSortField(request.getSortBy());
+        Sort.Direction direction = Sort.Direction.fromString(request.getSortDirection());
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by(direction, validatedSortBy));
+
+        Page<User> userPage = userService.search(request, pageable);
+        Page<UserResponse> responsePage = userPage.map(UserResponse::from);
+
+        return ApiResponse.success(PageResponse.from(responsePage));
+    }
+
+    @PostMapping("/{id}/restore")
+    @Operation(summary = "Restore deleted user", description = "Restore a soft-deleted user")
+    public ApiResponse<UserResponse> restoreUser(@PathVariable UUID id) {
+        User restored = userService.restore(id);
+        return ApiResponse.success("User restored successfully", UserResponse.from(restored));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user profile", description = "Get the profile of the currently authenticated user")
+    public ApiResponse<UserResponse> getCurrentUserProfile() {
+        User user = userService.getCurrentUserEntity();
+        return ApiResponse.success(UserResponse.from(user));
+    }
+
+    @PutMapping("/me/profile")
+    @Operation(summary = "Update current user profile", description = "Update the profile of the currently authenticated user")
+    public ApiResponse<UserResponse> updateCurrentUserProfile(@Valid @RequestBody UserProfileUpdateRequest request) {
+        User user = userService.getCurrentUserEntity();
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setAvatar(request.getAvatar());
+
+        User updated = userService.update(user.getId(), user);
+        return ApiResponse.success("Profile updated successfully", UserResponse.from(updated));
+    }
+
+    @GetMapping("/me/menus")
+    @Operation(summary = "Get current user's menus", description = "Get the menu tree with permissions for the currently authenticated user")
+    public ApiResponse<List<UserMenuResponse>> getCurrentUserMenus() {
+        User user = userService.getCurrentUserEntity();
+        List<UserMenuResponse> menus = menuRenderingService.getUserMenuTree(user.getId());
+        return ApiResponse.success(menus);
+    }
+
+    @GetMapping("/{id}/menus")
+    @Operation(summary = "Get user's menus", description = "Get the menu tree with permissions for a specific user")
+    public ApiResponse<List<UserMenuResponse>> getUserMenus(@PathVariable UUID id) {
+        List<UserMenuResponse> menus = menuRenderingService.getUserMenuTree(id);
+        return ApiResponse.success(menus);
     }
 }
