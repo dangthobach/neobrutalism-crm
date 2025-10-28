@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpDown, Eye, Trash2, Search, Loader2 } from "lucide-react"
+import { ArrowUpDown, Eye, Trash2, Search, Loader2, Shield, Users } from "lucide-react"
 import { format } from "date-fns"
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers"
 import { User, CreateUserRequest, UpdateUserRequest } from "@/lib/api/users"
@@ -138,6 +138,22 @@ export default function UsersPage() {
             </Button>
             <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
               Edit
+            </Button>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => window.location.href = `/admin/users/${row.original.id}/roles`}
+              title="Manage Roles"
+            >
+              <Shield className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => window.location.href = `/admin/users/${row.original.id}/groups`}
+              title="Manage Groups"
+            >
+              <Users className="h-4 w-4" />
             </Button>
             <Button variant="noShadow" size="sm" onClick={() => onDelete(row.original.id)}>
               <Trash2 className="h-4 w-4" />

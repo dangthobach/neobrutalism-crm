@@ -7,22 +7,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Shield, Settings } from "lucide-react"
-import { useRoles, useCreateRole, useUpdateRole, useDeleteRole, useActivateRole, useSuspendRole } from "@/hooks/useRoles"
-import { Role, RoleStatus } from "@/lib/api/roles"
+import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Users, Shield, UserPlus } from "lucide-react"
+import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup, useActivateGroup, useSuspendGroup } from "@/hooks/useGroups"
+import { Group, GroupStatus } from "@/lib/api/groups"
 
-type RoleFormData = Omit<Role, 'id' | 'deleted' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'> & { id?: string }
+type GroupFormData = Omit<Group, 'id' | 'deleted' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'path' | 'level'> & { id?: string }
 
-export default function RolesPage() {
+export default function GroupsPage() {
   const [globalFilter, setGlobalFilter] = useState("")
   const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<RoleFormData | null>(null)
+  const [editing, setEditing] = useState<GroupFormData | null>(null)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
-  // Fetch roles with React Query
-  const { data: rolesData, isLoading, error, refetch } = useRoles({
+  // Fetch groups with React Query
+  const { data: groupsData, isLoading, error, refetch } = useGroups({
     page: pagination.pageIndex,
     size: pagination.pageSize,
     sortBy: sorting[0]?.id || "name",
@@ -30,16 +30,16 @@ export default function RolesPage() {
   })
 
   // Mutations
-  const createMutation = useCreateRole()
-  const updateMutation = useUpdateRole()
-  const deleteMutation = useDeleteRole()
-  const activateMutation = useActivateRole()
-  const suspendMutation = useSuspendRole()
+  const createMutation = useCreateGroup()
+  const updateMutation = useUpdateGroup()
+  const deleteMutation = useDeleteGroup()
+  const activateMutation = useActivateGroup()
+  const suspendMutation = useSuspendGroup()
 
-  const roles = rolesData?.content || []
-  const totalPages = rolesData?.totalPages || 0
+  const groups = groupsData?.content || []
+  const totalPages = groupsData?.totalPages || 0
 
-  const columns = useMemo<ColumnDef<Role>[]>(
+  const columns = useMemo<ColumnDef<Group>[]>(
     () => [
       {
         accessorKey: "code",
@@ -74,28 +74,23 @@ export default function RolesPage() {
         header: "Description",
       },
       {
-        accessorKey: "priority",
-        header: ({ column }) => {
-          return (
-            <button
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              className="flex items-center hover:opacity-80 p-0 h-auto font-heading bg-transparent border-0 cursor-pointer"
-            >
-              Priority
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </button>
-          )
-        },
+        accessorKey: "level",
+        header: "Level",
+        cell: ({ row }) => (
+          <span className="px-2 py-1 border-2 border-black text-xs font-base bg-blue-100">
+            {row.getValue("level")}
+          </span>
+        ),
       },
       {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => {
-          const status = row.getValue("status") as RoleStatus
+          const status = row.getValue("status") as GroupStatus
           const colors = {
-            [RoleStatus.ACTIVE]: "bg-green-500",
-            [RoleStatus.INACTIVE]: "bg-yellow-500",
-            [RoleStatus.SUSPENDED]: "bg-red-500",
+            [GroupStatus.ACTIVE]: "bg-green-500",
+            [GroupStatus.INACTIVE]: "bg-yellow-500",
+            [GroupStatus.SUSPENDED]: "bg-red-500",
           }
           return (
             <span className={`px-2 py-1 border-2 border-black text-xs font-base ${colors[status]} text-white`}>
@@ -105,27 +100,16 @@ export default function RolesPage() {
         },
       },
       {
-        accessorKey: "isSystem",
-        header: "System",
-        cell: ({ row }) => (
-          <div className="flex justify-center">
-            {row.getValue("isSystem") ? (
-              <Shield className="h-4 w-4 text-main" />
-            ) : null}
-          </div>
-        ),
-      },
-      {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => {
-          const role = row.original
+          const group = row.original
           return (
             <div className="flex gap-2">
               <Button
                 variant="noShadow"
                 size="sm"
-                onClick={() => onEdit(role)}
+                onClick={() => onEdit(group)}
                 disabled={createMutation.isPending || updateMutation.isPending}
               >
                 Edit
@@ -133,17 +117,24 @@ export default function RolesPage() {
               <Button
                 variant="noShadow"
                 size="sm"
-                onClick={() => window.location.href = `/admin/roles/${role.id}/permissions`}
-                title="Manage Permissions"
-                className="bg-blue-500 text-white border-2 border-black"
+                onClick={() => window.location.href = `/admin/groups/${group.id}/members`}
+                title="Manage Members"
               >
-                <Settings className="h-3 w-3" />
+                <UserPlus className="h-3 w-3" />
               </Button>
-              {role.status === RoleStatus.ACTIVE ? (
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => window.location.href = `/admin/groups/${group.id}/roles`}
+                title="Manage Roles"
+              >
+                <Shield className="h-3 w-3" />
+              </Button>
+              {group.status === GroupStatus.ACTIVE ? (
                 <Button
                   variant="noShadow"
                   size="sm"
-                  onClick={() => onSuspend(role.id)}
+                  onClick={() => onSuspend(group.id)}
                   disabled={suspendMutation.isPending}
                   className="bg-yellow-500 text-white border-2 border-black"
                   title="Suspend"
@@ -158,7 +149,7 @@ export default function RolesPage() {
                 <Button
                   variant="noShadow"
                   size="sm"
-                  onClick={() => onActivate(role.id)}
+                  onClick={() => onActivate(group.id)}
                   disabled={activateMutation.isPending}
                   className="bg-green-500 text-white border-2 border-black"
                   title="Activate"
@@ -173,10 +164,10 @@ export default function RolesPage() {
               <Button
                 variant="noShadow"
                 size="sm"
-                onClick={() => onDelete(role.id)}
-                disabled={deleteMutation.isPending || role.isSystem}
-                className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
-                title={role.isSystem ? "Cannot delete system role" : "Delete"}
+                onClick={() => onDelete(group.id)}
+                disabled={deleteMutation.isPending}
+                className="bg-red-500 text-white border-2 border-black"
+                title="Delete"
               >
                 {deleteMutation.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -193,7 +184,7 @@ export default function RolesPage() {
   )
 
   const table = useReactTable({
-    data: roles,
+    data: groups,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -209,16 +200,15 @@ export default function RolesPage() {
     pageCount: totalPages,
   })
 
-  function onEdit(role: Role) {
+  function onEdit(group: Group) {
     setEditing({
-      id: role.id,
-      code: role.code,
-      name: role.name,
-      description: role.description,
-      organizationId: role.organizationId,
-      isSystem: role.isSystem,
-      priority: role.priority,
-      status: role.status,
+      id: group.id,
+      code: group.code,
+      name: group.name,
+      description: group.description,
+      parentId: group.parentId,
+      organizationId: group.organizationId,
+      status: group.status,
     })
     setOpen(true)
   }
@@ -228,39 +218,36 @@ export default function RolesPage() {
       code: "",
       name: "",
       description: "",
+      parentId: undefined,
       organizationId: "018e0010-0000-0000-0000-000000000001", // Default organization ID
-      isSystem: false,
-      priority: 50,
-      status: RoleStatus.ACTIVE,
+      status: GroupStatus.ACTIVE,
     })
     setOpen(true)
   }
 
-  async function saveRole() {
+  async function saveGroup() {
     if (!editing) return
 
     if (editing.id) {
-      // Update existing role
+      // Update existing group
       await updateMutation.mutateAsync({
         id: editing.id,
         data: {
           code: editing.code,
           name: editing.name,
           description: editing.description,
+          parentId: editing.parentId || undefined,
           organizationId: editing.organizationId,
-          isSystem: editing.isSystem,
-          priority: editing.priority,
         },
       })
     } else {
-      // Create new role
+      // Create new group
       await createMutation.mutateAsync({
         code: editing.code,
         name: editing.name,
         description: editing.description,
+        parentId: editing.parentId || undefined,
         organizationId: editing.organizationId,
-        isSystem: editing.isSystem,
-        priority: editing.priority,
       })
     }
 
@@ -270,7 +257,7 @@ export default function RolesPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this role?")) return
+    if (!confirm("Are you sure you want to delete this group?")) return
     await deleteMutation.mutateAsync(id)
     refetch()
   }
@@ -289,10 +276,10 @@ export default function RolesPage() {
     return (
       <div className="space-y-4">
         <header className="border-4 border-black bg-main text-main-foreground p-4 shadow-[8px_8px_0_#000]">
-          <h1 className="text-2xl font-heading">Roles</h1>
+          <h1 className="text-2xl font-heading">Groups</h1>
         </header>
         <div className="border-4 border-black bg-background p-12 shadow-[8px_8px_0_#000] text-center">
-          <p className="text-lg font-base text-red-500">Error loading roles: {(error as Error).message}</p>
+          <p className="text-lg font-base text-red-500">Error loading groups: {(error as Error).message}</p>
           <Button onClick={() => refetch()} className="mt-4">Retry</Button>
         </div>
       </div>
@@ -304,14 +291,14 @@ export default function RolesPage() {
       <header className="border-4 border-black bg-main text-main-foreground p-4 shadow-[8px_8px_0_#000]">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-heading">Roles</h1>
+            <h1 className="text-2xl font-heading">Groups</h1>
             <p className="text-sm font-base mt-1 opacity-90">
-              Manage user roles and permissions
+              Manage organizational groups and teams
             </p>
           </div>
           <Button onClick={onCreate} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
-            <Shield className="h-4 w-4 mr-2" />
-            Add Role
+            <Users className="h-4 w-4 mr-2" />
+            Add Group
           </Button>
         </div>
       </header>
@@ -321,7 +308,7 @@ export default function RolesPage() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/50" />
             <Input
-              placeholder="Search roles..."
+              placeholder="Search groups..."
               value={globalFilter ?? ""}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className="pl-10 border-2 border-black font-base"
@@ -332,7 +319,7 @@ export default function RolesPage() {
         {isLoading ? (
           <div className="text-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-lg font-base">Loading roles...</p>
+            <p className="text-lg font-base">Loading groups...</p>
           </div>
         ) : (
           <>
@@ -362,7 +349,7 @@ export default function RolesPage() {
                   {!table.getRowModel().rows.length && (
                     <TableRow>
                       <TableCell colSpan={columns.length} className="text-center py-8">
-                        <p className="font-base text-foreground/60">No roles found</p>
+                        <p className="font-base text-foreground/60">No groups found</p>
                       </TableCell>
                     </TableRow>
                   )}
@@ -400,7 +387,7 @@ export default function RolesPage() {
         <DialogContent className="border-4 border-black shadow-[8px_8px_0_#000] max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">
-              {editing?.id ? "Edit Role" : "Create Role"}
+              {editing?.id ? "Edit Group" : "Create Group"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -409,9 +396,9 @@ export default function RolesPage() {
                 <Label htmlFor="code" className="font-base">Code *</Label>
                 <Input
                   id="code"
-                  placeholder="ROLE_CODE"
+                  placeholder="GROUP_CODE"
                   value={editing?.code ?? ""}
-                  onChange={(e) => setEditing((u) => ({ ...(u as RoleFormData), code: e.target.value.toUpperCase() }))}
+                  onChange={(e) => setEditing((u) => ({ ...(u as GroupFormData), code: e.target.value.toUpperCase() }))}
                   className="border-2 border-black"
                   disabled={!!editing?.id}
                 />
@@ -420,9 +407,9 @@ export default function RolesPage() {
                 <Label htmlFor="name" className="font-base">Name *</Label>
                 <Input
                   id="name"
-                  placeholder="Role Name"
+                  placeholder="Group Name"
                   value={editing?.name ?? ""}
-                  onChange={(e) => setEditing((u) => ({ ...(u as RoleFormData), name: e.target.value }))}
+                  onChange={(e) => setEditing((u) => ({ ...(u as GroupFormData), name: e.target.value }))}
                   className="border-2 border-black"
                 />
               </div>
@@ -431,21 +418,20 @@ export default function RolesPage() {
               <Label htmlFor="description" className="font-base">Description</Label>
               <Input
                 id="description"
-                placeholder="Role description"
+                placeholder="Group description"
                 value={editing?.description ?? ""}
-                onChange={(e) => setEditing((u) => ({ ...(u as RoleFormData), description: e.target.value }))}
+                onChange={(e) => setEditing((u) => ({ ...(u as GroupFormData), description: e.target.value }))}
                 className="border-2 border-black"
               />
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="priority" className="font-base">Priority</Label>
+                <Label htmlFor="parentId" className="font-base">Parent Group ID (Optional)</Label>
                 <Input
-                  id="priority"
-                  type="number"
-                  placeholder="50"
-                  value={editing?.priority ?? 50}
-                  onChange={(e) => setEditing((u) => ({ ...(u as RoleFormData), priority: Number(e.target.value) }))}
+                  id="parentId"
+                  placeholder="Leave empty for root group"
+                  value={editing?.parentId ?? ""}
+                  onChange={(e) => setEditing((u) => ({ ...(u as GroupFormData), parentId: e.target.value || undefined }))}
                   className="border-2 border-black"
                 />
               </div>
@@ -455,7 +441,7 @@ export default function RolesPage() {
                   id="organizationId"
                   placeholder="Organization ID"
                   value={editing?.organizationId ?? ""}
-                  onChange={(e) => setEditing((u) => ({ ...(u as RoleFormData), organizationId: e.target.value }))}
+                  onChange={(e) => setEditing((u) => ({ ...(u as GroupFormData), organizationId: e.target.value }))}
                   className="border-2 border-black"
                 />
               </div>
@@ -474,7 +460,7 @@ export default function RolesPage() {
             </Button>
             <Button
               variant="noShadow"
-              onClick={saveRole}
+              onClick={saveGroup}
               disabled={createMutation.isPending || updateMutation.isPending}
               className="border-2 border-black bg-main text-main-foreground"
             >

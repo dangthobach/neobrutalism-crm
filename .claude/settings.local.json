@@ -46,7 +46,10 @@
       "Bash(npm install:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(find:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(node -e:*)",
+      "Bash(mvn:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
