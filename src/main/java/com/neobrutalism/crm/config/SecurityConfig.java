@@ -5,6 +5,7 @@ import com.neobrutalism.crm.common.security.CustomUserDetailsService;
 import com.neobrutalism.crm.common.security.JwtAuthenticationEntryPoint;
 import com.neobrutalism.crm.common.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -41,7 +42,10 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomUserDetailsService customUserDetailsService;
-    private final RateLimitFilter rateLimitFilter;
+
+    // Optional: Rate limiting filter (only available when rate-limit.enabled=true)
+    @Autowired(required = false)
+    private RateLimitFilter rateLimitFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -69,11 +73,15 @@ public class SecurityConfig {
 
                         // All other requests require authentication
                         .anyRequest().authenticated()
-                )
-                // Rate limiting filter - applied first to check rate limits before authentication
-                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-                // JWT authentication filter
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                );
+
+        // Add rate limiting filter if enabled (requires Redis)
+        if (rateLimitFilter != null) {
+            http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+
+        // JWT authentication filter
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Allow H2 console iframe
         http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));

@@ -93,6 +93,10 @@ multitenancy:
   default-tenant: default  # Default tenant ID for development
   tenant-header: X-Tenant-ID  # HTTP header name for tenant ID
 
+# Rate Limiting (disabled for development - requires Redis)
+rate-limit:
+  enabled: false
+
 # Actuator configuration
 management:
   endpoints:
