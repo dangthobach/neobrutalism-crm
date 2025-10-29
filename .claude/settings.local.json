@@ -46,8 +46,15 @@
       "Bash(npm install:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(find:*)",
+<<<<<<< HEAD
       "Bash(timeout /t 20)",
       "Bash(del \"C:\\Project\\neobrutalism-crm\\src\\main\\java\\com\\neobrutalism\\crm\\common\\security\\controller\\AuthenticationController.java\")"
+=======
+      "Bash(dir:*)",
+      "Bash(node -e:*)",
+      "Bash(mvn:*)",
+      "Bash(timeout:*)"
+>>>>>>> bd74a969c299011a688b90039159e289acc3685b
     ],
     "deny": [],
     "ask": []

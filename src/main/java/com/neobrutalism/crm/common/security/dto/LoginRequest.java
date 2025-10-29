@@ -20,4 +20,6 @@ public class LoginRequest {
     private String password;
 
     private String tenantId;
+    
+    private Boolean rememberMe = false;
 }

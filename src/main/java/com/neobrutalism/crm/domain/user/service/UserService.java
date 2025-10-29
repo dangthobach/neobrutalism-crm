@@ -1,14 +1,23 @@
 package com.neobrutalism.crm.domain.user.service;
 
+import com.neobrutalism.crm.common.exception.BusinessException;
+import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
 import com.neobrutalism.crm.common.service.EventPublisher;
 import com.neobrutalism.crm.common.service.StatefulService;
+import com.neobrutalism.crm.domain.user.dto.UserSearchRequest;
 import com.neobrutalism.crm.domain.user.event.UserDeletedEvent;
 import com.neobrutalism.crm.domain.user.event.UserUpdatedEvent;
 import com.neobrutalism.crm.domain.user.model.User;
 import com.neobrutalism.crm.domain.user.model.UserStatus;
 import com.neobrutalism.crm.domain.user.repository.UserRepository;
+import com.neobrutalism.crm.domain.user.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -214,5 +223,43 @@ public class UserService extends StatefulService<User, UserStatus> {
     @Transactional
     public void delete(User entity) {
         deleteWithIntegrityCheck(entity, "related entities (roles, groups, etc.)");
+    }
+
+    /**
+     * Search users with dynamic filters
+     */
+    public Page<User> search(UserSearchRequest request, Pageable pageable) {
+        Specification<User> spec = UserSpecification.fromSearchRequest(request);
+        return userRepository.findAll(spec, pageable);
+    }
+
+    /**
+     * Get current authenticated user entity
+     */
+    public User getCurrentUserEntity() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new BusinessException("No authenticated user found");
+        }
+
+        String username = authentication.getName();
+        return findByUsername(username)
+                .orElseThrow(() -> ResourceNotFoundException.forResourceByField("User", "username", username));
+    }
+
+    /**
+     * Override to get current username from security context
+     */
+    @Override
+    protected String getCurrentUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                return authentication.getName();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get current user from security context", e);
+        }
+        return "system";
     }
 }

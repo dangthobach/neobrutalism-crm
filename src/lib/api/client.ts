@@ -59,7 +59,8 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount = 0
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`
     const token = this.getAccessToken()
@@ -87,6 +88,22 @@ class ApiClient {
 
       // Handle HTTP errors
       if (!response.ok) {
+        // Handle 401 Unauthorized - try to refresh token
+        if (response.status === 401 && retryCount === 0 && token) {
+          try {
+            await this.refreshToken()
+            // Retry the request with new token
+            return this.request(endpoint, options, retryCount + 1)
+          } catch (refreshError) {
+            // If refresh fails, clear tokens and redirect to login
+            this.setAccessToken(null)
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('refresh_token')
+              window.location.href = '/login'
+            }
+          }
+        }
+
         throw new ApiError(
           response.status,
           data.code || 'UNKNOWN_ERROR',
@@ -107,6 +124,42 @@ class ApiClient {
         'NETWORK_ERROR',
         error instanceof Error ? error.message : 'Network error occurred'
       )
+    }
+  }
+
+  private async refreshToken(): Promise<void> {
+    const refreshTokenValue = typeof window !== 'undefined' 
+      ? localStorage.getItem('refresh_token') 
+      : null
+    
+    if (!refreshTokenValue) {
+      throw new Error('No refresh token available')
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken: refreshTokenValue }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed')
+      }
+
+      const data = await response.json()
+      
+      if (data.data) {
+        this.setAccessToken(data.data.accessToken)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('refresh_token', data.data.refreshToken)
+        }
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      throw error
     }
   }
 

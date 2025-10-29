@@ -8,6 +8,7 @@ import com.neobrutalism.crm.domain.apiendpoint.dto.ApiEndpointRequest;
 import com.neobrutalism.crm.domain.apiendpoint.dto.ApiEndpointResponse;
 import com.neobrutalism.crm.domain.apiendpoint.model.ApiEndpoint;
 import com.neobrutalism.crm.domain.apiendpoint.service.ApiEndpointService;
+import com.neobrutalism.crm.domain.apiendpoint.service.EndpointDiscoveryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,6 +33,7 @@ import java.util.UUID;
 public class ApiEndpointController {
 
     private final ApiEndpointService apiEndpointService;
+    private final EndpointDiscoveryService endpointDiscoveryService;
 
     @GetMapping
     @Operation(summary = "Get all API endpoints", description = "Retrieve all API endpoints with pagination")
@@ -127,5 +129,22 @@ public class ApiEndpointController {
     public ApiResponse<Void> deleteApiEndpoint(@PathVariable UUID id) {
         apiEndpointService.deleteById(id);
         return ApiResponse.success("API endpoint deleted successfully");
+    }
+
+    @PostMapping("/scan")
+    @Operation(summary = "Scan and register endpoints", description = "Auto-discover and register all API endpoints from Spring controllers")
+    public ApiResponse<java.util.Map<String, Object>> scanAndRegisterEndpoints() {
+        java.util.Map<String, Object> result = endpointDiscoveryService.scanAndRegisterEndpoints();
+        return ApiResponse.success("Endpoint discovery completed", result);
+    }
+
+    @GetMapping("/unassigned")
+    @Operation(summary = "Get unassigned endpoints", description = "Get API endpoints not yet assigned to any screen")
+    public ApiResponse<List<ApiEndpointResponse>> getUnassignedEndpoints() {
+        List<ApiEndpoint> endpoints = endpointDiscoveryService.getUnassignedEndpoints();
+        List<ApiEndpointResponse> responses = endpoints.stream()
+                .map(ApiEndpointResponse::from)
+                .toList();
+        return ApiResponse.success(responses);
     }
 }

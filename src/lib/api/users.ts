@@ -62,6 +62,29 @@ export interface UserQueryParams {
   sortDirection?: 'ASC' | 'DESC'
 }
 
+export interface UserSearchRequest {
+  keyword?: string
+  username?: string
+  email?: string
+  firstName?: string
+  lastName?: string
+  organizationId?: string
+  status?: UserStatus
+  tenantId?: string
+  includeDeleted?: boolean
+  page?: number
+  size?: number
+  sortBy?: string
+  sortDirection?: 'ASC' | 'DESC'
+}
+
+export interface UserProfileUpdateRequest {
+  firstName: string
+  lastName: string
+  phone?: string
+  avatar?: string
+}
+
 export class UserApi {
   /**
    * Get all users with pagination
@@ -228,6 +251,50 @@ export class UserApi {
   async checkEmail(email: string): Promise<boolean> {
     const response = await apiClient.get<boolean>(`/users/check-email/${email}`)
     return response.data ?? false
+  }
+
+  /**
+   * Search users with advanced filters
+   */
+  async searchUsers(request: UserSearchRequest): Promise<PageResponse<User>> {
+    const response = await apiClient.post<PageResponse<User>>('/users/search', request)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
+    return response.data
+  }
+
+  /**
+   * Restore deleted user
+   */
+  async restoreUser(id: string): Promise<User> {
+    const response = await apiClient.post<User>(`/users/${id}/restore`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
+    return response.data
+  }
+
+  /**
+   * Get current user profile
+   */
+  async getCurrentUserProfile(): Promise<User> {
+    const response = await apiClient.get<User>('/users/me')
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
+    return response.data
+  }
+
+  /**
+   * Update current user profile
+   */
+  async updateCurrentUserProfile(request: UserProfileUpdateRequest): Promise<User> {
+    const response = await apiClient.put<User>('/users/me/profile', request)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
+    return response.data
   }
 }
 
