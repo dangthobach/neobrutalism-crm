@@ -1,5 +1,6 @@
 package com.neobrutalism.crm.config;
 
+import com.neobrutalism.crm.common.filter.RateLimitFilter;
 import com.neobrutalism.crm.common.security.CustomUserDetailsService;
 import com.neobrutalism.crm.common.security.JwtAuthenticationEntryPoint;
 import com.neobrutalism.crm.common.security.JwtAuthenticationFilter;
@@ -29,7 +30,7 @@ import java.util.List;
 
 /**
  * Security Configuration
- * Configures Spring Security with JWT authentication and Casbin authorization
+ * Configures Spring Security with JWT authentication, rate limiting, and Casbin authorization
  */
 @Configuration
 @EnableWebSecurity
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomUserDetailsService customUserDetailsService;
+    private final RateLimitFilter rateLimitFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -68,6 +70,9 @@ public class SecurityConfig {
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
+                // Rate limiting filter - applied first to check rate limits before authentication
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                // JWT authentication filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Allow H2 console iframe

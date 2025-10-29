@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { LayoutDashboard, Users, Shield, Lock, Building2, Menu, ChevronLeft, LogOut, UsersRound, List } from "lucide-react"
+import { LayoutDashboard, Users, Shield, Lock, Building2, Menu, ChevronLeft, LogOut, UsersRound, List, Network, Layers, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -16,6 +16,9 @@ const menuItems = [
   { href: "/admin/roles", icon: Shield, label: "Roles" },
   { href: "/admin/groups", icon: UsersRound, label: "Groups" },
   { href: "/admin/menus", icon: List, label: "Menus" },
+  { href: "/admin/menu-tabs", icon: Layers, label: "Menu Tabs" },
+  { href: "/admin/menu-screens", icon: Monitor, label: "Menu Screens" },
+  { href: "/admin/api-endpoints", icon: Network, label: "API Endpoints" },
   { href: "/admin/permissions", icon: Lock, label: "Permissions" },
 ]
 
