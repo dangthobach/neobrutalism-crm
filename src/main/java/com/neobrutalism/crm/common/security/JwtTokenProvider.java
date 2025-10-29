@@ -38,7 +38,7 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Generate access token
+     * Generate access token (original version with Map claims)
      */
     public String generateAccessToken(UUID userId, String username, String tenantId, Map<String, Object> claims) {
         Instant now = Instant.now();
@@ -62,7 +62,17 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Generate refresh token
+     * Generate access token with roles (new version)
+     */
+    public String generateAccessToken(UUID userId, String username, String email, String tenantId, java.util.Set<String> roles) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", email);
+        claims.put("roles", roles);
+        return generateAccessToken(userId, username, tenantId, claims);
+    }
+
+    /**
+     * Generate refresh token (original version)
      */
     public String generateRefreshToken(UUID userId, String tenantId) {
         Instant now = Instant.now();
@@ -79,6 +89,41 @@ public class JwtTokenProvider {
                 .expiration(Date.from(expiryDate))
                 .signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    /**
+     * Generate refresh token with username (new version)
+     */
+    public String generateRefreshToken(UUID userId, String username, String tenantId) {
+        Instant now = Instant.now();
+        Instant expiryDate = now.plusMillis(refreshTokenValidityMs);
+
+        Map<String, Object> tokenClaims = new HashMap<>();
+        tokenClaims.put("sub", userId.toString());
+        tokenClaims.put("username", username);
+        tokenClaims.put("tenantId", tenantId);
+        tokenClaims.put("type", "refresh");
+
+        return Jwts.builder()
+                .claims(tokenClaims)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiryDate))
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    /**
+     * Get access token validity in seconds
+     */
+    public long getAccessTokenValidityInSeconds() {
+        return accessTokenValidityMs / 1000;
+    }
+
+    /**
+     * Get refresh token validity in seconds
+     */
+    public long getRefreshTokenValidityInSeconds() {
+        return refreshTokenValidityMs / 1000;
     }
 
     /**

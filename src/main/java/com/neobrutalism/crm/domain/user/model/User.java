@@ -69,6 +69,23 @@ public class User extends TenantAwareAggregateRoot<UserStatus> {
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
+    /**
+     * Branch ID - Chi nhánh mà user thuộc về
+     * Dùng để filter data theo branch
+     */
+    @Column(name = "branch_id")
+    private UUID branchId;
+
+    /**
+     * Data Scope - Phạm vi dữ liệu user có thể truy cập
+     * ALL_BRANCHES: Xem tất cả branches (Management role)
+     * CURRENT_BRANCH: Chỉ xem branch hiện tại (ORC role)
+     * SELF_ONLY: Chỉ xem bản ghi của mình (Maker/Checker role)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_scope", nullable = false, length = 20)
+    private DataScope dataScope = DataScope.SELF_ONLY;
+
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 

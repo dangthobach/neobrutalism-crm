@@ -45,7 +45,9 @@
       "Bash(cat:*)",
       "Bash(npm install:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(timeout /t 20)",
+      "Bash(del \"C:\\Project\\neobrutalism-crm\\src\\main\\java\\com\\neobrutalism\\crm\\common\\security\\controller\\AuthenticationController.java\")"
     ],
     "deny": [],
     "ask": []

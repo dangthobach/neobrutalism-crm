@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -17,13 +16,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 /**
  * JWT Authentication Filter
- * Intercepts requests and validates JWT tokens
+ * Intercepts requests, validates JWT tokens, and checks Casbin permissions
  */
 @Slf4j
 @Component
@@ -31,6 +28,8 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserSessionService userSessionService;
+    private final PermissionService permissionService;
 
     @Override
     protected void doFilterInternal(
@@ -53,19 +52,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Set tenant context for multi-tenancy
                     TenantContext.setCurrentTenant(tenantId);
 
-                    // Create authentication with authorities
-                    // In future, load actual authorities from UserRole and Role entities
-                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    // Load complete user principal with roles and permissions (cached)
+                    UserPrincipal userPrincipal = userSessionService.buildUserPrincipal(userId, tenantId);
 
+                    // Check Casbin permission for this request
+                    String requestUri = request.getRequestURI();
+                    String method = request.getMethod();
+
+                    boolean hasPermission = checkPermission(userPrincipal, tenantId, requestUri, method);
+
+                    if (!hasPermission) {
+                        log.warn("User {} denied access to {} {} (tenant: {})",
+                                username, method, requestUri, tenantId);
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Access denied\",\"message\":\"You do not have permission to access this resource\"}");
+                        return;
+                    }
+
+                    // Create authentication with full authorities
                     UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                            new UsernamePasswordAuthenticationToken(
+                                    userPrincipal,
+                                    null,
+                                    userPrincipal.getAuthorities()
+                            );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // Store additional info in authentication
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                    log.debug("Set authentication for user: {} (tenant: {})", username, tenantId);
+                    log.debug("Set authentication for user: {} (tenant: {}, roles: {})",
+                            username, tenantId, userPrincipal.getRoles());
                 }
             }
         } catch (Exception ex) {
@@ -78,6 +95,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // Clear tenant context after request
             TenantContext.clear();
         }
+    }
+
+    /**
+     * Check permission using Casbin
+     */
+    private boolean checkPermission(UserPrincipal userPrincipal, String tenantId, String resource, String action) {
+        // Skip permission check for public endpoints
+        if (isPublicEndpoint(resource)) {
+            return true;
+        }
+
+        // Check each role's permissions
+        for (String role : userPrincipal.getRoles()) {
+            String subject = "ROLE_" + role;
+            boolean allowed = permissionService.hasPermission(subject, tenantId, resource, action);
+            if (allowed) {
+                log.debug("Permission granted for {} to {} {} (tenant: {})", subject, action, resource, tenantId);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if endpoint is public (doesn't require permission check)
+     */
+    private boolean isPublicEndpoint(String uri) {
+        return uri.startsWith("/api/auth/") ||
+               uri.startsWith("/h2-console") ||
+               uri.startsWith("/swagger-ui") ||
+               uri.startsWith("/v3/api-docs") ||
+               uri.equals("/actuator/health") ||
+               uri.startsWith("/api/public/");
     }
 
     /**

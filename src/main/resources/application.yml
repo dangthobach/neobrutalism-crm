@@ -64,6 +64,11 @@ app:
     enabled: true
   event-sourcing:
     enabled: true
+  tenant:
+    default-tenant-id: default  # Default tenant ID when no tenant context
+    enabled: true               # Enable multi-tenancy
+    header-name: X-Tenant-ID   # Tenant ID header name
+    strict-mode: false         # false = use default tenant if missing, true = throw exception
 
 # Event publishing configuration
 events:
@@ -76,7 +81,7 @@ outbox:
   cleanup:
     cron: "0 0 2 * * *"  # Cleanup old events daily at 2 AM
 
-# Multi-tenancy configuration
+# Multi-tenancy configuration (deprecated - use app.tenant instead)
 multitenancy:
   enabled: true  # Enable/disable multi-tenancy
   default-tenant: default  # Default tenant ID for development

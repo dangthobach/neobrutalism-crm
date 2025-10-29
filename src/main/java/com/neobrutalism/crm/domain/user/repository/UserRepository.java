@@ -53,4 +53,19 @@ public interface UserRepository extends StatefulRepository<User, UserStatus> {
      * Count users by organization
      */
     long countByOrganizationId(UUID organizationId);
+
+    /**
+     * Find user by username (not deleted)
+     */
+    Optional<User> findByUsernameAndDeletedFalse(String username);
+
+    /**
+     * Find user by ID (not deleted)
+     */
+    Optional<User> findByIdAndDeletedFalse(UUID id);
+
+    /**
+     * Find user by email (not deleted)
+     */
+    Optional<User> findByEmailAndDeletedFalse(String email);
 }
