@@ -65,45 +65,52 @@ public class OutboxEventPublisher {
     @Scheduled(fixedDelayString = "${outbox.publisher.interval:5000}")
     @Transactional
     public void publishPendingEvents() {
-        List<OutboxEvent> pendingEvents = outboxEventRepository.findUnpublishedEvents(Instant.now());
+        // Set default tenant for background job
+        com.neobrutalism.crm.common.multitenancy.TenantContext.setCurrentTenant("default");
 
-        if (pendingEvents.isEmpty()) {
-            return;
-        }
+        try {
+            List<OutboxEvent> pendingEvents = outboxEventRepository.findUnpublishedEvents(Instant.now());
 
-        log.debug("Publishing {} pending events from outbox", pendingEvents.size());
+            if (pendingEvents.isEmpty()) {
+                return;
+            }
 
-        for (OutboxEvent outboxEvent : pendingEvents) {
-            try {
-                // Attempt to publish the event
-                publishEvent(outboxEvent);
+            log.debug("Publishing {} pending events from outbox", pendingEvents.size());
 
-                // Mark as published
-                outboxEvent.markAsPublished();
-                outboxEventRepository.save(outboxEvent);
+            for (OutboxEvent outboxEvent : pendingEvents) {
+                try {
+                    // Attempt to publish the event
+                    publishEvent(outboxEvent);
 
-                log.info("Successfully published event: {} (attempt {})",
-                        outboxEvent.getEventType(), outboxEvent.getRetryCount() + 1);
+                    // Mark as published
+                    outboxEvent.markAsPublished();
+                    outboxEventRepository.save(outboxEvent);
 
-            } catch (Exception e) {
-                // Record failure and schedule retry
-                String errorMessage = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-                outboxEvent.recordFailure(errorMessage);
-                outboxEventRepository.save(outboxEvent);
+                    log.info("Successfully published event: {} (attempt {})",
+                            outboxEvent.getEventType(), outboxEvent.getRetryCount() + 1);
 
-                log.error("Failed to publish event: {} (attempt {}/{}). Next retry at: {}",
-                        outboxEvent.getEventType(),
-                        outboxEvent.getRetryCount(),
-                        outboxEvent.getMaxRetries(),
-                        outboxEvent.getNextRetryAt(),
-                        e);
+                } catch (Exception e) {
+                    // Record failure and schedule retry
+                    String errorMessage = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+                    outboxEvent.recordFailure(errorMessage);
+                    outboxEventRepository.save(outboxEvent);
 
-                // Check if exceeded max retries
-                if (outboxEvent.hasExceededMaxRetries()) {
-                    log.error("Event {} exceeded max retries and moved to dead letter queue",
-                            outboxEvent.getEventId());
+                    log.error("Failed to publish event: {} (attempt {}/{}). Next retry at: {}",
+                            outboxEvent.getEventType(),
+                            outboxEvent.getRetryCount(),
+                            outboxEvent.getMaxRetries(),
+                            outboxEvent.getNextRetryAt(),
+                            e);
+
+                    // Check if exceeded max retries
+                    if (outboxEvent.hasExceededMaxRetries()) {
+                        log.error("Event {} exceeded max retries and moved to dead letter queue",
+                                outboxEvent.getEventId());
+                    }
                 }
             }
+        } finally {
+            com.neobrutalism.crm.common.multitenancy.TenantContext.clear();
         }
     }
 
@@ -160,10 +167,17 @@ public class OutboxEventPublisher {
     @Scheduled(cron = "${outbox.cleanup.cron:0 0 2 * * *}")
     @Transactional
     public void cleanupOldPublishedEvents() {
-        // Delete events older than 30 days
-        Instant threshold = Instant.now().minus(30, ChronoUnit.DAYS);
-        outboxEventRepository.deleteByPublishedTrueAndPublishedAtBefore(threshold);
-        log.info("Cleaned up published outbox events older than {}", threshold);
+        // Set default tenant for background job
+        com.neobrutalism.crm.common.multitenancy.TenantContext.setCurrentTenant("default");
+
+        try {
+            // Delete events older than 30 days
+            Instant threshold = Instant.now().minus(30, ChronoUnit.DAYS);
+            outboxEventRepository.deleteByPublishedTrueAndPublishedAtBefore(threshold);
+            log.info("Cleaned up published outbox events older than {}", threshold);
+        } finally {
+            com.neobrutalism.crm.common.multitenancy.TenantContext.clear();
+        }
     }
 
     /**

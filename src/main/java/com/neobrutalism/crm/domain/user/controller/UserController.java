@@ -93,6 +93,10 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create user", description = "Create a new user account")
     public ApiResponse<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
+        // Get organization ID from current logged-in user
+        User currentUser = userService.getCurrentUserEntity();
+        UUID organizationId = currentUser.getOrganizationId();
+
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
@@ -101,8 +105,13 @@ public class UserController {
         user.setLastName(request.getLastName());
         user.setPhone(request.getPhone());
         user.setAvatar(request.getAvatar());
-        user.setOrganizationId(request.getOrganizationId());
-        user.setTenantId(request.getOrganizationId().toString()); // Set tenant ID same as organization
+        user.setOrganizationId(organizationId);
+
+        // Set tenant ID: use organization ID if provided, otherwise use "default"
+        String tenantId = organizationId != null
+            ? organizationId.toString()
+            : "default";
+        user.setTenantId(tenantId);
 
         User created = userService.create(user);
         return ApiResponse.success("User created successfully", UserResponse.from(created));
@@ -127,7 +136,7 @@ public class UserController {
         user.setLastName(request.getLastName());
         user.setPhone(request.getPhone());
         user.setAvatar(request.getAvatar());
-        user.setOrganizationId(request.getOrganizationId());
+        // organizationId is not updated - it remains the same as the existing user
 
         User updated = userService.update(id, user);
         return ApiResponse.success("User updated successfully", UserResponse.from(updated));

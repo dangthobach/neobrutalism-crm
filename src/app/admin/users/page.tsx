@@ -21,7 +21,6 @@ type UserFormData = {
   password?: string
   firstName: string
   lastName: string
-  organizationId: string
 }
 
 export default function UsersPage() {
@@ -213,7 +212,6 @@ export default function UsersPage() {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      organizationId: user.organizationId,
     })
     setOpen(true)
   }
@@ -236,7 +234,6 @@ export default function UsersPage() {
       password: "",
       firstName: "",
       lastName: "",
-      organizationId: "",
     })
     setOpen(true)
   }
@@ -251,7 +248,6 @@ export default function UsersPage() {
         email: editing.email,
         firstName: editing.firstName,
         lastName: editing.lastName,
-        organizationId: editing.organizationId,
       }
 
       updateMutation.mutate(
@@ -276,7 +272,6 @@ export default function UsersPage() {
         password: editing.password,
         firstName: editing.firstName,
         lastName: editing.lastName,
-        organizationId: editing.organizationId,
       }
 
       createMutation.mutate(createData, {
@@ -483,16 +478,6 @@ export default function UsersPage() {
                   onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), lastName: e.target.value }))}
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="organizationId">Organization ID *</Label>
-              <Input
-                id="organizationId"
-                placeholder="Organization ID (UUID)"
-                value={editing?.organizationId ?? ""}
-                onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), organizationId: e.target.value }))}
-              />
             </div>
           </div>
           <DialogFooter>

@@ -1,5 +1,6 @@
 package com.neobrutalism.crm.domain.userrole.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,8 +24,10 @@ public class UserRoleRequest {
     private UUID roleId;
 
     @Schema(description = "Is active")
+    @Builder.Default
     private Boolean isActive = true;
 
-    @Schema(description = "Expiration timestamp")
+    @Schema(description = "Expiration timestamp (ISO-8601 format)", example = "2025-10-15T22:50:00Z")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSX", timezone = "UTC")
     private Instant expiresAt;
 }

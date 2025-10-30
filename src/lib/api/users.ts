@@ -41,7 +41,6 @@ export interface CreateUserRequest {
   lastName: string
   phone?: string
   avatar?: string
-  organizationId: string
 }
 
 export interface UpdateUserRequest {
@@ -52,7 +51,6 @@ export interface UpdateUserRequest {
   lastName: string
   phone?: string
   avatar?: string
-  organizationId: string
 }
 
 export interface UserQueryParams {

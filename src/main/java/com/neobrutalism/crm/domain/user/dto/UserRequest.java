@@ -10,8 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 /**
  * User request DTO
  */
@@ -54,7 +52,4 @@ public class UserRequest {
     @Size(max = 500, message = "Avatar URL must not exceed 500 characters")
     @Schema(description = "Avatar URL", example = "https://example.com/avatar.jpg")
     private String avatar;
-
-    @Schema(description = "Organization ID", example = "018d3f5c-7b44-7a90-a123-456789abcdef", required = true)
-    private UUID organizationId;
 }

@@ -11,8 +11,9 @@ import { useRolesByUser, useAssignRoleToUser, useRevokeRoleFromUser } from "@/ho
 import { useUser } from "@/hooks/useUsers"
 import { useRoles } from "@/hooks/useRoles"
 import { format } from "date-fns"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
 
 export default function UserRolesPage() {
   const params = useParams()
@@ -20,7 +21,7 @@ export default function UserRolesPage() {
   const userId = params?.userId as string
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
-  const [selectedRoleId, setSelectedRoleId] = useState<string>("")
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
   const [expiresAt, setExpiresAt] = useState<string>("")
 
   // Fetch user details
@@ -43,19 +44,51 @@ export default function UserRolesPage() {
     return allRoles.filter(role => !assignedRoleIds.has(role.id))
   }, [allRoles, userRoles])
 
-  async function handleAssignRole() {
-    if (!selectedRoleId) return
+  async function handleAssignRoles() {
+    if (selectedRoleIds.length === 0) {
+      toast.error("Please select at least one role")
+      return
+    }
 
-    await assignMutation.mutateAsync({
-      userId,
-      roleId: selectedRoleId,
-      expiresAt: expiresAt || undefined,
-    })
+    // Convert datetime-local format to ISO-8601 format with timezone
+    const expiresAtISO = expiresAt
+      ? new Date(expiresAt).toISOString()
+      : undefined
 
-    setAssignDialogOpen(false)
-    setSelectedRoleId("")
-    setExpiresAt("")
-    refetch()
+    try {
+      // Assign roles sequentially
+      for (const roleId of selectedRoleIds) {
+        await assignMutation.mutateAsync({
+          userId,
+          roleId,
+          expiresAt: expiresAtISO,
+        })
+      }
+
+      toast.success(`Successfully assigned ${selectedRoleIds.length} role(s)`)
+      setAssignDialogOpen(false)
+      setSelectedRoleIds([])
+      setExpiresAt("")
+      refetch()
+    } catch (error) {
+      toast.error("Failed to assign some roles")
+    }
+  }
+
+  function toggleRoleSelection(roleId: string) {
+    setSelectedRoleIds(prev =>
+      prev.includes(roleId)
+        ? prev.filter(id => id !== roleId)
+        : [...prev, roleId]
+    )
+  }
+
+  function selectAllRoles() {
+    setSelectedRoleIds(availableRoles.map(role => role.id))
+  }
+
+  function deselectAllRoles() {
+    setSelectedRoleIds([])
   }
 
   async function handleRevokeRole(userRoleId: string) {
@@ -171,25 +204,59 @@ export default function UserRolesPage() {
       </div>
 
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent className="border-4 border-black shadow-[8px_8px_0_#000]">
+        <DialogContent className="border-4 border-black shadow-[8px_8px_0_#000] max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl">Assign Role</DialogTitle>
+            <DialogTitle className="font-heading text-2xl">Assign Roles</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="role" className="font-base">Select Role *</Label>
-              <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                <SelectTrigger className="border-2 border-black">
-                  <SelectValue placeholder="Choose a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRoles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.name} ({role.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label className="font-base">Select Roles * ({selectedRoleIds.length} selected)</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="noShadow"
+                    size="sm"
+                    onClick={selectAllRoles}
+                    className="border-2 border-black text-xs"
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="noShadow"
+                    size="sm"
+                    onClick={deselectAllRoles}
+                    className="border-2 border-black text-xs"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              <div className="border-2 border-black p-3 max-h-60 overflow-y-auto space-y-2">
+                {availableRoles.length === 0 ? (
+                  <p className="text-sm text-foreground/60 text-center py-4">
+                    All roles have been assigned to this user
+                  </p>
+                ) : (
+                  availableRoles.map((role) => (
+                    <div
+                      key={role.id}
+                      className="flex items-center space-x-3 p-2 hover:bg-secondary-background border-2 border-black cursor-pointer"
+                      onClick={() => toggleRoleSelection(role.id)}
+                    >
+                      <Checkbox
+                        checked={selectedRoleIds.includes(role.id)}
+                        onCheckedChange={() => toggleRoleSelection(role.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="font-base font-bold">{role.name}</div>
+                        <div className="text-xs text-foreground/60">{role.code}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="expiresAt" className="font-base">Expires At (Optional)</Label>
@@ -200,20 +267,25 @@ export default function UserRolesPage() {
                 onChange={(e) => setExpiresAt(e.target.value)}
                 className="border-2 border-black"
               />
+              <p className="text-xs text-foreground/60">Leave empty for permanent roles</p>
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button
               variant="noShadow"
-              onClick={() => setAssignDialogOpen(false)}
+              onClick={() => {
+                setAssignDialogOpen(false)
+                setSelectedRoleIds([])
+                setExpiresAt("")
+              }}
               className="border-2 border-black"
             >
               Cancel
             </Button>
             <Button
               variant="noShadow"
-              onClick={handleAssignRole}
-              disabled={!selectedRoleId || assignMutation.isPending}
+              onClick={handleAssignRoles}
+              disabled={selectedRoleIds.length === 0 || assignMutation.isPending}
               className="border-2 border-black bg-main text-main-foreground"
             >
               {assignMutation.isPending ? (
@@ -222,7 +294,7 @@ export default function UserRolesPage() {
                   Assigning...
                 </>
               ) : (
-                "Assign Role"
+                `Assign ${selectedRoleIds.length} Role(s)`
               )}
             </Button>
           </DialogFooter>

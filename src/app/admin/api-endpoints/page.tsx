@@ -18,7 +18,7 @@ import {
   HttpMethod,
   CreateApiEndpointRequest
 } from "@/hooks/useApiEndpoints"
-import { DataTable } from "@/components/data-table"
+import { DataTable } from "@/components/ui/data-table-reusable"
 
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
 

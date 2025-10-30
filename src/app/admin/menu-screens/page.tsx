@@ -23,7 +23,7 @@ import { useRootMenus } from "@/hooks/useMenus"
 import { useTabsByMenu } from "@/hooks/useMenuTabs"
 import { useApiEndpoints } from "@/hooks/useApiEndpoints"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DataTable } from "@/components/ui/data-table"
+import { DataTable } from "@/components/ui/data-table-reusable"
 
 export default function MenuScreensPage() {
   const [open, setOpen] = useState(false)
