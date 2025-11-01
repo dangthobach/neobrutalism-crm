@@ -48,10 +48,11 @@ public class AuthController {
     @PostMapping("/refresh")
     @Operation(summary = "Refresh Token", description = "Get new access token using refresh token")
     public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(
-            @Valid @RequestBody RefreshTokenRequest request
+            @Valid @RequestBody RefreshTokenRequest request,
+            HttpServletRequest httpRequest
     ) {
         log.info("Refresh token request");
-        LoginResponse response = authenticationService.refreshToken(request);
+        LoginResponse response = authenticationService.refreshToken(request, httpRequest);
         return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
     }
 
@@ -78,6 +79,11 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserPrincipal>> getCurrentUser(
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
+        if (userPrincipal == null) {
+            log.debug("Get current user info requested but no authenticated principal");
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.error("Not authenticated", "UNAUTHORIZED"));
+        }
         log.debug("Get current user info: {}", userPrincipal.getUsername());
         return ResponseEntity.ok(ApiResponse.success("User info retrieved", userPrincipal));
     }

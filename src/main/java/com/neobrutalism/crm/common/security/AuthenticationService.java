@@ -11,12 +11,10 @@ import com.neobrutalism.crm.domain.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,6 +30,8 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserSessionService userSessionService;
+    private final RefreshTokenService refreshTokenService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     /**
      * Authenticate user and generate JWT tokens
@@ -66,8 +66,9 @@ public class AuthenticationService {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        // Get client IP
+        // Get client IP and user agent
         String ipAddress = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
         // Record successful login
         user.recordSuccessfulLogin(ipAddress);
@@ -76,7 +77,7 @@ public class AuthenticationService {
         // Load user roles
         Set<String> roles = userSessionService.getUserRoles(user.getId());
 
-        // Generate tokens
+        // Generate access token
         String accessToken = jwtTokenProvider.generateAccessToken(
                 user.getId(),
                 user.getUsername(),
@@ -85,17 +86,18 @@ public class AuthenticationService {
                 roles
         );
 
-        String refreshToken = jwtTokenProvider.generateRefreshToken(
+        // Create refresh token with rotation support
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(
                 user.getId(),
-                user.getUsername(),
-                user.getTenantId()
+                ipAddress,
+                userAgent
         );
 
         log.info("User logged in successfully: {} (tenant: {})", user.getUsername(), user.getTenantId());
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
                 .userId(user.getId())
@@ -107,30 +109,26 @@ public class AuthenticationService {
     }
 
     /**
-     * Refresh access token using refresh token
+     * Refresh access token using refresh token with rotation
      */
-    @Transactional(readOnly = true)
-    public LoginResponse refreshToken(RefreshTokenRequest request) {
+    @Transactional
+    public LoginResponse refreshToken(RefreshTokenRequest request, HttpServletRequest httpRequest) {
         log.info("Refresh token request");
 
-        // Validate refresh token
-        if (!jwtTokenProvider.validateToken(request.getRefreshToken())) {
-            throw new BusinessException(ErrorCode.TOKEN_INVALID);
-        }
+        String tokenString = request.getRefreshToken();
+        String ipAddress = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
-        // Extract user info from refresh token
-        UUID userId = jwtTokenProvider.getUserIdFromToken(request.getRefreshToken());
-        String username = jwtTokenProvider.getUsernameFromToken(request.getRefreshToken());
-        String tenantId = jwtTokenProvider.getTenantIdFromToken(request.getRefreshToken());
-        String tokenType = jwtTokenProvider.getTokenTypeFromToken(request.getRefreshToken());
-
-        // Verify it's a refresh token
-        if (!"refresh".equals(tokenType)) {
-            throw new BusinessException(ErrorCode.TOKEN_INVALID, "Not a refresh token");
-        }
+        // Validate and rotate refresh token
+        RefreshToken oldToken = refreshTokenService.validateRefreshToken(tokenString);
+        RefreshToken newToken = refreshTokenService.rotateRefreshToken(
+                tokenString,
+                ipAddress,
+                userAgent
+        );
 
         // Load user
-        User user = userRepository.findByIdAndDeletedFalse(userId)
+        User user = userRepository.findByIdAndDeletedFalse(oldToken.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Check if account is still active
@@ -139,22 +137,22 @@ public class AuthenticationService {
         }
 
         // Load user roles
-        Set<String> roles = userSessionService.getUserRoles(userId);
+        Set<String> roles = userSessionService.getUserRoles(user.getId());
 
         // Generate new access token
         String newAccessToken = jwtTokenProvider.generateAccessToken(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                tenantId,
+                user.getTenantId(),
                 roles
         );
 
-        log.info("Token refreshed successfully for user: {}", username);
+        log.info("Token refreshed successfully for user: {}", user.getUsername());
 
         return LoginResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(request.getRefreshToken()) // Keep same refresh token
+                .refreshToken(newToken.getToken()) // Return new rotated refresh token
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
                 .userId(user.getId())
@@ -166,7 +164,7 @@ public class AuthenticationService {
     }
 
     /**
-     * Logout user (clear cache)
+     * Logout user (clear cache, revoke tokens, and blacklist)
      */
     @Transactional
     public void logout(UUID userId) {
@@ -175,7 +173,30 @@ public class AuthenticationService {
         // Clear user session cache
         userSessionService.clearUserSession(userId);
 
-        // TODO: In production, add token to blacklist or revoke in Redis
+        // Revoke all refresh tokens for the user
+        refreshTokenService.revokeAllUserTokens(userId);
+
+        // Blacklist all current tokens for the user (24 hour TTL)
+        tokenBlacklistService.blacklistUserTokens(userId.toString(), 86400000L);
+    }
+
+    /**
+     * Change password and invalidate all tokens
+     */
+    @Transactional
+    public void changePassword(UUID userId, String newPassword) {
+        log.info("Changing password for user: {}", userId);
+
+        // Update password hash
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Invalidate all existing tokens
+        logout(userId);
+
+        log.info("Password changed successfully for user: {}", userId);
     }
 
     /**

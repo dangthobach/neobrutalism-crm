@@ -16,6 +16,13 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      // Store current path for redirect after login
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname + window.location.search
+        if (currentPath !== '/login') {
+          sessionStorage.setItem('redirect_after_login', currentPath)
+        }
+      }
       router.push('/login')
     }
   }, [isAuthenticated, isLoading, router])

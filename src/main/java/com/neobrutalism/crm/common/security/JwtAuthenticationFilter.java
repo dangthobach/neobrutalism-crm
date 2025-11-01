@@ -30,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserSessionService userSessionService;
     private final PermissionService permissionService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(
@@ -41,11 +42,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+                // Check if token is blacklisted
+                if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
+                    log.warn("Blocked blacklisted token");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 // Extract user information from token
                 UUID userId = jwtTokenProvider.getUserIdFromToken(jwt);
                 String username = jwtTokenProvider.getUsernameFromToken(jwt);
                 String tenantId = jwtTokenProvider.getTenantIdFromToken(jwt);
                 String tokenType = jwtTokenProvider.getTokenTypeFromToken(jwt);
+
+                // Check if all user's tokens are blacklisted (e.g., password changed)
+                if (tokenBlacklistService.areUserTokensBlacklisted(userId.toString())) {
+                    log.warn("Blocked token for user with blacklisted tokens: {}", userId);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 // Only process access tokens, not refresh tokens
                 if ("access".equals(tokenType)) {

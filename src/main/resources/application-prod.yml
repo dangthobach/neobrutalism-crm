@@ -87,9 +87,42 @@ spring:
       use-key-prefix: true
       key-prefix: "crm:"
 
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600000}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800000}
+  max-refresh-tokens-per-user: 5
+
+# Application specific properties
+app:
+  audit:
+    enabled: true
+  event-sourcing:
+    enabled: true
+  tenant:
+    default-tenant-id: default
+    enabled: true
+    header-name: X-Tenant-ID
+    strict-mode: true
+
+# Event publishing configuration
+events:
+  use-outbox: true
+
+# Outbox publisher configuration
+outbox:
+  publisher:
+    interval: 5000
+  cleanup:
+    cron: "0 0 2 * * *"
+
 # Rate Limiting
 rate-limit:
   enabled: true
+  admin-limit: 1000    # Requests per minute for ADMIN role
+  user-limit: 100      # Requests per minute for authenticated users
+  public-limit: 20     # Requests per minute for public/unauthenticated
 
 # Server Configuration
 server:

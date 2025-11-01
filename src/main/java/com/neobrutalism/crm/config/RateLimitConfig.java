@@ -33,12 +33,26 @@ public class RateLimitConfig {
     @Value("${spring.data.redis.port:6379}")
     private int redisPort;
 
+    @Value("${spring.data.redis.password:}")
+    private String redisPassword;
+
     /**
      * Redis client for rate limiting (separate from cache)
      */
     @Bean
     public RedisClient redisClientForRateLimit() {
-        return RedisClient.create(String.format("redis://%s:%d", redisHost, redisPort));
+        String uri = (redisPassword == null || redisPassword.isBlank())
+                ? String.format("redis://%s:%d", redisHost, redisPort)
+                : String.format("redis://:%s@%s:%d", urlEncode(redisPassword), redisHost, redisPort);
+        return RedisClient.create(uri);
+    }
+
+    private String urlEncode(String raw) {
+        try {
+            return java.net.URLEncoder.encode(raw, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return raw;
+        }
     }
 
     /**

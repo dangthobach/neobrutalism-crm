@@ -24,7 +24,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.username || !formData.password) {
       toast.error('Please fill in all fields')
       return
@@ -32,14 +32,28 @@ export default function LoginPage() {
 
     try {
       setIsLoading(true)
+      console.log('Attempting login with:', { username: formData.username })
+
       await login({
         username: formData.username,
         password: formData.password,
         rememberMe: formData.rememberMe
       })
-      
+
+      console.log('Login successful, redirecting...')
       toast.success('Login successful!')
-      router.push('/admin')
+
+      // Check if there's a redirect path stored
+      const redirectPath = typeof window !== 'undefined'
+        ? sessionStorage.getItem('redirect_after_login') || '/admin'
+        : '/admin'
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('redirect_after_login')
+      }
+
+      console.log('Redirecting to:', redirectPath)
+      router.push(redirectPath)
     } catch (error) {
       console.error('Login error:', error)
       toast.error('Login failed', {
