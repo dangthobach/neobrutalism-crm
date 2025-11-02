@@ -1,68 +1,43 @@
-export type MockUser = {
+// Lightweight mock generators used by client pages
+
+export type DashboardUser = {
   id: string
-  name: string
-  email: string
-  role: string
-  createdAt: Date
+  role: "Admin" | "Manager" | "User"
 }
 
-export type MockRole = {
-  id: string
-  name: string
-  description?: string
+export function generateUsers(count: number = 50): DashboardUser[] {
+  const roles: DashboardUser["role"][] = ["Admin", "Manager", "User"]
+  const users: DashboardUser[] = []
+  for (let i = 0; i < count; i++) {
+    users.push({ id: `u_${i + 1}`, role: roles[i % roles.length] })
+  }
+  return users
 }
 
-export type MockPermission = {
+export type SimplePermission = {
   id: string
   key: string
   description?: string
 }
 
-function randomPick<T>(arr: T[], i: number) {
-  return arr[i % arr.length]
-}
-
-export function generateUsers(count = 50): MockUser[] {
-  const firstNames = ["John", "Jane", "Alex", "Sam", "Taylor", "Jordan", "Morgan", "Riley", "Chris", "Cameron"]
-  const lastNames = ["Doe", "Smith", "Lee", "Brown", "Johnson", "Miller", "Davis", "Wilson", "Clark", "Lopez"]
-  const roles = ["Admin", "Manager", "User"]
-
-  const list: MockUser[] = []
-  const now = new Date()
-  for (let i = 0; i < count; i++) {
-    const first = randomPick(firstNames, i)
-    const last = randomPick(lastNames, count - i - 1)
-    const name = `${first} ${last}`
-    const email = `${first.toLowerCase()}.${last.toLowerCase()}${i}@example.com`
-    // Generate random dates within the last 180 days
-    const daysAgo = Math.floor(Math.random() * 180)
-    const createdAt = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000)
-    list.push({ id: `u${i + 1}`, name, email, role: randomPick(roles, i + 2), createdAt })
-  }
-  return list
-}
-
-export function generateRoles(): MockRole[] {
-  return [
-    { id: "r1", name: "Admin", description: "Full access to all resources" },
-    { id: "r2", name: "Manager", description: "Manage teams and pipelines" },
-    { id: "r3", name: "User", description: "Basic access for daily tasks" },
-    { id: "r4", name: "Analyst", description: "Read-only analytics access" },
+export function generatePermissions(): SimplePermission[] {
+  const base: Omit<SimplePermission, "id">[] = [
+    { key: "user.view", description: "View users" },
+    { key: "user.create", description: "Create users" },
+    { key: "user.edit", description: "Edit users" },
+    { key: "user.delete", description: "Delete users" },
+    { key: "role.view", description: "View roles" },
+    { key: "role.create", description: "Create roles" },
+    { key: "role.edit", description: "Edit roles" },
+    { key: "role.delete", description: "Delete roles" },
+    { key: "menu.view", description: "View menus" },
+    { key: "menu.manage", description: "Manage menu structure" },
+    { key: "permission.view", description: "View permissions" },
+    { key: "permission.manage", description: "Manage permissions" },
+    { key: "audit.view", description: "View audit logs" },
+    { key: "settings.manage", description: "Manage system settings" },
   ]
-}
 
-export function generatePermissions(): MockPermission[] {
-  const base: MockPermission[] = [
-    { id: "p1", key: "user.read", description: "Read users" },
-    { id: "p2", key: "user.write", description: "Create and edit users" },
-    { id: "p3", key: "role.read", description: "Read roles" },
-    { id: "p4", key: "role.write", description: "Create and edit roles" },
-    { id: "p5", key: "permission.read", description: "Read permissions" },
-    { id: "p6", key: "permission.write", description: "Create and edit permissions" },
-    { id: "p7", key: "deal.move", description: "Move deal stage" },
-    { id: "p8", key: "task.complete", description: "Complete tasks" },
-  ]
-  return base
+  return base.map((p, idx) => ({ id: `perm_${idx + 1}`, ...p }))
 }
-
 

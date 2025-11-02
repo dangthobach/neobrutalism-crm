@@ -3,8 +3,7 @@
  * Handles all HTTP requests to the backend organization endpoints
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || "default"
+import { apiClient, PageResponse } from './client'
 
 export type OrganizationStatus = "DRAFT" | "ACTIVE" | "INACTIVE" | "SUSPENDED" | "ARCHIVED"
 
@@ -35,26 +34,6 @@ export interface OrganizationRequest {
   address?: string
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  errorCode?: string
-  timestamp: string
-}
-
-export interface PageResponse<T> {
-  content: T[]
-  pageIndex: number
-  pageSize: number
-  totalElements: number
-  totalPages: number
-  first: boolean
-  last: boolean
-  hasNext: boolean
-  hasPrevious: boolean
-}
-
 export interface OrganizationReadModel {
   id: string
   name: string
@@ -82,98 +61,101 @@ export interface OrganizationStatistics {
   deleted: number
 }
 
+export interface OrganizationQueryParams {
+  page?: number
+  size?: number
+  sortBy?: string
+  sortDirection?: 'ASC' | 'DESC'
+}
+
 class OrganizationsAPI {
-  private async fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Tenant-ID": TENANT_ID,
-        ...options?.headers,
-      },
-      ...options,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: "Network error" }))
-      throw new Error(error.message || `HTTP ${response.status}`)
-    }
-
-    return response.json()
-  }
-
   // ========== WRITE MODEL (CRUD) ==========
 
   async getAll(): Promise<Organization[]> {
-    const response = await this.fetchAPI<Organization[]>("/organizations")
+    const response = await apiClient.get<Organization[]>("/organizations")
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
-  async getAllPaged(page: number = 0, size: number = 20, sortBy: string = "id", sortDirection: "ASC" | "DESC" = "ASC"): Promise<PageResponse<Organization>> {
-    const response = await this.fetchAPI<PageResponse<Organization>>(
-      `/organizations?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`
-    )
+  async getAllPaged(params?: OrganizationQueryParams): Promise<PageResponse<Organization>> {
+    const response = await apiClient.get<PageResponse<Organization>>("/organizations", params)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async getById(id: string): Promise<Organization> {
-    const response = await this.fetchAPI<Organization>(`/organizations/${id}`)
+    const response = await apiClient.get<Organization>(`/organizations/${id}`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async create(data: OrganizationRequest): Promise<Organization> {
-    const response = await this.fetchAPI<Organization>("/organizations", {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const response = await apiClient.post<Organization>("/organizations", data)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async update(id: string, data: OrganizationRequest): Promise<Organization> {
-    const response = await this.fetchAPI<Organization>(`/organizations/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    })
+    const response = await apiClient.put<Organization>(`/organizations/${id}`, data)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async delete(id: string): Promise<void> {
-    await this.fetchAPI<void>(`/organizations/${id}`, {
-      method: "DELETE",
-    })
+    await apiClient.delete(`/organizations/${id}`)
   }
 
   async getByCode(code: string): Promise<Organization> {
-    const response = await this.fetchAPI<Organization>(`/organizations/code/${code}`)
+    const response = await apiClient.get<Organization>(`/organizations/code/${code}`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async getByStatus(status: OrganizationStatus): Promise<Organization[]> {
-    const response = await this.fetchAPI<Organization[]>(`/organizations/status/${status}`)
+    const response = await apiClient.get<Organization[]>(`/organizations/status/${status}`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   // Status transitions
   async activate(id: string, reason?: string): Promise<Organization> {
-    const url = reason ? `/organizations/${id}/activate?reason=${encodeURIComponent(reason)}` : `/organizations/${id}/activate`
-    const response = await this.fetchAPI<Organization>(url, {
-      method: "POST",
-    })
+    const endpoint = reason ? `/organizations/${id}/activate?reason=${encodeURIComponent(reason)}` : `/organizations/${id}/activate`
+    const response = await apiClient.post<Organization>(endpoint)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async suspend(id: string, reason?: string): Promise<Organization> {
-    const url = reason ? `/organizations/${id}/suspend?reason=${encodeURIComponent(reason)}` : `/organizations/${id}/suspend`
-    const response = await this.fetchAPI<Organization>(url, {
-      method: "POST",
-    })
+    const endpoint = reason ? `/organizations/${id}/suspend?reason=${encodeURIComponent(reason)}` : `/organizations/${id}/suspend`
+    const response = await apiClient.post<Organization>(endpoint)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async archive(id: string, reason?: string): Promise<Organization> {
-    const url = reason ? `/organizations/${id}/archive?reason=${encodeURIComponent(reason)}` : `/organizations/${id}/archive`
-    const response = await this.fetchAPI<Organization>(url, {
-      method: "POST",
-    })
+    const endpoint = reason ? `/organizations/${id}/archive?reason=${encodeURIComponent(reason)}` : `/organizations/${id}/archive`
+    const response = await apiClient.post<Organization>(endpoint)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
@@ -181,35 +163,50 @@ class OrganizationsAPI {
 
   async queryAll(): Promise<OrganizationReadModel[]> {
     // Use the main endpoint with default paging to get all data
-    const response = await this.fetchAPI<PageResponse<OrganizationReadModel>>("/organizations?page=0&size=1000")
+    const response = await apiClient.get<PageResponse<OrganizationReadModel>>("/organizations", { page: 0, size: 1000 })
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data.content
   }
 
-  async queryAllPaged(page: number = 0, size: number = 20, sortBy: string = "id", sortDirection: "ASC" | "DESC" = "ASC"): Promise<PageResponse<OrganizationReadModel>> {
-    const response = await this.fetchAPI<PageResponse<OrganizationReadModel>>(
-      `/organizations?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`
-    )
+  async queryAllPaged(params?: OrganizationQueryParams): Promise<PageResponse<OrganizationReadModel>> {
+    const response = await apiClient.get<PageResponse<OrganizationReadModel>>("/organizations", params)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async queryById(id: string): Promise<OrganizationReadModel> {
-    const response = await this.fetchAPI<OrganizationReadModel>(`/organizations/${id}`)
+    const response = await apiClient.get<OrganizationReadModel>(`/organizations/${id}`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async queryActive(): Promise<OrganizationReadModel[]> {
-    // Use status filter to get active organizations
-    const response = await this.fetchAPI<OrganizationReadModel[]>(`/organizations/status/ACTIVE`)
+    const response = await apiClient.get<OrganizationReadModel[]>(`/organizations/status/ACTIVE`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async queryByStatus(status: OrganizationStatus): Promise<OrganizationReadModel[]> {
-    const response = await this.fetchAPI<OrganizationReadModel[]>(`/organizations/status/${status}`)
+    const response = await apiClient.get<OrganizationReadModel[]>(`/organizations/status/${status}`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 
   async queryByCode(code: string): Promise<OrganizationReadModel> {
-    const response = await this.fetchAPI<OrganizationReadModel>(`/organizations/code/${code}`)
+    const response = await apiClient.get<OrganizationReadModel>(`/organizations/code/${code}`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
     return response.data
   }
 

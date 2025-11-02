@@ -1,48 +1,56 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { ColumnDef, ColumnFiltersState, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, PaginationState, useReactTable, flexRender } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowUpDown, Eye, Trash2, CalendarIcon, Search } from "lucide-react"
+import { ArrowUpDown, Eye, Trash2, Search, Loader2, Shield, Users } from "lucide-react"
 import { format } from "date-fns"
-import { DateRange } from "react-day-picker"
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers"
+import { User, CreateUserRequest, UpdateUserRequest } from "@/lib/api/users"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
-type User = {
-  id: string
-  name: string
+type UserFormData = {
+  id?: string
+  username: string
   email: string
-  role: string
-  createdAt: Date
+  password?: string
+  firstName: string
+  lastName: string
 }
 
-import { generateUsers } from "@/lib/mock"
-
 export default function UsersPage() {
-  const [rows, setRows] = useState<User[]>([])
-  const [filteredRows, setFilteredRows] = useState<User[]>([])
-  useEffect(() => {
-    const users = generateUsers(75)
-    setRows(users)
-    setFilteredRows(users)
-  }, [])
   const [globalFilter, setGlobalFilter] = useState("")
   const [tempGlobalFilter, setTempGlobalFilter] = useState("")
   const [open, setOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
-  const [editing, setEditing] = useState<User | null>(null)
+  const [editing, setEditing] = useState<UserFormData | null>(null)
   const [viewing, setViewing] = useState<User | null>(null)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [tempColumnFilters, setTempColumnFilters] = useState({ name: "", email: "", role: "" })
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [tempColumnFilters, setTempColumnFilters] = useState({ username: "", email: "", firstName: "", lastName: "" })
+  const [sorting, setSorting] = useState<SortingState>([{ id: "username", desc: false }])
   const [rowSelection, setRowSelection] = useState({})
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+
+  // Fetch users with React Query
+  const { data: usersData, isLoading, error, refetch } = useUsers({
+    page: pagination.pageIndex,
+    size: pagination.pageSize,
+    sortBy: sorting[0]?.id || "username",
+    sortDirection: sorting[0]?.desc ? "DESC" : "ASC",
+  })
+
+  // Mutations
+  const createMutation = useCreateUser()
+  const updateMutation = useUpdateUser()
+  const deleteMutation = useDeleteUser()
+
+  const users = usersData?.content || []
+  const totalPages = usersData?.totalPages || 0
 
   const columns = useMemo<ColumnDef<User>[]>(
     () => [
@@ -69,18 +77,22 @@ export default function UsersPage() {
         enableHiding: false,
       },
       {
-        accessorKey: "name",
+        accessorKey: "username",
         header: ({ column }) => {
           return (
             <button
               onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
               className="flex items-center hover:opacity-80 p-0 h-auto font-heading bg-transparent border-0 cursor-pointer"
             >
-              Name
+              Username
               <ArrowUpDown className="ml-2 h-4 w-4" />
             </button>
           )
         },
+      },
+      {
+        accessorKey: "fullName",
+        header: "Full Name",
       },
       {
         accessorKey: "email",
@@ -97,16 +109,21 @@ export default function UsersPage() {
         },
       },
       {
-        accessorKey: "role",
-        header: ({ column }) => {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const status = row.original.status
+          const statusColors: Record<string, string> = {
+            ACTIVE: "bg-green-500",
+            INACTIVE: "bg-gray-500",
+            SUSPENDED: "bg-yellow-500",
+            LOCKED: "bg-red-500",
+            PENDING: "bg-blue-500",
+          }
           return (
-            <button
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              className="flex items-center hover:opacity-80 p-0 h-auto font-heading bg-transparent border-0 cursor-pointer"
-            >
-              Role
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </button>
+            <span className={`px-2 py-1 text-xs font-bold text-white ${statusColors[status] || "bg-gray-500"}`}>
+              {status}
+            </span>
           )
         },
       },
@@ -118,6 +135,25 @@ export default function UsersPage() {
             <Button variant="noShadow" size="sm" onClick={() => onViewDetail(row.original)}>
               <Eye className="h-4 w-4" />
             </Button>
+            <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
+              Edit
+            </Button>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => window.location.href = `/admin/users/${row.original.id}/roles`}
+              title="Manage Roles"
+            >
+              <Shield className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => window.location.href = `/admin/users/${row.original.id}/groups`}
+              title="Manage Groups"
+            >
+              <Users className="h-4 w-4" />
+            </Button>
             <Button variant="noShadow" size="sm" onClick={() => onDelete(row.original.id)}>
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -125,16 +161,19 @@ export default function UsersPage() {
         ),
       },
     ],
-    [rows],
+    [],
   )
 
   const table = useReactTable({
-    data: filteredRows,
+    data: users,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+    pageCount: totalPages,
     state: { globalFilter, columnFilters, sorting, rowSelection, pagination },
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
@@ -145,43 +184,35 @@ export default function UsersPage() {
   })
 
   function handleSearch() {
-    let filtered = [...rows]
-
-    // Apply date range filter
-    if (dateRange?.from) {
-      const fromDate = dateRange.from
-      const toDate = dateRange.to
-      filtered = filtered.filter((user) => {
-        const userDate = new Date(user.createdAt)
-        if (toDate) {
-          return userDate >= fromDate && userDate <= toDate
-        }
-        return userDate >= fromDate
-      })
-    }
-
-    setFilteredRows(filtered)
+    refetch()
     setGlobalFilter(tempGlobalFilter)
 
     // Apply column filters
     const filters: ColumnFiltersState = []
-    if (tempColumnFilters.name) filters.push({ id: "name", value: tempColumnFilters.name })
+    if (tempColumnFilters.username) filters.push({ id: "username", value: tempColumnFilters.username })
     if (tempColumnFilters.email) filters.push({ id: "email", value: tempColumnFilters.email })
-    if (tempColumnFilters.role) filters.push({ id: "role", value: tempColumnFilters.role })
+    if (tempColumnFilters.firstName) filters.push({ id: "firstName", value: tempColumnFilters.firstName })
+    if (tempColumnFilters.lastName) filters.push({ id: "lastName", value: tempColumnFilters.lastName })
     setColumnFilters(filters)
   }
 
   function handleClearFilters() {
-    setDateRange(undefined)
     setTempGlobalFilter("")
     setGlobalFilter("")
-    setTempColumnFilters({ name: "", email: "", role: "" })
+    setTempColumnFilters({ username: "", email: "", firstName: "", lastName: "" })
     setColumnFilters([])
-    setFilteredRows(rows)
+    setPagination({ pageIndex: 0, pageSize: 10 })
+    refetch()
   }
 
   function onEdit(user: User) {
-    setEditing(user)
+    setEditing({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    })
     setOpen(true)
   }
 
@@ -192,23 +223,64 @@ export default function UsersPage() {
 
   function onDelete(id: string) {
     if (confirm("Are you sure you want to delete this user?")) {
-      setRows((r) => r.filter((x) => x.id !== id))
+      deleteMutation.mutate(id)
     }
   }
 
   function onCreate() {
-    setEditing({ id: "", name: "", email: "", role: "User", createdAt: new Date() })
+    setEditing({
+      username: "",
+      email: "",
+      password: "",
+      firstName: "",
+      lastName: "",
+    })
     setOpen(true)
   }
 
   function saveUser() {
     if (!editing) return
+
     if (editing.id) {
-      setRows((r) => r.map((x) => (x.id === editing.id ? editing : x)))
+      // Update existing user
+      const updateData: UpdateUserRequest = {
+        username: editing.username,
+        email: editing.email,
+        firstName: editing.firstName,
+        lastName: editing.lastName,
+      }
+
+      updateMutation.mutate(
+        { id: editing.id, data: updateData },
+        {
+          onSuccess: () => {
+            setOpen(false)
+            setEditing(null)
+          },
+        }
+      )
     } else {
-      setRows((r) => [{ ...editing, id: crypto.randomUUID() }, ...r])
+      // Create new user
+      if (!editing.password) {
+        toast.error("Password is required for new users")
+        return
+      }
+
+      const createData: CreateUserRequest = {
+        username: editing.username,
+        email: editing.email,
+        password: editing.password,
+        firstName: editing.firstName,
+        lastName: editing.lastName,
+      }
+
+      createMutation.mutate(createData, {
+        onSuccess: () => {
+          setOpen(false)
+          setEditing(null)
+        },
+      })
     }
-    setOpen(false)
   }
 
   return (
@@ -217,10 +289,21 @@ export default function UsersPage() {
         <h1 className="text-2xl font-heading">Users</h1>
       </header>
 
+      {error && (
+        <div className="border-4 border-black bg-red-100 p-4 shadow-[8px_8px_0_#000]">
+          <p className="text-red-800 font-base">Error loading users: {error.message}</p>
+          <Button variant="noShadow" size="sm" onClick={() => refetch()} className="mt-2">
+            Retry
+          </Button>
+        </div>
+      )}
+
       <div className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]">
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
           <h2 className="text-lg font-heading">Search & Filters</h2>
-          <Button variant="noShadow" onClick={onCreate}>New User</Button>
+          <Button variant="noShadow" onClick={onCreate} disabled={isLoading}>
+            New User
+          </Button>
         </div>
 
         <div className="mt-3 flex flex-col gap-3">
@@ -229,64 +312,40 @@ export default function UsersPage() {
             value={tempGlobalFilter}
             onChange={(e) => setTempGlobalFilter(e.target.value)}
             className="w-full"
+            disabled={isLoading}
           />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <Input
-              placeholder="Filter name..."
-              value={tempColumnFilters.name}
-              onChange={(e) => setTempColumnFilters(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Filter username..."
+              value={tempColumnFilters.username}
+              onChange={(e) => setTempColumnFilters(prev => ({ ...prev, username: e.target.value }))}
+              disabled={isLoading}
             />
             <Input
               placeholder="Filter email..."
               value={tempColumnFilters.email}
               onChange={(e) => setTempColumnFilters(prev => ({ ...prev, email: e.target.value }))}
+              disabled={isLoading}
             />
             <Input
-              placeholder="Filter role..."
-              value={tempColumnFilters.role}
-              onChange={(e) => setTempColumnFilters(prev => ({ ...prev, role: e.target.value }))}
+              placeholder="Filter first name..."
+              value={tempColumnFilters.firstName}
+              onChange={(e) => setTempColumnFilters(prev => ({ ...prev, firstName: e.target.value }))}
+              disabled={isLoading}
             />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="noShadow"
-                  className="justify-start text-left font-base"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
-                      <>
-                        {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                      </>
-                    ) : (
-                      format(dateRange.from, "LLL dd, y")
-                    )
-                  ) : (
-                    <span>Pick a date range</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
+            <Input
+              placeholder="Filter last name..."
+              value={tempColumnFilters.lastName}
+              onChange={(e) => setTempColumnFilters(prev => ({ ...prev, lastName: e.target.value }))}
+              disabled={isLoading}
+            />
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="noShadow" size="sm" onClick={handleClearFilters}>
+            <Button variant="noShadow" size="sm" onClick={handleClearFilters} disabled={isLoading}>
               Clear
             </Button>
-            <Button variant="noShadow" size="sm" onClick={handleSearch}>
+            <Button variant="noShadow" size="sm" onClick={handleSearch} disabled={isLoading}>
               <Search className="mr-2 h-4 w-4" />
               Search
             </Button>
@@ -302,35 +361,43 @@ export default function UsersPage() {
 
       <div className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]">
         <h2 className="text-lg font-heading mb-3">Users Table</h2>
-        <div className="overflow-auto">
-          <Table>
-            <TableHeader className="font-heading">
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id} className="bg-secondary-background">
-                  {hg.headers.map((h) => (
-                    <TableHead key={h.id}>
-                      {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((r) => (
-                <TableRow key={r.id} className="bg-secondary-background">
-                  {r.getVisibleCells().map((c) => (
-                    <TableCell key={c.id}>{flexRender(c.column.columnDef.cell, c.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))}
-              {!table.getRowModel().rows.length && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center">No results</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2 font-base">Loading users...</span>
+          </div>
+        ) : (
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader className="font-heading">
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id} className="bg-secondary-background">
+                    {hg.headers.map((h) => (
+                      <TableHead key={h.id}>
+                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((r) => (
+                  <TableRow key={r.id} className="bg-secondary-background">
+                    {r.getVisibleCells().map((c) => (
+                      <TableCell key={c.id}>{flexRender(c.column.columnDef.cell, c.getContext())}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+                {!table.getRowModel().rows.length && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="text-center">No users found</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between py-3">
@@ -351,24 +418,92 @@ export default function UsersPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading">{editing?.id ? "Edit User" : "Create User"}</DialogTitle>
           </DialogHeader>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Input placeholder="Name" value={editing?.name ?? ""} onChange={(e) => setEditing((u) => ({ ...(u as User), name: e.target.value }))} />
-            <Input placeholder="Email" value={editing?.email ?? ""} onChange={(e) => setEditing((u) => ({ ...(u as User), email: e.target.value }))} />
-            <Input placeholder="Role" value={editing?.role ?? ""} onChange={(e) => setEditing((u) => ({ ...(u as User), role: e.target.value }))} />
+          <div className="grid gap-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username *</Label>
+                <Input
+                  id="username"
+                  placeholder="Username"
+                  value={editing?.username ?? ""}
+                  onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), username: e.target.value }))}
+                  disabled={!!editing?.id}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Email"
+                  value={editing?.email ?? ""}
+                  onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), email: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {!editing?.id && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Password"
+                  value={editing?.password ?? ""}
+                  onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), password: e.target.value }))}
+                />
+              </div>
+            )}
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  placeholder="First Name"
+                  value={editing?.firstName ?? ""}
+                  onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), firstName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Last Name"
+                  value={editing?.lastName ?? ""}
+                  onChange={(e) => setEditing((u) => ({ ...(u as UserFormData), lastName: e.target.value }))}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="noShadow" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="noShadow" onClick={saveUser}>Save</Button>
+            <Button variant="noShadow" onClick={() => setOpen(false)} disabled={createMutation.isPending || updateMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              variant="noShadow"
+              onClick={saveUser}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {createMutation.isPending || updateMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading">User Details</DialogTitle>
           </DialogHeader>
@@ -378,16 +513,32 @@ export default function UsersPage() {
               <span className="col-span-2 font-base">{viewing?.id}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
-              <span className="font-heading">Name:</span>
-              <span className="col-span-2 font-base">{viewing?.name}</span>
+              <span className="font-heading">Username:</span>
+              <span className="col-span-2 font-base">{viewing?.username}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
+              <span className="font-heading">Full Name:</span>
+              <span className="col-span-2 font-base">{viewing?.fullName}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
               <span className="font-heading">Email:</span>
               <span className="col-span-2 font-base">{viewing?.email}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
-              <span className="font-heading">Role:</span>
-              <span className="col-span-2 font-base">{viewing?.role}</span>
+              <span className="font-heading">Status:</span>
+              <span className="col-span-2 font-base">{viewing?.status}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
+              <span className="font-heading">Organization ID:</span>
+              <span className="col-span-2 font-base">{viewing?.organizationId}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
+              <span className="font-heading">Created At:</span>
+              <span className="col-span-2 font-base">{viewing?.createdAt ? format(new Date(viewing.createdAt), "PPpp") : "N/A"}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3 border-2 border-black bg-secondary-background">
+              <span className="font-heading">Last Login:</span>
+              <span className="col-span-2 font-base">{viewing?.lastLoginAt ? format(new Date(viewing.lastLoginAt), "PPpp") : "Never"}</span>
             </div>
           </div>
           <DialogFooter>

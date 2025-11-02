@@ -1,0 +1,46 @@
+"use client"
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/auth-context'
+import { Loader2 } from 'lucide-react'
+
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  fallback?: React.ReactNode
+}
+
+export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      // Store current path for redirect after login
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname + window.location.search
+        if (currentPath !== '/login') {
+          sessionStorage.setItem('redirect_after_login', currentPath)
+        }
+      }
+      router.push('/login')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  if (isLoading) {
+    return fallback || (
+      <div className="min-h-screen bg-secondary-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-lg font-base">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
+
+  return <>{children}</>
+}

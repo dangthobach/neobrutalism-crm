@@ -18,7 +18,6 @@ import org.hibernate.annotations.ParamDef;
  */
 @Getter
 @MappedSuperclass
-@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = String.class))
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public abstract class TenantAwareEntity extends AuditableEntity {
 

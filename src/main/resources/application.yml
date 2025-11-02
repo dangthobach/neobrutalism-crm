@@ -22,6 +22,12 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
         enable_lazy_load_no_trans: false
+        # Query Performance Monitoring
+        generate_statistics: true
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 1000
     open-in-view: false
 
   flyway:
@@ -35,6 +41,23 @@ spring:
       write-dates-as-timestamps: false
     deserialization:
       fail-on-unknown-properties: false
+
+  # Email Configuration
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: 8080
@@ -60,10 +83,16 @@ logging:
 
 # Application specific properties
 app:
+  name: Neobrutalism CRM
   audit:
     enabled: true
   event-sourcing:
     enabled: true
+  tenant:
+    default-tenant-id: default  # Default tenant ID when no tenant context
+    enabled: true               # Enable multi-tenancy
+    header-name: X-Tenant-ID   # Tenant ID header name
+    strict-mode: false         # false = use default tenant if missing, true = throw exception
 
 # Event publishing configuration
 events:
@@ -76,11 +105,37 @@ outbox:
   cleanup:
     cron: "0 0 2 * * *"  # Cleanup old events daily at 2 AM
 
-# Multi-tenancy configuration
+# Multi-tenancy configuration (deprecated - use app.tenant instead)
 multitenancy:
   enabled: true  # Enable/disable multi-tenancy
   default-tenant: default  # Default tenant ID for development
   tenant-header: X-Tenant-ID  # HTTP header name for tenant ID
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:neobrutalism-crm-secret-key-change-this-in-production-min-256-bits}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600000}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800000}
+  max-refresh-tokens-per-user: 5
+
+# Rate Limiting (disabled for development - requires Redis)
+rate-limit:
+  enabled: false
+  admin-limit: 1000    # Requests per minute for ADMIN role
+  user-limit: 100      # Requests per minute for authenticated users
+  public-limit: 20     # Requests per minute for public/unauthenticated
+
+# MinIO Configuration
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  default-bucket: ${MINIO_DEFAULT_BUCKET:crm-files}
+
+# File Upload Configuration
+file:
+  upload:
+    max-size: 10485760  # 10MB in bytes
 
 # Actuator configuration
 management:
