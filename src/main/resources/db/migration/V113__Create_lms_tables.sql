@@ -42,7 +42,7 @@ CREATE TABLE courses (
     deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
 
     -- Optimistic locking
-    version INTEGER DEFAULT 0,
+    version BIGINT DEFAULT 0,
 
     CONSTRAINT uq_course_slug_tenant UNIQUE (tenant_id, slug, deleted),
     CONSTRAINT chk_course_level CHECK (course_level IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT')),
@@ -266,30 +266,30 @@ CREATE TABLE certificates (
 -- ===================================
 
 -- Courses
-CREATE INDEX idx_courses_tenant ON courses(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_courses_slug ON courses(slug) WHERE deleted = FALSE;
-CREATE INDEX idx_courses_status ON courses(status) WHERE deleted = FALSE;
-CREATE INDEX idx_courses_instructor ON courses(instructor_id) WHERE deleted = FALSE;
-CREATE INDEX idx_courses_category ON courses(category_id) WHERE deleted = FALSE;
-CREATE INDEX idx_courses_tier ON courses(tier_required) WHERE deleted = FALSE;
-CREATE INDEX idx_courses_featured ON courses(is_featured) WHERE deleted = FALSE AND status = 'PUBLISHED';
-CREATE INDEX idx_courses_published_at ON courses(published_at DESC) WHERE status = 'PUBLISHED' AND deleted = FALSE;
+CREATE INDEX idx_courses_tenant ON courses(tenant_id);
+CREATE INDEX idx_courses_slug ON courses(slug);
+CREATE INDEX idx_courses_status ON courses(status);
+CREATE INDEX idx_courses_instructor ON courses(instructor_id);
+CREATE INDEX idx_courses_category ON courses(category_id);
+CREATE INDEX idx_courses_tier ON courses(tier_required);
+CREATE INDEX idx_courses_featured ON courses(is_featured);
+CREATE INDEX idx_courses_published_at ON courses(published_at DESC);
 
 -- Course Modules
-CREATE INDEX idx_modules_course ON course_modules(course_id) WHERE deleted = FALSE;
-CREATE INDEX idx_modules_sort ON course_modules(course_id, sort_order) WHERE deleted = FALSE;
+CREATE INDEX idx_modules_course ON course_modules(course_id);
+CREATE INDEX idx_modules_sort ON course_modules(course_id, sort_order);
 
 -- Lessons
-CREATE INDEX idx_lessons_module ON lessons(module_id) WHERE deleted = FALSE;
-CREATE INDEX idx_lessons_type ON lessons(lesson_type) WHERE deleted = FALSE;
-CREATE INDEX idx_lessons_sort ON lessons(module_id, sort_order) WHERE deleted = FALSE;
+CREATE INDEX idx_lessons_module ON lessons(module_id);
+CREATE INDEX idx_lessons_type ON lessons(lesson_type);
+CREATE INDEX idx_lessons_sort ON lessons(module_id, sort_order);
 
 -- Quizzes
-CREATE INDEX idx_quizzes_lesson ON quizzes(lesson_id) WHERE deleted = FALSE;
+CREATE INDEX idx_quizzes_lesson ON quizzes(lesson_id);
 
 -- Quiz Questions
-CREATE INDEX idx_questions_quiz ON quiz_questions(quiz_id) WHERE deleted = FALSE;
-CREATE INDEX idx_questions_sort ON quiz_questions(quiz_id, sort_order) WHERE deleted = FALSE;
+CREATE INDEX idx_questions_quiz ON quiz_questions(quiz_id);
+CREATE INDEX idx_questions_sort ON quiz_questions(quiz_id, sort_order);
 
 -- Enrollments
 CREATE INDEX idx_enrollments_course ON enrollments(course_id);
@@ -308,13 +308,13 @@ CREATE INDEX idx_attempts_user ON quiz_attempts(user_id);
 CREATE INDEX idx_attempts_enrollment ON quiz_attempts(enrollment_id);
 
 -- Course Reviews
-CREATE INDEX idx_reviews_course ON course_reviews(course_id) WHERE deleted = FALSE;
-CREATE INDEX idx_reviews_user ON course_reviews(user_id) WHERE deleted = FALSE;
-CREATE INDEX idx_reviews_rating ON course_reviews(rating) WHERE deleted = FALSE;
+CREATE INDEX idx_reviews_course ON course_reviews(course_id);
+CREATE INDEX idx_reviews_user ON course_reviews(user_id);
+CREATE INDEX idx_reviews_rating ON course_reviews(rating);
 
 -- Achievements
-CREATE INDEX idx_achievements_tenant ON achievements(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_achievements_type ON achievements(achievement_type) WHERE deleted = FALSE;
+CREATE INDEX idx_achievements_tenant ON achievements(tenant_id);
+CREATE INDEX idx_achievements_type ON achievements(achievement_type);
 
 -- User Achievements
 CREATE INDEX idx_user_achievements_user ON user_achievements(user_id);
@@ -327,18 +327,5 @@ CREATE INDEX idx_certificates_course ON certificates(course_id);
 CREATE INDEX idx_certificates_number ON certificates(certificate_number);
 CREATE INDEX idx_certificates_verification ON certificates(verification_code);
 
--- ===================================
--- Comments
--- ===================================
-COMMENT ON TABLE courses IS 'Main courses table for LMS';
-COMMENT ON TABLE course_modules IS 'Modules within a course';
-COMMENT ON TABLE lessons IS 'Individual lessons within modules';
-COMMENT ON TABLE quizzes IS 'Quizzes for assessment';
-COMMENT ON TABLE quiz_questions IS 'Questions within quizzes';
-COMMENT ON TABLE enrollments IS 'User course enrollments with progress tracking';
-COMMENT ON TABLE lesson_progress IS 'Detailed progress tracking for each lesson';
-COMMENT ON TABLE quiz_attempts IS 'Quiz attempt history and scores';
-COMMENT ON TABLE course_reviews IS 'Course reviews and ratings';
-COMMENT ON TABLE achievements IS 'Achievement definitions';
-COMMENT ON TABLE user_achievements IS 'User earned achievements';
-COMMENT ON TABLE certificates IS 'Course completion certificates';
+-- Note: Table comments removed for H2 compatibility
+-- For PostgreSQL production, consider adding COMMENT ON TABLE statements

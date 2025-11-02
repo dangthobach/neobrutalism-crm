@@ -99,7 +99,7 @@ public class ContentMapper {
         dto.setDescription(category.getDescription());
         dto.setParentId(category.getParent() != null ? category.getParent().getId() : null);
         dto.setSortOrder(category.getSortOrder());
-        dto.setContentCount(category.getContents() != null ? category.getContents().size() : 0);
+        dto.setContentCount(category.getContents() != null ? Integer.valueOf(category.getContents().size()) : 0);
         dto.setCreatedAt(category.getCreatedAt());
         dto.setUpdatedAt(category.getUpdatedAt());
 

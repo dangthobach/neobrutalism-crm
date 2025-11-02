@@ -58,7 +58,7 @@ public interface ContentTagRepository extends SoftDeleteRepository<ContentTag> {
     /**
      * Find popular tags (most used)
      */
-    @Query("SELECT t, COUNT(ct.content) as contentCount FROM ContentTag t " +
+    @Query("SELECT t, COUNT(ct) as contentCount FROM ContentTag t " +
            "LEFT JOIN t.contents ct " +
            "WHERE t.deleted = false AND t.tenantId = :tenantId " +
            "GROUP BY t ORDER BY contentCount DESC")
@@ -67,7 +67,7 @@ public interface ContentTagRepository extends SoftDeleteRepository<ContentTag> {
     /**
      * Find tags with content count
      */
-    @Query("SELECT t, COUNT(ct.content) as contentCount FROM ContentTag t " +
+    @Query("SELECT t, COUNT(ct) as contentCount FROM ContentTag t " +
            "LEFT JOIN t.contents ct " +
            "WHERE t.deleted = false AND t.tenantId = :tenantId " +
            "GROUP BY t ORDER BY t.name ASC")

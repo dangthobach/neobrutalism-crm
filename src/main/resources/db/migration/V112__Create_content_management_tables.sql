@@ -80,7 +80,7 @@ CREATE TABLE contents (
     deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
 
     -- Optimistic locking
-    version INTEGER DEFAULT 0,
+    version BIGINT DEFAULT 0,
 
     CONSTRAINT uq_content_slug_tenant UNIQUE (tenant_id, slug, deleted),
     CONSTRAINT chk_content_type CHECK (content_type IN ('BLOG', 'ARTICLE', 'PAGE', 'NEWS', 'GUIDE', 'VIDEO')),
@@ -159,27 +159,27 @@ CREATE TABLE content_read_models (
 -- ===================================
 
 -- Content Categories
-CREATE INDEX idx_content_categories_tenant ON content_categories(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_content_categories_parent ON content_categories(parent_id) WHERE deleted = FALSE;
-CREATE INDEX idx_content_categories_slug ON content_categories(slug) WHERE deleted = FALSE;
+CREATE INDEX idx_content_categories_tenant ON content_categories(tenant_id);
+CREATE INDEX idx_content_categories_parent ON content_categories(parent_id);
+CREATE INDEX idx_content_categories_slug ON content_categories(slug);
 
 -- Content Tags
-CREATE INDEX idx_content_tags_tenant ON content_tags(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_content_tags_slug ON content_tags(slug) WHERE deleted = FALSE;
+CREATE INDEX idx_content_tags_tenant ON content_tags(tenant_id);
+CREATE INDEX idx_content_tags_slug ON content_tags(slug);
 
 -- Content Series
-CREATE INDEX idx_content_series_tenant ON content_series(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_content_series_slug ON content_series(slug) WHERE deleted = FALSE;
+CREATE INDEX idx_content_series_tenant ON content_series(tenant_id);
+CREATE INDEX idx_content_series_slug ON content_series(slug);
 
 -- Contents
-CREATE INDEX idx_contents_tenant ON contents(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_slug ON contents(slug) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_status ON contents(status) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_author ON contents(author_id) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_series ON contents(series_id) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_published_at ON contents(published_at DESC) WHERE status = 'PUBLISHED' AND deleted = FALSE;
-CREATE INDEX idx_contents_tier ON contents(tier_required) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_type_status ON contents(content_type, status) WHERE deleted = FALSE;
+CREATE INDEX idx_contents_tenant ON contents(tenant_id);
+CREATE INDEX idx_contents_slug ON contents(slug);
+CREATE INDEX idx_contents_status ON contents(status);
+CREATE INDEX idx_contents_author ON contents(author_id);
+CREATE INDEX idx_contents_series ON contents(series_id);
+CREATE INDEX idx_contents_published_at ON contents(published_at DESC);
+CREATE INDEX idx_contents_tier ON contents(tier_required);
+CREATE INDEX idx_contents_type_status ON contents(content_type, status);
 
 -- Content Category Mappings
 CREATE INDEX idx_content_categories_content ON content_category_mappings(content_id);
@@ -198,24 +198,11 @@ CREATE INDEX idx_content_views_viewed_at ON content_views(viewed_at DESC);
 -- Content Read Models
 CREATE INDEX idx_content_read_models_tenant ON content_read_models(tenant_id);
 CREATE INDEX idx_content_read_models_status ON content_read_models(status);
-CREATE INDEX idx_content_read_models_published_at ON content_read_models(published_at DESC) WHERE status = 'PUBLISHED';
+CREATE INDEX idx_content_read_models_published_at ON content_read_models(published_at DESC);
 CREATE INDEX idx_content_read_models_author ON content_read_models(author_id);
 CREATE INDEX idx_content_read_models_tier ON content_read_models(tier_required);
 
--- Full-text search on content
-CREATE INDEX idx_contents_title_search ON contents USING gin(to_tsvector('english', title)) WHERE deleted = FALSE;
-CREATE INDEX idx_contents_body_search ON contents USING gin(to_tsvector('english', body)) WHERE deleted = FALSE;
-
--- ===================================
--- Comments
--- ===================================
-COMMENT ON TABLE contents IS 'Main content table for blog posts, articles, pages, and other content types';
-COMMENT ON TABLE content_categories IS 'Hierarchical categories for organizing content';
-COMMENT ON TABLE content_tags IS 'Tags for flexible content classification';
-COMMENT ON TABLE content_series IS 'Content series for grouping related content';
-COMMENT ON TABLE content_views IS 'Detailed tracking of content views for analytics and engagement scoring';
-COMMENT ON TABLE content_read_models IS 'CQRS read model for optimized content queries';
-COMMENT ON COLUMN contents.tier_required IS 'Minimum member tier required to access this content (FREE, SILVER, GOLD, VIP)';
-COMMENT ON COLUMN contents.view_count IS 'Denormalized view count for quick access';
-COMMENT ON COLUMN content_views.time_spent_seconds IS 'Time user spent reading the content';
-COMMENT ON COLUMN content_views.scroll_percentage IS 'How far user scrolled (0-100%)';
+-- Note: Full-text search indexes removed for H2 compatibility
+-- For PostgreSQL production, consider adding:
+-- CREATE INDEX idx_contents_title_search ON contents USING gin(to_tsvector('english', title));
+-- CREATE INDEX idx_contents_body_search ON contents USING gin(to_tsvector('english', body));

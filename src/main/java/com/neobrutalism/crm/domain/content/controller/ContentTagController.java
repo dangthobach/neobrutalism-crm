@@ -54,7 +54,7 @@ public class ContentTagController {
     @Operation(summary = "Get tag by ID", description = "Retrieve a specific tag by its ID")
     public ApiResponse<ContentTagDTO> getTagById(@PathVariable UUID id) {
         ContentTag tag = tagService.findById(id);
-        return ApiResponse.success(contentMapper.toTagDTO(tag));
+        return ApiResponse.success("Tag retrieved successfully", contentMapper.toTagDTO(tag));
     }
 
     @GetMapping("/slug/{slug}")
@@ -64,7 +64,7 @@ public class ContentTagController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentTag tag = tagService.findBySlug(slug, tenantId);
-        return ApiResponse.success(contentMapper.toTagDTO(tag));
+        return ApiResponse.success("Tag retrieved successfully", contentMapper.toTagDTO(tag));
     }
 
     @GetMapping("/name/{name}")
@@ -74,7 +74,7 @@ public class ContentTagController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentTag tag = tagService.findByName(name, tenantId);
-        return ApiResponse.success(contentMapper.toTagDTO(tag));
+        return ApiResponse.success("Tag retrieved successfully", contentMapper.toTagDTO(tag));
     }
 
     @GetMapping
@@ -87,7 +87,7 @@ public class ContentTagController {
             .map(contentMapper::toTagDTO)
             .collect(Collectors.toList());
 
-        return ApiResponse.success(dtos);
+        return ApiResponse.success("Tags retrieved successfully", dtos);
     }
 
     @GetMapping("/search")
@@ -98,7 +98,7 @@ public class ContentTagController {
             .map(contentMapper::toTagDTO)
             .collect(Collectors.toList());
 
-        return ApiResponse.success(dtos);
+        return ApiResponse.success("Tags search completed successfully", dtos);
     }
 
     @GetMapping("/popular")
@@ -107,7 +107,7 @@ public class ContentTagController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         List<Object[]> result = tagService.findPopularTags(tenantId);
-        return ApiResponse.success(result);
+        return ApiResponse.success("Popular tags retrieved successfully", result);
     }
 
     @GetMapping("/with-count")
@@ -116,13 +116,13 @@ public class ContentTagController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         List<Object[]> result = tagService.findAllWithContentCount(tenantId);
-        return ApiResponse.success(result);
+        return ApiResponse.success("Tags with count retrieved successfully", result);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete tag", description = "Soft delete a content tag")
     public ApiResponse<Void> deleteTag(@PathVariable UUID id) {
-        tagService.delete(id);
-        return ApiResponse.success("Tag deleted successfully");
+        tagService.deleteById(id);
+        return ApiResponse.success("Tag deleted successfully", null);
     }
 }

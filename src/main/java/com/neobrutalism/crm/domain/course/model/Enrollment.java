@@ -62,7 +62,7 @@ public class Enrollment extends SoftDeletableEntity {
     @Column(name = "last_accessed_at")
     private LocalDateTime lastAccessedAt;
 
-    @Column(name = "price_paid", precision = 12, scale = 2)
+    @Column(name = "price_paid")
     private BigDecimal pricePaid;
 
     @Column(name = "certificate_issued_at")

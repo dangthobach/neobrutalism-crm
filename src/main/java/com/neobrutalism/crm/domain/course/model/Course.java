@@ -77,7 +77,7 @@ public class Course extends StatefulEntity<CourseStatus> {
     @Column(name = "tier_required", length = 50)
     private MemberTier tierRequired = MemberTier.FREE;
 
-    @Column(name = "price", precision = 12, scale = 2)
+    @Column(name = "price")
     private BigDecimal price = BigDecimal.ZERO;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -97,7 +97,7 @@ public class Course extends StatefulEntity<CourseStatus> {
     @Column(name = "completion_count", nullable = false)
     private Integer completionCount = 0;
 
-    @Column(name = "rating_average", precision = 3, scale = 2)
+    @Column(name = "rating_average")
     private BigDecimal ratingAverage;
 
     @Column(name = "rating_count", nullable = false)

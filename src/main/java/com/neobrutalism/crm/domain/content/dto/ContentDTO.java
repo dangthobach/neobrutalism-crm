@@ -81,7 +81,7 @@ public class ContentDTO {
     private Instant updatedAt;
 
     @Schema(description = "Version (for optimistic locking)")
-    private Integer version;
+    private Long version;
 
     @Data
     @Schema(description = "Author information")

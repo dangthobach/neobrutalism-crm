@@ -58,7 +58,7 @@ public class Certificate extends SoftDeletableEntity {
     @Column(name = "verification_url", length = 1000)
     private String verificationUrl;
 
-    @Column(name = "final_score", precision = 5, scale = 2)
+    @Column(name = "final_score")
     private Double finalScore;
 
     @Column(name = "completion_date", nullable = false)

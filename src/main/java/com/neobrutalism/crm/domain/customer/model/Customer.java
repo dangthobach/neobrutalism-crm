@@ -169,7 +169,7 @@ public class Customer extends TenantAwareAggregateRoot<CustomerStatus> {
     /**
      * Annual revenue
      */
-    @Column(name = "annual_revenue", precision = 19, scale = 2)
+    @Column(name = "annual_revenue")
     private BigDecimal annualRevenue;
 
     /**
@@ -206,7 +206,7 @@ public class Customer extends TenantAwareAggregateRoot<CustomerStatus> {
     /**
      * Credit limit
      */
-    @Column(name = "credit_limit", precision = 19, scale = 2)
+    @Column(name = "credit_limit")
     private BigDecimal creditLimit;
 
     /**

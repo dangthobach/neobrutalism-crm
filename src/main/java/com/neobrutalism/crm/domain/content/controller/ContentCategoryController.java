@@ -54,7 +54,7 @@ public class ContentCategoryController {
     @Operation(summary = "Get category by ID", description = "Retrieve a specific category by its ID")
     public ApiResponse<ContentCategoryDTO> getCategoryById(@PathVariable UUID id) {
         ContentCategory category = categoryService.findById(id);
-        return ApiResponse.success(contentMapper.toCategoryDTO(category));
+        return ApiResponse.success("Category retrieved successfully", contentMapper.toCategoryDTO(category));
     }
 
     @GetMapping("/slug/{slug}")
@@ -64,7 +64,7 @@ public class ContentCategoryController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentCategory category = categoryService.findBySlug(slug, tenantId);
-        return ApiResponse.success(contentMapper.toCategoryDTO(category));
+        return ApiResponse.success("Category retrieved successfully", contentMapper.toCategoryDTO(category));
     }
 
     @GetMapping
@@ -72,12 +72,12 @@ public class ContentCategoryController {
     public ApiResponse<List<ContentCategoryDTO>> getAllCategories(
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
-        List<ContentCategory> categories = categoryService.findAllByTenantId(tenantId);
+        List<ContentCategory> categories = categoryService.findAll();
         List<ContentCategoryDTO> dtos = categories.stream()
             .map(contentMapper::toCategoryDTO)
             .collect(Collectors.toList());
 
-        return ApiResponse.success(dtos);
+        return ApiResponse.success("Categories retrieved successfully", dtos);
     }
 
     @GetMapping("/roots")
@@ -90,7 +90,7 @@ public class ContentCategoryController {
             .map(contentMapper::toCategoryDTO)
             .collect(Collectors.toList());
 
-        return ApiResponse.success(dtos);
+        return ApiResponse.success("Root categories retrieved successfully", dtos);
     }
 
     @GetMapping("/{id}/children")
@@ -101,7 +101,7 @@ public class ContentCategoryController {
             .map(contentMapper::toCategoryDTO)
             .collect(Collectors.toList());
 
-        return ApiResponse.success(dtos);
+        return ApiResponse.success("Child categories retrieved successfully", dtos);
     }
 
     @GetMapping("/with-count")
@@ -110,13 +110,13 @@ public class ContentCategoryController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         List<Object[]> result = categoryService.findAllWithContentCount(tenantId);
-        return ApiResponse.success(result);
+        return ApiResponse.success("Categories with count retrieved successfully", result);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete category", description = "Soft delete a content category")
     public ApiResponse<Void> deleteCategory(@PathVariable UUID id) {
-        categoryService.delete(id);
-        return ApiResponse.success("Category deleted successfully");
+        categoryService.deleteById(id);
+        return ApiResponse.success("Category deleted successfully", null);
     }
 }

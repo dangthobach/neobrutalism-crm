@@ -54,7 +54,7 @@ public class ContentSeriesController {
     @Operation(summary = "Get series by ID", description = "Retrieve a specific series by its ID")
     public ApiResponse<ContentSeriesDTO> getSeriesById(@PathVariable UUID id) {
         ContentSeries series = seriesService.findById(id);
-        return ApiResponse.success(contentMapper.toSeriesDTO(series));
+        return ApiResponse.success("Series retrieved successfully", contentMapper.toSeriesDTO(series));
     }
 
     @GetMapping("/slug/{slug}")
@@ -64,7 +64,7 @@ public class ContentSeriesController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentSeries series = seriesService.findBySlug(slug, tenantId);
-        return ApiResponse.success(contentMapper.toSeriesDTO(series));
+        return ApiResponse.success("Series retrieved successfully", contentMapper.toSeriesDTO(series));
     }
 
     @GetMapping
@@ -77,7 +77,7 @@ public class ContentSeriesController {
             .map(contentMapper::toSeriesDTO)
             .collect(Collectors.toList());
 
-        return ApiResponse.success(dtos);
+        return ApiResponse.success("Series retrieved successfully", dtos);
     }
 
     @GetMapping("/with-count")
@@ -86,13 +86,13 @@ public class ContentSeriesController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         List<Object[]> result = seriesService.findAllWithContentCount(tenantId);
-        return ApiResponse.success(result);
+        return ApiResponse.success("Series with count retrieved successfully", result);
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete series", description = "Soft delete a content series")
     public ApiResponse<Void> deleteSeries(@PathVariable UUID id) {
-        seriesService.delete(id);
-        return ApiResponse.success("Series deleted successfully");
+        seriesService.deleteById(id);
+        return ApiResponse.success("Series deleted successfully", null);
     }
 }

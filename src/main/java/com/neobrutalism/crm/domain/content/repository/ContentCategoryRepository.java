@@ -59,7 +59,7 @@ public interface ContentCategoryRepository extends SoftDeleteRepository<ContentC
     /**
      * Find all categories with their content count
      */
-    @Query("SELECT c, COUNT(cc.content) as contentCount FROM ContentCategory c " +
+    @Query("SELECT c, COUNT(cc) as contentCount FROM ContentCategory c " +
            "LEFT JOIN c.contents cc " +
            "WHERE c.deleted = false AND c.tenantId = :tenantId " +
            "GROUP BY c ORDER BY c.sortOrder ASC")

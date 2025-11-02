@@ -50,7 +50,7 @@ public class QuizAttempt extends SoftDeletableEntity {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
-    @Column(name = "score", precision = 5, scale = 2)
+    @Column(name = "score")
     private Double score;
 
     @Column(name = "points_earned")

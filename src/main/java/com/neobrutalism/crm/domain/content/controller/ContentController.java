@@ -54,7 +54,7 @@ public class ContentController {
 
         UUID authorId = getCurrentUserId();
         Content content = contentService.createContent(request, authorId, tenantId);
-        return ApiResponse.success(contentMapper.toDTO(content), "Content created successfully");
+        return ApiResponse.success("Content created successfully", contentMapper.toDTO(content));
     }
 
     @PutMapping("/{id}")
@@ -64,7 +64,7 @@ public class ContentController {
             @Valid @RequestBody UpdateContentRequest request) {
 
         Content content = contentService.updateContent(id, request);
-        return ApiResponse.success(contentMapper.toDTO(content), "Content updated successfully");
+        return ApiResponse.success("Content updated successfully", contentMapper.toDTO(content));
     }
 
     @PostMapping("/{id}/publish")
@@ -74,7 +74,7 @@ public class ContentController {
             @RequestParam(required = false) String reason) {
 
         Content content = contentService.publishContent(id, reason);
-        return ApiResponse.success(contentMapper.toDTO(content), "Content published successfully");
+        return ApiResponse.success("Content published successfully", contentMapper.toDTO(content));
     }
 
     @PostMapping("/{id}/submit-review")
@@ -84,7 +84,7 @@ public class ContentController {
             @RequestParam(required = false) String reason) {
 
         Content content = contentService.submitForReview(id, reason);
-        return ApiResponse.success(contentMapper.toDTO(content), "Content submitted for review");
+        return ApiResponse.success("Content submitted for review", contentMapper.toDTO(content));
     }
 
     @PostMapping("/{id}/archive")
@@ -94,14 +94,14 @@ public class ContentController {
             @RequestParam(required = false) String reason) {
 
         Content content = contentService.archiveContent(id, reason);
-        return ApiResponse.success(contentMapper.toDTO(content), "Content archived successfully");
+        return ApiResponse.success("Content archived successfully", contentMapper.toDTO(content));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete content", description = "Soft delete content")
     public ApiResponse<Void> deleteContent(@PathVariable UUID id) {
-        contentService.delete(id);
-        return ApiResponse.success(null, "Content deleted successfully");
+        contentService.deleteById(id);
+        return ApiResponse.success("Content deleted successfully");
     }
 
     // ==================== Public APIs (Read Model) ====================
@@ -239,7 +239,7 @@ public class ContentController {
         UUID userId = getCurrentUserIdOrNull();
         viewService.trackView(id, userId, request, httpRequest);
 
-        return ApiResponse.success(null, "View tracked successfully");
+        return ApiResponse.success("View tracked successfully");
     }
 
     @GetMapping("/{id}/stats")
@@ -256,9 +256,7 @@ public class ContentController {
         if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof UUID) {
             return (UUID) auth.getPrincipal();
         }
-        // For development/testing, return a default UUID
-        // In production, this should throw an exception
-        return UUID.randomUUID();
+        throw new IllegalStateException("User is not authenticated or authentication principal is invalid");
     }
 
     private UUID getCurrentUserIdOrNull() {
