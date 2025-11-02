@@ -37,7 +37,7 @@ public class ContentCategoryController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentCategory category = categoryService.createCategory(request, tenantId);
-        return ApiResponse.success(contentMapper.toCategoryDTO(category), "Category created successfully");
+        return ApiResponse.success("Category created successfully", contentMapper.toCategoryDTO(category));
     }
 
     @PutMapping("/{id}")
@@ -47,7 +47,7 @@ public class ContentCategoryController {
             @Valid @RequestBody CategoryRequest request) {
 
         ContentCategory category = categoryService.updateCategory(id, request);
-        return ApiResponse.success(contentMapper.toCategoryDTO(category), "Category updated successfully");
+        return ApiResponse.success("Category updated successfully", contentMapper.toCategoryDTO(category));
     }
 
     @GetMapping("/{id}")
@@ -117,6 +117,6 @@ public class ContentCategoryController {
     @Operation(summary = "Delete category", description = "Soft delete a content category")
     public ApiResponse<Void> deleteCategory(@PathVariable UUID id) {
         categoryService.delete(id);
-        return ApiResponse.success(null, "Category deleted successfully");
+        return ApiResponse.success("Category deleted successfully");
     }
 }

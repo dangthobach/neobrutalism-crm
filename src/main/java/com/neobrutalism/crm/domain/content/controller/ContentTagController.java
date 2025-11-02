@@ -37,7 +37,7 @@ public class ContentTagController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentTag tag = tagService.createTag(request, tenantId);
-        return ApiResponse.success(contentMapper.toTagDTO(tag), "Tag created successfully");
+        return ApiResponse.success("Tag created successfully", contentMapper.toTagDTO(tag));
     }
 
     @PutMapping("/{id}")
@@ -47,7 +47,7 @@ public class ContentTagController {
             @Valid @RequestBody TagRequest request) {
 
         ContentTag tag = tagService.updateTag(id, request);
-        return ApiResponse.success(contentMapper.toTagDTO(tag), "Tag updated successfully");
+        return ApiResponse.success("Tag updated successfully", contentMapper.toTagDTO(tag));
     }
 
     @GetMapping("/{id}")
@@ -123,6 +123,6 @@ public class ContentTagController {
     @Operation(summary = "Delete tag", description = "Soft delete a content tag")
     public ApiResponse<Void> deleteTag(@PathVariable UUID id) {
         tagService.delete(id);
-        return ApiResponse.success(null, "Tag deleted successfully");
+        return ApiResponse.success("Tag deleted successfully");
     }
 }

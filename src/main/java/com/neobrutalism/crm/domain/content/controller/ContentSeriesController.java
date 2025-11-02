@@ -37,7 +37,7 @@ public class ContentSeriesController {
             @RequestHeader(value = "X-Tenant-ID", defaultValue = "default") String tenantId) {
 
         ContentSeries series = seriesService.createSeries(request, tenantId);
-        return ApiResponse.success(contentMapper.toSeriesDTO(series), "Series created successfully");
+        return ApiResponse.success("Series created successfully", contentMapper.toSeriesDTO(series));
     }
 
     @PutMapping("/{id}")
@@ -47,7 +47,7 @@ public class ContentSeriesController {
             @Valid @RequestBody SeriesRequest request) {
 
         ContentSeries series = seriesService.updateSeries(id, request);
-        return ApiResponse.success(contentMapper.toSeriesDTO(series), "Series updated successfully");
+        return ApiResponse.success("Series updated successfully", contentMapper.toSeriesDTO(series));
     }
 
     @GetMapping("/{id}")
@@ -93,6 +93,6 @@ public class ContentSeriesController {
     @Operation(summary = "Delete series", description = "Soft delete a content series")
     public ApiResponse<Void> deleteSeries(@PathVariable UUID id) {
         seriesService.delete(id);
-        return ApiResponse.success(null, "Series deleted successfully");
+        return ApiResponse.success("Series deleted successfully");
     }
 }

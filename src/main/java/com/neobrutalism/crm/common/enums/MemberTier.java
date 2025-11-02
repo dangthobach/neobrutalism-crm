@@ -72,4 +72,18 @@ public enum MemberTier {
     public boolean canAccess(MemberTier requiredTier) {
         return this.level >= requiredTier.level;
     }
+
+    /**
+     * Get all tiers accessible to this tier level
+     * For example: GOLD can access FREE, SILVER, and GOLD tiers
+     */
+    public static java.util.List<MemberTier> getAccessibleTiers(MemberTier userTier) {
+        java.util.List<MemberTier> accessible = new java.util.ArrayList<>();
+        for (MemberTier tier : values()) {
+            if (userTier.canAccess(tier)) {
+                accessible.add(tier);
+            }
+        }
+        return accessible;
+    }
 }
