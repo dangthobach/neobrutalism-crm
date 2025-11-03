@@ -86,6 +86,13 @@ public class User extends TenantAwareAggregateRoot<UserStatus> {
     @Column(name = "data_scope", nullable = false, length = 20)
     private DataScope dataScope = DataScope.SELF_ONLY;
 
+    /**
+     * Member tier for LMS/CMS access control
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "member_tier", nullable = false, length = 20)
+    private com.neobrutalism.crm.common.enums.MemberTier memberTier = com.neobrutalism.crm.common.enums.MemberTier.FREE;
+
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 

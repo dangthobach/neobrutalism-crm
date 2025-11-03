@@ -35,6 +35,8 @@ public class TokenBlacklistService {
 
     /**
      * Check if token is blacklisted
+     * WARNING: If Redis is unavailable, this will fail-safe by denying access
+     * This is a security-first approach to prevent accepting potentially blacklisted tokens
      */
     public boolean isTokenBlacklisted(String token) {
         try {
@@ -76,6 +78,8 @@ public class TokenBlacklistService {
 
     /**
      * Check if all user tokens are blacklisted
+     * WARNING: If Redis is unavailable, this will fail-safe by denying access
+     * This is a security-first approach to prevent accepting potentially blacklisted user tokens
      */
     public boolean areUserTokensBlacklisted(String userId) {
         try {

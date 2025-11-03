@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { LayoutDashboard, Users, Shield, Lock, Building2, Menu, ChevronLeft, LogOut, UsersRound, List, Network, Layers, Monitor } from "lucide-react"
+import { LayoutDashboard, Users, Shield, Lock, Building2, Menu, ChevronLeft, LogOut, UsersRound, List, Network, Layers, Monitor, FileText, BookOpen, UserCheck, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -21,6 +21,11 @@ const menuItems = [
   { href: "/admin/menu-tabs", icon: Layers, label: "Menu Tabs" },
   { href: "/admin/menu-screens", icon: Monitor, label: "Menu Screens" },
   { href: "/admin/api-endpoints", icon: Network, label: "API Endpoints" },
+  { href: "/admin/permissions", icon: Lock, label: "Permissions" },
+  { href: "/admin/customers", icon: UserCheck, label: "Customers" },
+  { href: "/admin/contacts", icon: MessageSquare, label: "Contacts" },
+  { href: "/admin/content", icon: FileText, label: "Content (CMS)" },
+  { href: "/admin/courses", icon: BookOpen, label: "Courses (LMS)" },
 ]
 
 export default function AdminLayout({
