@@ -36,6 +36,7 @@ export class ApiError extends Error {
 class ApiClient {
   private baseUrl: string
   private accessToken: string | null = null
+  private refreshInProgress: Promise<void> | null = null
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
@@ -47,6 +48,12 @@ class ApiClient {
       localStorage.setItem('access_token', token)
     } else {
       localStorage.removeItem('access_token')
+    }
+  }
+
+  clearRefreshToken() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('refresh_token')
     }
   }
 
@@ -90,17 +97,32 @@ class ApiClient {
       if (!response.ok) {
         // Handle 401 Unauthorized - try to refresh token
         if (response.status === 401 && retryCount === 0 && token) {
+          // If a refresh is already in progress, wait for it instead of starting a new one
+          if (this.refreshInProgress) {
+            try {
+              await this.refreshInProgress
+              return this.request(endpoint, options, retryCount + 1)
+            } catch (e) {
+              // refresh failed
+              this.setAccessToken(null)
+              this.clearRefreshToken()
+              if (typeof window !== 'undefined') window.location.href = '/login'
+            }
+          }
+
+          // Start refresh flow
+          this.refreshInProgress = this.refreshToken()
           try {
-            await this.refreshToken()
-            // Retry the request with new token
+            await this.refreshInProgress
+            // refresh succeeded, clear the marker and retry
+            this.refreshInProgress = null
             return this.request(endpoint, options, retryCount + 1)
           } catch (refreshError) {
             // If refresh fails, clear tokens and redirect to login
+            this.refreshInProgress = null
             this.setAccessToken(null)
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('refresh_token')
-              window.location.href = '/login'
-            }
+            this.clearRefreshToken()
+            if (typeof window !== 'undefined') window.location.href = '/login'
           }
         }
 

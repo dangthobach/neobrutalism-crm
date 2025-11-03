@@ -1,8 +1,9 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { authApi, LoginRequest, LoginResponse } from '@/lib/api/auth'
 import { apiClient } from '@/lib/api/client'
+import { userApi } from '@/lib/api/users'
 
 interface User {
   id: string
@@ -35,8 +36,12 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [refreshTimer, setRefreshTimer] = useState<NodeJS.Timeout | null>(null)
 
   const isAuthenticated = !!user
+
+  // Stable reference to refreshToken function
+  const refreshTokenRef = React.useRef<(() => Promise<void>) | null>(null)
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -44,22 +49,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const token = apiClient.getAccessToken()
         if (token) {
-          // Verify token is still valid by getting current user
-          const userId = await authApi.getCurrentUser()
-          if (userId) {
-            // For now, we'll create a minimal user object
-            // In a real app, you'd fetch full user details
-            setUser({
-              id: userId,
-              username: 'admin', // This should come from the API
-              email: 'admin@example.com',
-              firstName: 'Admin',
-              lastName: 'User',
-              fullName: 'Admin User',
-              organizationId: '018e0010-0000-0000-0000-000000000001',
-              roles: ['ADMIN'],
-              permissions: ['*']
-            })
+          // Try to fetch full current user profile from backend
+          try {
+            const profile = await userApi.getCurrentUserProfile()
+            if (profile) {
+              setUser({
+                id: profile.id,
+                username: profile.username,
+                email: profile.email,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+                fullName: profile.fullName,
+                avatar: profile.avatar,
+                organizationId: profile.organizationId,
+                roles: (profile as any).roles || [],
+                permissions: (profile as any).permissions || [],
+              })
+              
+              // Schedule background refresh if we have an expiry stored
+              if (typeof window !== 'undefined') {
+                const expiresAt = localStorage.getItem('access_token_expires_at')
+                if (expiresAt) {
+                  const ms = Number(expiresAt) - Date.now()
+                  // schedule only if expiry in future
+                  if (ms > 0) {
+                    // set to refresh 60s before expiry
+                    const timeout = Math.max(ms - 60_000, 5_000)
+                    const id = setTimeout(() => {
+                      refreshTokenRef.current?.().catch(() => {})
+                    }, timeout)
+                    setRefreshTimer(id)
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            // Token invalid or profile fetch failed -> clear tokens
+            apiClient.setAccessToken(null)
+            if (typeof window !== 'undefined') localStorage.removeItem('refresh_token')
           }
         }
       } catch (error) {
@@ -72,7 +99,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     initializeAuth()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // refreshToken is handled via ref to avoid dependency
 
   const login = async (credentials: LoginRequest) => {
     try {
@@ -85,6 +113,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Store refresh token
       if (typeof window !== 'undefined') {
         localStorage.setItem('refresh_token', response.refreshToken)
+        // store expiry timestamp
+        const expiresAt = Date.now() + (response.expiresIn * 1000)
+        localStorage.setItem('access_token_expires_at', String(expiresAt))
+        // schedule a refresh 60s before expiry
+        const timeout = Math.max(response.expiresIn * 1000 - 60_000, 5_000)
+        if (refreshTimer) {
+          clearTimeout(refreshTimer)
+        }
+        const id = setTimeout(() => {
+          refreshToken().catch(() => {})
+        }, timeout)
+        setRefreshTimer(id)
       }
       
       // Set user data
@@ -103,6 +143,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       apiClient.setAccessToken(null)
       if (typeof window !== 'undefined') {
         localStorage.removeItem('refresh_token')
+        localStorage.removeItem('access_token_expires_at')
+      }
+      
+      // clear any scheduled refresh
+      if (refreshTimer) {
+        clearTimeout(refreshTimer)
+        setRefreshTimer(null)
       }
       
       // Clear user data
@@ -133,6 +180,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       apiClient.setAccessToken(response.accessToken)
       if (typeof window !== 'undefined') {
         localStorage.setItem('refresh_token', response.refreshToken)
+        const expiresAt = Date.now() + (response.expiresIn * 1000)
+        localStorage.setItem('access_token_expires_at', String(expiresAt))
+        // reschedule refresh
+        const timeout = Math.max(response.expiresIn * 1000 - 60_000, 5_000)
+        if (refreshTimer) {
+          clearTimeout(refreshTimer)
+        }
+        const id = setTimeout(() => {
+          refreshTokenRef.current?.().catch(() => {})
+        }, timeout)
+        setRefreshTimer(id)
       }
       
       // Update user data
@@ -144,6 +202,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw error
     }
   }
+
+  // Update ref when refreshToken function changes
+  refreshTokenRef.current = refreshToken
 
   const value: AuthContextType = {
     user,

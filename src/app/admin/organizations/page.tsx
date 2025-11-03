@@ -1,23 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Plus, Search, Building2, Mail, Phone, Globe, MapPin, Pencil, Trash2, Archive, PlayCircle, PauseCircle, Filter, X, Loader2 } from "lucide-react"
+import { useMemo, useState, useCallback } from "react"
+import { Plus, Search, Building2, Mail, Phone, Globe, Pencil, Trash2, Archive, PlayCircle, PauseCircle, Filter, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  organizationsAPI,
   type Organization,
   type OrganizationReadModel,
   type OrganizationStatus
 } from "@/lib/api/organizations"
+import { 
+  useOrganizations,
+  useDeleteOrganization,
+  useActivateOrganization,
+  useSuspendOrganization,
+  useArchiveOrganization
+} from "@/hooks/useOrganizations"
 import { OrganizationDialog } from "./organization-dialog"
+import { PermissionGuard } from "@/components/auth/permission-guard"
 import { toast } from "sonner"
 
 export default function OrganizationsPage() {
-  const [organizations, setOrganizations] = useState<OrganizationReadModel[]>([])
-  const [filteredOrganizations, setFilteredOrganizations] = useState<OrganizationReadModel[]>([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState<string | null>(null) // Track which action is loading
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<OrganizationStatus | "ALL">("ALL")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -25,37 +28,56 @@ export default function OrganizationsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(0)
-  const [pageSize, setPageSize] = useState(20)
-  const [totalElements, setTotalElements] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
-  useEffect(() => {
-    loadOrganizations()
-  }, [currentPage, pageSize])
+  // Fetch organizations with React Query
+  const { data: orgsData, isLoading, error, refetch } = useOrganizations({
+    page: pagination.pageIndex,
+    size: pagination.pageSize,
+    sortBy: "id",
+    sortDirection: "ASC"
+  })
 
-  useEffect(() => {
-    filterOrganizations()
-  }, [organizations, searchQuery, statusFilter])
+  // Mutations
+  const deleteMutation = useDeleteOrganization()
+  const activateMutation = useActivateOrganization()
+  const suspendMutation = useSuspendOrganization()
+  const archiveMutation = useArchiveOrganization()
 
-  const loadOrganizations = async () => {
-    try {
-      setLoading(true)
-      const response = await organizationsAPI.queryAllPaged(currentPage, pageSize, "id", "ASC")
-      setOrganizations(response.content)
-      setTotalElements(response.totalElements)
-      setTotalPages(response.totalPages)
-    } catch (error) {
-      console.error("Failed to load organizations:", error)
-      toast.error("Failed to load organizations", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const organizations = useMemo(() => orgsData?.content || [], [orgsData?.content])
+  const totalElements = orgsData?.totalElements || 0
+  const totalPages = orgsData?.totalPages || 0
 
-  const filterOrganizations = () => {
+  // Define handlers with useCallback
+  const onDelete = useCallback(async (id: string) => {
+    await deleteMutation.mutateAsync(id)
+    setDeleteConfirm(null)
+    refetch()
+  }, [deleteMutation, refetch])
+
+  const onActivate = useCallback(async (id: string) => {
+    const reason = prompt("Enter reason for activation:")
+    if (!reason) return
+    await activateMutation.mutateAsync({ id, reason })
+    refetch()
+  }, [activateMutation, refetch])
+
+  const onSuspend = useCallback(async (id: string) => {
+    const reason = prompt("Enter reason for suspension:")
+    if (!reason) return
+    await suspendMutation.mutateAsync({ id, reason })
+    refetch()
+  }, [suspendMutation, refetch])
+
+  const onArchive = useCallback(async (id: string) => {
+    const reason = prompt("Enter reason for archiving:")
+    if (!reason) return
+    await archiveMutation.mutateAsync({ id, reason })
+    refetch()
+  }, [archiveMutation, refetch])
+
+  // Filter organizations (client-side)
+  const filteredOrganizations = useMemo(() => {
     let filtered = organizations
 
     // Filter by status
@@ -63,7 +85,7 @@ export default function OrganizationsPage() {
       filtered = filtered.filter(org => org.status === statusFilter)
     }
 
-    // Filter by search query (client-side filtering for now)
+    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(org =>
@@ -74,94 +96,51 @@ export default function OrganizationsPage() {
       )
     }
 
-    setFilteredOrganizations(filtered)
-  }
+    return filtered
+  }, [organizations, searchQuery, statusFilter])
 
-  // Calculate statistics from current data
-  const calculateStatistics = () => {
+  // Calculate statistics
+  const statistics = useMemo(() => {
     const total = organizations.length
     const active = organizations.filter(org => org.status === "ACTIVE").length
     const withContact = organizations.filter(org => org.email || org.phone).length
     const deleted = organizations.filter(org => org.isDeleted).length
     
     return { total, active, withContact, deleted }
-  }
+  }, [organizations])
 
   const handleCreate = () => {
     setSelectedOrg(null)
     setDialogOpen(true)
   }
 
-  const handleEdit = async (org: OrganizationReadModel) => {
-    try {
-      setActionLoading(`edit-${org.id}`)
-      // Load full organization details from write model
-      const fullOrg = await organizationsAPI.getById(org.id)
-      setSelectedOrg(fullOrg)
-      setDialogOpen(true)
-    } catch (error) {
-      console.error("Failed to load organization:", error)
-      toast.error("Failed to load organization", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred"
-      })
-    } finally {
-      setActionLoading(null)
+  const handleEdit = (org: OrganizationReadModel) => {
+    // Convert ReadModel to Organization for dialog
+    const fullOrg: Organization = {
+      id: org.id,
+      name: org.name,
+      code: org.code,
+      description: org.description,
+      email: org.email,
+      phone: org.phone,
+      website: org.website,
+      address: undefined,
+      status: org.status,
+      deleted: org.isDeleted,
+      createdAt: org.createdAt,
+      createdBy: org.createdBy,
+      updatedAt: org.updatedAt || org.createdAt,
+      updatedBy: org.updatedBy || org.createdBy
     }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      setActionLoading(`delete-${id}`)
-      await organizationsAPI.delete(id)
-      toast.success("Organization deleted successfully")
-      await loadOrganizations()
-      setDeleteConfirm(null)
-    } catch (error) {
-      console.error("Failed to delete organization:", error)
-      toast.error("Failed to delete organization", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred"
-      })
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleStatusChange = async (id: string, action: "activate" | "suspend" | "archive") => {
-    try {
-      const reason = prompt(`Enter reason for ${action}:`)
-      if (!reason) return
-
-      setActionLoading(`${action}-${id}`)
-
-      switch (action) {
-        case "activate":
-          await organizationsAPI.activate(id, reason)
-          break
-        case "suspend":
-          await organizationsAPI.suspend(id, reason)
-          break
-        case "archive":
-          await organizationsAPI.archive(id, reason)
-          break
-      }
-
-      toast.success(`Organization ${action}d successfully`)
-      await loadOrganizations()
-    } catch (error) {
-      console.error(`Failed to ${action} organization:`, error)
-      toast.error(`Failed to ${action} organization`, {
-        description: error instanceof Error ? error.message : "An unexpected error occurred"
-      })
-    } finally {
-      setActionLoading(null)
-    }
+    setSelectedOrg(fullOrg)
+    setDialogOpen(true)
   }
 
   const handleDialogClose = async (success: boolean) => {
     setDialogOpen(false)
     setSelectedOrg(null)
     if (success) {
-      await loadOrganizations()
+      await refetch()
     }
   }
 
@@ -184,6 +163,20 @@ export default function OrganizationsPage() {
 
   const statusOptions: (OrganizationStatus | "ALL")[] = ["ALL", "DRAFT", "ACTIVE", "INACTIVE", "SUSPENDED", "ARCHIVED"]
 
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <header className="border-4 border-black bg-main text-main-foreground p-4 shadow-[8px_8px_0_#000]">
+          <h1 className="text-2xl font-heading">Organizations</h1>
+        </header>
+        <div className="border-4 border-black bg-background p-12 shadow-[8px_8px_0_#000] text-center">
+          <p className="text-lg font-base text-red-500">Error loading organizations: {(error as Error).message}</p>
+          <Button onClick={() => refetch()} className="mt-4">Retry</Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -195,45 +188,44 @@ export default function OrganizationsPage() {
               Manage your organization accounts and contacts
             </p>
           </div>
-          <Button
-            onClick={handleCreate}
-            className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Organization
-          </Button>
+          <PermissionGuard routeOrCode="/organizations" permission="canCreate">
+            <Button
+              onClick={handleCreate}
+              className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Organization
+            </Button>
+          </PermissionGuard>
         </div>
       </header>
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        {(() => {
-          const stats = calculateStatistics()
-          return [
-            { label: "Total", value: stats.total, icon: Building2, color: "bg-main" },
-            { label: "Active", value: stats.active, icon: PlayCircle, color: "bg-green-500" },
-            { label: "With Contact", value: stats.withContact, icon: Mail, color: "bg-blue-500" },
-            { label: "Deleted", value: stats.deleted, icon: Archive, color: "bg-red-500" },
-          ].map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <div
-                key={index}
-                className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm font-base text-foreground/70">{stat.label}</p>
-                    <p className="text-3xl font-heading mt-2">{stat.value}</p>
-                  </div>
-                  <div className={`border-2 border-black p-2 ${stat.color} text-white`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
+        {[
+          { label: "Total", value: statistics.total, icon: Building2, color: "bg-main" },
+          { label: "Active", value: statistics.active, icon: PlayCircle, color: "bg-green-500" },
+          { label: "With Contact", value: statistics.withContact, icon: Mail, color: "bg-blue-500" },
+          { label: "Deleted", value: statistics.deleted, icon: Archive, color: "bg-red-500" },
+        ].map((stat, index) => {
+          const Icon = stat.icon
+          return (
+            <div
+              key={index}
+              className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-base text-foreground/70">{stat.label}</p>
+                  <p className="text-3xl font-heading mt-2">{stat.value}</p>
+                </div>
+                <div className={`border-2 border-black p-2 ${stat.color} text-white`}>
+                  <Icon className="h-5 w-5" />
                 </div>
               </div>
-            )
-          })
-        })()}
+            </div>
+          )
+        })}
       </div>
 
       {/* Filters */}
@@ -271,8 +263,9 @@ export default function OrganizationsPage() {
       </div>
 
       {/* Organizations Grid */}
-      {loading ? (
+      {isLoading ? (
         <div className="border-4 border-black bg-background p-12 shadow-[8px_8px_0_#000] text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-lg font-base">Loading organizations...</p>
         </div>
       ) : filteredOrganizations.length === 0 ? (
@@ -284,12 +277,14 @@ export default function OrganizationsPage() {
               ? "Try adjusting your filters"
               : "Get started by creating your first organization"}
           </p>
-          {!searchQuery && statusFilter === "ALL" && (
-            <Button onClick={handleCreate} className="border-2 border-black shadow-[4px_4px_0_#000]">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Organization
-            </Button>
-          )}
+          <PermissionGuard routeOrCode="/organizations" permission="canCreate">
+            {!searchQuery && statusFilter === "ALL" && (
+              <Button onClick={handleCreate} className="border-2 border-black shadow-[4px_4px_0_#000]">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Organization
+              </Button>
+            )}
+          </PermissionGuard>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -348,110 +343,110 @@ export default function OrganizationsPage() {
               </div>
 
               {/* Card Actions */}
-              <div className="border-t-4 border-black p-2 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="noShadow"
-                  onClick={() => handleEdit(org)}
-                  disabled={actionLoading === `edit-${org.id}`}
-                  className="flex-1 border-2 border-black"
-                >
-                  {actionLoading === `edit-${org.id}` ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
+              <div className="border-t-4 border-black p-2 flex gap-2 flex-wrap">
+                <PermissionGuard routeOrCode="/organizations" permission="canEdit">
+                  <Button
+                    size="sm"
+                    variant="noShadow"
+                    onClick={() => handleEdit(org)}
+                    className="border-2 border-black"
+                  >
                     <Pencil className="h-3 w-3 mr-1" />
-                  )}
-                  Edit
-                </Button>
+                    Edit
+                  </Button>
+                </PermissionGuard>
 
                 {/* Status Actions */}
-                {org.status !== "ACTIVE" && (
-                  <Button
-                    size="sm"
-                    variant="noShadow"
-                    onClick={() => handleStatusChange(org.id, "activate")}
-                    disabled={actionLoading === `activate-${org.id}`}
-                    className="border-2 border-black bg-green-500 text-white hover:bg-green-600"
-                    title="Activate"
-                  >
-                    {actionLoading === `activate-${org.id}` ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <PlayCircle className="h-3 w-3" />
-                    )}
-                  </Button>
-                )}
-                {org.status === "ACTIVE" && (
-                  <Button
-                    size="sm"
-                    variant="noShadow"
-                    onClick={() => handleStatusChange(org.id, "suspend")}
-                    disabled={actionLoading === `suspend-${org.id}`}
-                    className="border-2 border-black bg-yellow-500 text-white hover:bg-yellow-600"
-                    title="Suspend"
-                  >
-                    {actionLoading === `suspend-${org.id}` ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <PauseCircle className="h-3 w-3" />
-                    )}
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="noShadow"
-                  onClick={() => handleStatusChange(org.id, "archive")}
-                  disabled={actionLoading === `archive-${org.id}`}
-                  className="border-2 border-black bg-blue-500 text-white hover:bg-blue-600"
-                  title="Archive"
-                >
-                  {actionLoading === `archive-${org.id}` ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Archive className="h-3 w-3" />
-                  )}
-                </Button>
-
-                {/* Delete */}
-                {deleteConfirm === org.id ? (
-                  <>
+                <PermissionGuard routeOrCode="/organizations" permission="canEdit">
+                  {org.status !== "ACTIVE" && (
                     <Button
                       size="sm"
                       variant="noShadow"
-                      onClick={() => handleDelete(org.id)}
-                      disabled={actionLoading === `delete-${org.id}`}
-                      className="border-2 border-black bg-red-500 text-white hover:bg-red-600"
-                      title="Confirm Delete"
+                      onClick={() => onActivate(org.id)}
+                      disabled={activateMutation.isPending}
+                      className="border-2 border-black bg-green-500 text-white hover:bg-green-600"
+                      title="Activate"
                     >
-                      {actionLoading === `delete-${org.id}` ? (
+                      {activateMutation.isPending ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
-                        "✓"
+                        <PlayCircle className="h-3 w-3" />
                       )}
                     </Button>
+                  )}
+                  {org.status === "ACTIVE" && (
                     <Button
                       size="sm"
                       variant="noShadow"
-                      onClick={() => setDeleteConfirm(null)}
-                      disabled={actionLoading === `delete-${org.id}`}
-                      className="border-2 border-black"
-                      title="Cancel"
+                      onClick={() => onSuspend(org.id)}
+                      disabled={suspendMutation.isPending}
+                      className="border-2 border-black bg-yellow-500 text-white hover:bg-yellow-600"
+                      title="Suspend"
                     >
-                      <X className="h-3 w-3" />
+                      {suspendMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <PauseCircle className="h-3 w-3" />
+                      )}
                     </Button>
-                  </>
-                ) : (
+                  )}
                   <Button
                     size="sm"
                     variant="noShadow"
-                    onClick={() => setDeleteConfirm(org.id)}
-                    disabled={!!actionLoading}
-                    className="border-2 border-black bg-red-500 text-white hover:bg-red-600"
-                    title="Delete"
+                    onClick={() => onArchive(org.id)}
+                    disabled={archiveMutation.isPending}
+                    className="border-2 border-black bg-blue-500 text-white hover:bg-blue-600"
+                    title="Archive"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    {archiveMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Archive className="h-3 w-3" />
+                    )}
                   </Button>
-                )}
+                </PermissionGuard>
+
+                {/* Delete */}
+                <PermissionGuard routeOrCode="/organizations" permission="canDelete">
+                  {deleteConfirm === org.id ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="noShadow"
+                        onClick={() => onDelete(org.id)}
+                        disabled={deleteMutation.isPending}
+                        className="border-2 border-black bg-red-500 text-white hover:bg-red-600"
+                        title="Confirm Delete"
+                      >
+                        {deleteMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          "✓"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="noShadow"
+                        onClick={() => setDeleteConfirm(null)}
+                        disabled={deleteMutation.isPending}
+                        className="border-2 border-black"
+                        title="Cancel"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="noShadow"
+                      onClick={() => setDeleteConfirm(org.id)}
+                      className="border-2 border-black bg-red-500 text-white hover:bg-red-600"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </PermissionGuard>
               </div>
             </div>
           ))}
@@ -460,50 +455,52 @@ export default function OrganizationsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
-          <div className="text-sm text-foreground/70">
-            Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements} organizations
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => setCurrentPage(0)}
-              disabled={currentPage === 0}
-              className="border-2 border-black"
-            >
-              First
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 0}
-              className="border-2 border-black"
-            >
-              Previous
-            </Button>
-            <span className="px-3 py-1 border-2 border-black bg-background">
-              {currentPage + 1} of {totalPages}
-            </span>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage >= totalPages - 1}
-              className="border-2 border-black"
-            >
-              Next
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => setCurrentPage(totalPages - 1)}
-              disabled={currentPage >= totalPages - 1}
-              className="border-2 border-black"
-            >
-              Last
-            </Button>
+        <div className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-base text-foreground/70">
+              Showing {pagination.pageIndex * pagination.pageSize + 1} to {Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalElements)} of {totalElements} organizations
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => setPagination({ ...pagination, pageIndex: 0 })}
+                disabled={pagination.pageIndex === 0}
+                className="border-2 border-black"
+              >
+                First
+              </Button>
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => setPagination({ ...pagination, pageIndex: pagination.pageIndex - 1 })}
+                disabled={pagination.pageIndex === 0}
+                className="border-2 border-black"
+              >
+                Previous
+              </Button>
+              <span className="px-3 py-1 border-2 border-black bg-background font-base">
+                {pagination.pageIndex + 1} of {totalPages}
+              </span>
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => setPagination({ ...pagination, pageIndex: pagination.pageIndex + 1 })}
+                disabled={pagination.pageIndex >= totalPages - 1}
+                className="border-2 border-black"
+              >
+                Next
+              </Button>
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => setPagination({ ...pagination, pageIndex: totalPages - 1 })}
+                disabled={pagination.pageIndex >= totalPages - 1}
+                className="border-2 border-black"
+              >
+                Last
+              </Button>
+            </div>
           </div>
         </div>
       )}

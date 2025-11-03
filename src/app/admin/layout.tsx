@@ -11,15 +11,16 @@ import { useAuth } from "@/contexts/auth-context"
 
 const menuItems = [
   { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/organizations", icon: Building2, label: "Organizations" },
   { href: "/admin/users", icon: Users, label: "Users" },
   { href: "/admin/roles", icon: Shield, label: "Roles" },
   { href: "/admin/groups", icon: UsersRound, label: "Groups" },
+  { href: "/admin/organizations", icon: Building2, label: "Organizations" },
+  { href: "/admin/permissions/users", icon: Lock, label: "User Permissions" },
+  { href: "/admin/permissions/roles", icon: Shield, label: "Role Permissions" },
   { href: "/admin/menus", icon: List, label: "Menus" },
   { href: "/admin/menu-tabs", icon: Layers, label: "Menu Tabs" },
   { href: "/admin/menu-screens", icon: Monitor, label: "Menu Screens" },
   { href: "/admin/api-endpoints", icon: Network, label: "API Endpoints" },
-  { href: "/admin/permissions", icon: Lock, label: "Permissions" },
 ]
 
 export default function AdminLayout({
@@ -52,14 +53,14 @@ export default function AdminLayout({
           <nav className="flex flex-col gap-2 p-3 font-base flex-1">
             {menuItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
                     "border-2 border-black px-3 py-2 flex items-center gap-3 hover:translate-x-1 hover:translate-y-1 transition-all",
-                    isActive ? "bg-main text-main-foreground" : "bg-background",
+                    isActive ? "bg-main text-main-foreground shadow-[4px_4px_0_#000]" : "bg-background",
                     collapsed && "justify-center"
                   )}
                   title={collapsed ? item.label : undefined}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useCallback } from "react"
 import { ColumnDef, ColumnFiltersState, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, PaginationState, useReactTable, flexRender } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Users, Shield, UserPlus } from "lucide-react"
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup, useActivateGroup, useSuspendGroup } from "@/hooks/useGroups"
 import { Group, GroupStatus } from "@/lib/api/groups"
+import { PermissionGuard } from "@/components/auth/permission-guard"
+import { toast } from "sonner"
 
 type GroupFormData = Omit<Group, 'id' | 'deleted' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'path' | 'level'> & { id?: string }
 
@@ -38,6 +40,23 @@ export default function GroupsPage() {
 
   const groups = groupsData?.content || []
   const totalPages = groupsData?.totalPages || 0
+
+  // Define handlers with useCallback before useMemo
+  const onDelete = useCallback(async (id: string) => {
+    if (!confirm("Are you sure you want to delete this group?")) return
+    await deleteMutation.mutateAsync(id)
+    refetch()
+  }, [deleteMutation, refetch])
+
+  const onActivate = useCallback(async (id: string) => {
+    await activateMutation.mutateAsync(id)
+    refetch()
+  }, [activateMutation, refetch])
+
+  const onSuspend = useCallback(async (id: string) => {
+    await suspendMutation.mutateAsync(id)
+    refetch()
+  }, [suspendMutation, refetch])
 
   const columns = useMemo<ColumnDef<Group>[]>(
     () => [
@@ -106,81 +125,91 @@ export default function GroupsPage() {
           const group = row.original
           return (
             <div className="flex gap-2">
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => onEdit(group)}
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => window.location.href = `/admin/groups/${group.id}/members`}
-                title="Manage Members"
-              >
-                <UserPlus className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => window.location.href = `/admin/groups/${group.id}/roles`}
-                title="Manage Roles"
-              >
-                <Shield className="h-3 w-3" />
-              </Button>
-              {group.status === GroupStatus.ACTIVE ? (
+              <PermissionGuard routeOrCode="/groups" permission="canEdit">
                 <Button
                   variant="noShadow"
                   size="sm"
-                  onClick={() => onSuspend(group.id)}
-                  disabled={suspendMutation.isPending}
-                  className="bg-yellow-500 text-white border-2 border-black"
-                  title="Suspend"
+                  onClick={() => onEdit(group)}
+                  disabled={createMutation.isPending || updateMutation.isPending}
                 >
-                  {suspendMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <PauseCircle className="h-3 w-3" />
-                  )}
+                  Edit
                 </Button>
-              ) : (
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/groups" permission="canEdit">
                 <Button
                   variant="noShadow"
                   size="sm"
-                  onClick={() => onActivate(group.id)}
-                  disabled={activateMutation.isPending}
-                  className="bg-green-500 text-white border-2 border-black"
-                  title="Activate"
+                  onClick={() => window.location.href = `/admin/groups/${group.id}/members`}
+                  title="Manage Members"
                 >
-                  {activateMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <PlayCircle className="h-3 w-3" />
-                  )}
+                  <UserPlus className="h-3 w-3" />
                 </Button>
-              )}
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => onDelete(group.id)}
-                disabled={deleteMutation.isPending}
-                className="bg-red-500 text-white border-2 border-black"
-                title="Delete"
-              >
-                {deleteMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/groups" permission="canEdit">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => window.location.href = `/admin/groups/${group.id}/roles`}
+                  title="Manage Roles"
+                >
+                  <Shield className="h-3 w-3" />
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/groups" permission="canEdit">
+                {group.status === GroupStatus.ACTIVE ? (
+                  <Button
+                    variant="noShadow"
+                    size="sm"
+                    onClick={() => onSuspend(group.id)}
+                    disabled={suspendMutation.isPending}
+                    className="bg-yellow-500 text-white border-2 border-black"
+                    title="Suspend"
+                  >
+                    {suspendMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <PauseCircle className="h-3 w-3" />
+                    )}
+                  </Button>
                 ) : (
-                  <Trash2 className="h-3 w-3" />
+                  <Button
+                    variant="noShadow"
+                    size="sm"
+                    onClick={() => onActivate(group.id)}
+                    disabled={activateMutation.isPending}
+                    className="bg-green-500 text-white border-2 border-black"
+                    title="Activate"
+                  >
+                    {activateMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <PlayCircle className="h-3 w-3" />
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/groups" permission="canDelete">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => onDelete(group.id)}
+                  disabled={deleteMutation.isPending}
+                  className="bg-red-500 text-white border-2 border-black"
+                  title="Delete"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                </Button>
+              </PermissionGuard>
             </div>
           )
         },
       },
     ],
-    [createMutation.isPending, updateMutation.isPending, deleteMutation.isPending, activateMutation.isPending, suspendMutation.isPending],
+    [createMutation.isPending, updateMutation.isPending, deleteMutation.isPending, activateMutation.isPending, suspendMutation.isPending, onDelete, onActivate, onSuspend],
   )
 
   const table = useReactTable({
@@ -256,22 +285,6 @@ export default function GroupsPage() {
     refetch()
   }
 
-  async function onDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this group?")) return
-    await deleteMutation.mutateAsync(id)
-    refetch()
-  }
-
-  async function onActivate(id: string) {
-    await activateMutation.mutateAsync(id)
-    refetch()
-  }
-
-  async function onSuspend(id: string) {
-    await suspendMutation.mutateAsync(id)
-    refetch()
-  }
-
   if (error) {
     return (
       <div className="space-y-4">
@@ -296,10 +309,12 @@ export default function GroupsPage() {
               Manage organizational groups and teams
             </p>
           </div>
-          <Button onClick={onCreate} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
-            <Users className="h-4 w-4 mr-2" />
-            Add Group
-          </Button>
+          <PermissionGuard routeOrCode="/groups" permission="canCreate">
+            <Button onClick={onCreate} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
+              <Users className="h-4 w-4 mr-2" />
+              Add Group
+            </Button>
+          </PermissionGuard>
         </div>
       </header>
 

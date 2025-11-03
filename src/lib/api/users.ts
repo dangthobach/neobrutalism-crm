@@ -294,6 +294,28 @@ export class UserApi {
     }
     return response.data
   }
+
+  /**
+   * Get current user's menus
+   */
+  async getCurrentUserMenus(): Promise<any[]> {
+    const response = await apiClient.get<any[]>('/users/me/menus')
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
+    return response.data
+  }
+
+  /**
+   * Get user's menus by ID
+   */
+  async getUserMenus(id: string): Promise<any[]> {
+    const response = await apiClient.get<any[]>(`/users/${id}/menus`)
+    if (!response.data) {
+      throw new Error('No data returned from API')
+    }
+    return response.data
+  }
 }
 
 // Export singleton instance

@@ -120,27 +120,30 @@ CREATE TABLE tasks (
 );
 
 -- Indexes for activities table
-CREATE INDEX idx_activity_owner ON activities(owner_id) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_tenant ON activities(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_related ON activities(related_to_type, related_to_id) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_scheduled_start ON activities(scheduled_start_at) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_scheduled_end ON activities(scheduled_end_at) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_status ON activities(status) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_type ON activities(activity_type) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_organization ON activities(organization_id) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_branch ON activities(branch_id) WHERE deleted = FALSE;
-CREATE INDEX idx_activity_priority ON activities(priority) WHERE deleted = FALSE;
+-- Note: H2 does not support partial indexes (WHERE clause), so we create full indexes
+CREATE INDEX idx_activity_owner ON activities(owner_id);
+CREATE INDEX idx_activity_tenant ON activities(tenant_id);
+CREATE INDEX idx_activity_related ON activities(related_to_type, related_to_id);
+CREATE INDEX idx_activity_scheduled_start ON activities(scheduled_start_at);
+CREATE INDEX idx_activity_scheduled_end ON activities(scheduled_end_at);
+CREATE INDEX idx_activity_status ON activities(status);
+CREATE INDEX idx_activity_type ON activities(activity_type);
+CREATE INDEX idx_activity_organization ON activities(organization_id);
+CREATE INDEX idx_activity_branch ON activities(branch_id);
+CREATE INDEX idx_activity_priority ON activities(priority);
+CREATE INDEX idx_activity_deleted ON activities(deleted);
 
 -- Indexes for tasks table
-CREATE INDEX idx_task_assigned_to ON tasks(assigned_to_id) WHERE deleted = FALSE;
-CREATE INDEX idx_task_assigned_by ON tasks(assigned_by_id) WHERE deleted = FALSE;
-CREATE INDEX idx_task_tenant ON tasks(tenant_id) WHERE deleted = FALSE;
-CREATE INDEX idx_task_related ON tasks(related_to_type, related_to_id) WHERE deleted = FALSE;
-CREATE INDEX idx_task_due_date ON tasks(due_date) WHERE deleted = FALSE;
-CREATE INDEX idx_task_status ON tasks(status) WHERE deleted = FALSE;
-CREATE INDEX idx_task_organization ON tasks(organization_id) WHERE deleted = FALSE;
-CREATE INDEX idx_task_branch ON tasks(branch_id) WHERE deleted = FALSE;
-CREATE INDEX idx_task_priority ON tasks(priority) WHERE deleted = FALSE;
+CREATE INDEX idx_task_assigned_to ON tasks(assigned_to_id);
+CREATE INDEX idx_task_assigned_by ON tasks(assigned_by_id);
+CREATE INDEX idx_task_tenant ON tasks(tenant_id);
+CREATE INDEX idx_task_related ON tasks(related_to_type, related_to_id);
+CREATE INDEX idx_task_due_date ON tasks(due_date);
+CREATE INDEX idx_task_status ON tasks(status);
+CREATE INDEX idx_task_organization ON tasks(organization_id);
+CREATE INDEX idx_task_branch ON tasks(branch_id);
+CREATE INDEX idx_task_priority ON tasks(priority);
+CREATE INDEX idx_task_deleted ON tasks(deleted);
 
 -- Comments for documentation
 COMMENT ON TABLE activities IS 'CRM activities including calls, meetings, emails, demos, etc.';

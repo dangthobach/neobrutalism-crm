@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useCallback } from "react"
 import { ColumnDef, ColumnFiltersState, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, PaginationState, useReactTable, flexRender } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,10 +9,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowUpDown, Eye, Trash2, Search, Loader2, Shield, Users } from "lucide-react"
 import { format } from "date-fns"
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers"
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useActivateUser, useSuspendUser, useLockUser, useUnlockUser } from "@/hooks/useUsers"
 import { User, CreateUserRequest, UpdateUserRequest } from "@/lib/api/users"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { PermissionGuard } from "@/components/auth/permission-guard"
+import { usePermission } from "@/hooks/usePermission"
 
 type UserFormData = {
   id?: string
@@ -35,6 +37,9 @@ export default function UsersPage() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "username", desc: false }])
   const [rowSelection, setRowSelection] = useState({})
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  
+  // Check permissions
+  const { canCreate, canEdit, canDelete } = usePermission()
 
   // Fetch users with React Query
   const { data: usersData, isLoading, error, refetch } = useUsers({
@@ -48,9 +53,60 @@ export default function UsersPage() {
   const createMutation = useCreateUser()
   const updateMutation = useUpdateUser()
   const deleteMutation = useDeleteUser()
+  const activateMutation = useActivateUser()
+  const suspendMutation = useSuspendUser()
+  const lockMutation = useLockUser()
+  const unlockMutation = useUnlockUser()
 
   const users = usersData?.content || []
   const totalPages = usersData?.totalPages || 0
+
+  // Event handlers (must be defined before columns)
+  const onEdit = useCallback((user: User) => {
+    setEditing({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    })
+    setOpen(true)
+  }, [])
+
+  const onViewDetail = useCallback((user: User) => {
+    setViewing(user)
+    setDetailOpen(true)
+  }, [])
+
+  const onDelete = useCallback((id: string) => {
+    if (confirm("Are you sure you want to delete this user?")) {
+      deleteMutation.mutate(id)
+    }
+  }, [deleteMutation])
+
+  const onActivate = useCallback((id: string) => {
+    const reason = prompt("Enter reason for activation (optional):")
+    activateMutation.mutate({ id, reason: reason || undefined })
+  }, [activateMutation])
+
+  const onSuspend = useCallback((id: string) => {
+    const reason = prompt("Enter reason for suspension:")
+    if (reason) {
+      suspendMutation.mutate({ id, reason })
+    }
+  }, [suspendMutation])
+
+  const onLock = useCallback((id: string) => {
+    const reason = prompt("Enter reason for locking:")
+    if (reason) {
+      lockMutation.mutate({ id, reason })
+    }
+  }, [lockMutation])
+
+  const onUnlock = useCallback((id: string) => {
+    const reason = prompt("Enter reason for unlocking (optional):")
+    unlockMutation.mutate({ id, reason: reason || undefined })
+  }, [unlockMutation])
 
   const columns = useMemo<ColumnDef<User>[]>(
     () => [
@@ -130,38 +186,102 @@ export default function UsersPage() {
       {
         id: "actions",
         header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex gap-2">
-            <Button variant="noShadow" size="sm" onClick={() => onViewDetail(row.original)}>
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
-              Edit
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => window.location.href = `/admin/users/${row.original.id}/roles`}
-              title="Manage Roles"
-            >
-              <Shield className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => window.location.href = `/admin/users/${row.original.id}/groups`}
-              title="Manage Groups"
-            >
-              <Users className="h-4 w-4" />
-            </Button>
-            <Button variant="noShadow" size="sm" onClick={() => onDelete(row.original.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const user = row.original
+          return (
+            <div className="flex gap-1 flex-wrap">
+              <Button variant="noShadow" size="sm" onClick={() => onViewDetail(user)} title="View Details">
+                <Eye className="h-4 w-4" />
+              </Button>
+              <PermissionGuard routeOrCode="/users" permission="canEdit">
+                <Button variant="noShadow" size="sm" onClick={() => onEdit(user)} title="Edit User">
+                  Edit
+                </Button>
+              </PermissionGuard>
+              
+              {/* Status Actions */}
+              {user.status !== 'ACTIVE' && (
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  className="bg-green-500 hover:bg-green-600 text-white"
+                  onClick={() => onActivate(user.id)}
+                  title="Activate"
+                >
+                  Activate
+                </Button>
+              )}
+              {user.status === 'ACTIVE' && (
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                  onClick={() => onSuspend(user.id)}
+                  title="Suspend"
+                >
+                  Suspend
+                </Button>
+              )}
+              {user.status === 'LOCKED' && (
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                  onClick={() => onUnlock(user.id)}
+                  title="Unlock"
+                >
+                  Unlock
+                </Button>
+              )}
+              {user.status !== 'LOCKED' && (
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() => onLock(user.id)}
+                  title="Lock"
+                >
+                  Lock
+                </Button>
+              )}
+              
+              <PermissionGuard routeOrCode="/users" permission="canEdit">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => window.location.href = `/admin/users/${user.id}/roles`}
+                  title="Manage Roles"
+                >
+                  <Shield className="h-4 w-4" />
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/users" permission="canEdit">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => window.location.href = `/admin/users/${user.id}/groups`}
+                  title="Manage Groups"
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/users" permission="canDelete">
+                <Button 
+                  variant="noShadow" 
+                  size="sm" 
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                  onClick={() => onDelete(user.id)}
+                  title="Delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </PermissionGuard>
+            </div>
+          )
+        },
       },
     ],
-    [],
+    [onViewDetail, onEdit, onActivate, onSuspend, onLock, onUnlock, onDelete],
   )
 
   const table = useReactTable({
@@ -203,28 +323,6 @@ export default function UsersPage() {
     setColumnFilters([])
     setPagination({ pageIndex: 0, pageSize: 10 })
     refetch()
-  }
-
-  function onEdit(user: User) {
-    setEditing({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    })
-    setOpen(true)
-  }
-
-  function onViewDetail(user: User) {
-    setViewing(user)
-    setDetailOpen(true)
-  }
-
-  function onDelete(id: string) {
-    if (confirm("Are you sure you want to delete this user?")) {
-      deleteMutation.mutate(id)
-    }
   }
 
   function onCreate() {
@@ -301,9 +399,11 @@ export default function UsersPage() {
       <div className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]">
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
           <h2 className="text-lg font-heading">Search & Filters</h2>
-          <Button variant="noShadow" onClick={onCreate} disabled={isLoading}>
-            New User
-          </Button>
+          <PermissionGuard routeOrCode="/users" permission="canCreate">
+            <Button variant="noShadow" onClick={onCreate} disabled={isLoading}>
+              New User
+            </Button>
+          </PermissionGuard>
         </div>
 
         <div className="mt-3 flex flex-col gap-3">
