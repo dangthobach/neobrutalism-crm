@@ -3,7 +3,6 @@ package com.neobrutalism.crm.common.security;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -29,7 +28,7 @@ public class TokenBlacklistService {
 
             log.info("Blacklisting token with TTL: {} seconds", ttlSeconds);
             redisTemplate.opsForValue().set(key, "blacklisted", Duration.ofSeconds(ttlSeconds));
-        } catch (RedisConnectionFailureException | RuntimeException e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to blacklist token due to Redis issue. Continuing without blacklist.", e);
         }
     }
@@ -42,7 +41,7 @@ public class TokenBlacklistService {
             String key = BLACKLIST_PREFIX + token;
             Boolean exists = redisTemplate.hasKey(key);
             return Boolean.TRUE.equals(exists);
-        } catch (RedisConnectionFailureException | RuntimeException e) {
+        } catch (RuntimeException e) {
             log.warn("Redis not available while checking token blacklist. Treating as not blacklisted.");
             return false;
         }
@@ -55,7 +54,7 @@ public class TokenBlacklistService {
         try {
             String key = BLACKLIST_PREFIX + token;
             redisTemplate.delete(key);
-        } catch (RedisConnectionFailureException | RuntimeException e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to remove token from blacklist due to Redis issue.");
         }
     }
@@ -70,7 +69,7 @@ public class TokenBlacklistService {
 
             log.info("Blacklisting all tokens for user: {}", userId);
             redisTemplate.opsForValue().set(key, "blacklisted", Duration.ofSeconds(ttlSeconds));
-        } catch (RedisConnectionFailureException | RuntimeException e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to blacklist user tokens due to Redis issue. Continuing without blacklist.");
         }
     }
@@ -83,7 +82,7 @@ public class TokenBlacklistService {
             String key = BLACKLIST_PREFIX + "user:" + userId;
             Boolean exists = redisTemplate.hasKey(key);
             return Boolean.TRUE.equals(exists);
-        } catch (RedisConnectionFailureException | RuntimeException e) {
+        } catch (RuntimeException e) {
             log.warn("Redis not available while checking user tokens blacklist. Treating as not blacklisted.");
             return false;
         }
