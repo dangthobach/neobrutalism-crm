@@ -57,88 +57,56 @@ export class RoleApi {
    * Get all roles with pagination
    */
   async getRoles(params?: RoleQueryParams): Promise<PageResponse<Role>> {
-    const response = await apiClient.get<PageResponse<Role>>('/roles', params)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<PageResponse<Role>>('/roles', params)
   }
 
   /**
    * Get role by ID
    */
   async getRoleById(id: string): Promise<Role> {
-    const response = await apiClient.get<Role>(`/roles/${id}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Role>(`/roles/${id}`)
   }
 
   /**
    * Get role by code
    */
   async getRoleByCode(code: string): Promise<Role> {
-    const response = await apiClient.get<Role>(`/roles/code/${code}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Role>(`/roles/code/${code}`)
   }
 
   /**
    * Get roles by organization
    */
   async getRolesByOrganization(organizationId: string): Promise<Role[]> {
-    const response = await apiClient.get<Role[]>(`/roles/organization/${organizationId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Role[]>(`/roles/organization/${organizationId}`)
   }
 
   /**
    * Get roles by status
    */
   async getRolesByStatus(status: RoleStatus): Promise<Role[]> {
-    const response = await apiClient.get<Role[]>(`/roles/status/${status}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Role[]>(`/roles/status/${status}`)
   }
 
   /**
    * Get system roles
    */
   async getSystemRoles(): Promise<Role[]> {
-    const response = await apiClient.get<Role[]>('/roles/system')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Role[]>('/roles/system')
   }
 
   /**
    * Create new role
    */
   async createRole(request: CreateRoleRequest): Promise<Role> {
-    const response = await apiClient.post<Role>('/roles', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<Role>('/roles', request)
   }
 
   /**
    * Update role
    */
   async updateRole(id: string, request: UpdateRoleRequest): Promise<Role> {
-    const response = await apiClient.put<Role>(`/roles/${id}`, request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<Role>(`/roles/${id}`, request)
   }
 
   /**
@@ -152,22 +120,14 @@ export class RoleApi {
    * Activate role
    */
   async activateRole(id: string): Promise<Role> {
-    const response = await apiClient.post<Role>(`/roles/${id}/activate`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<Role>(`/roles/${id}/activate`)
   }
 
   /**
    * Suspend role
    */
   async suspendRole(id: string): Promise<Role> {
-    const response = await apiClient.post<Role>(`/roles/${id}/suspend`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<Role>(`/roles/${id}/suspend`)
   }
 
   /**
@@ -175,7 +135,7 @@ export class RoleApi {
    */
   async checkCode(code: string): Promise<boolean> {
     const response = await apiClient.get<boolean>(`/roles/check-code/${code}`)
-    return response.data ?? false
+    return response ?? false
   }
 }
 

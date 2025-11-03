@@ -15,15 +15,14 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
   const router = useRouter()
 
   useEffect(() => {
+    console.log('[ProtectedRoute] Auth state:', { isAuthenticated, isLoading })
+
     if (!isLoading && !isAuthenticated) {
-      // Store current path for redirect after login
-      if (typeof window !== 'undefined') {
-        const currentPath = window.location.pathname + window.location.search
-        if (currentPath !== '/login') {
-          sessionStorage.setItem('redirect_after_login', currentPath)
-        }
-      }
-      router.push('/login')
+      console.log('[ProtectedRoute] Not authenticated, redirecting to login')
+      // Redirect to login with current URL
+      const currentPath = window.location.pathname + window.location.search
+      const loginUrl = `/login?returnUrl=${encodeURIComponent(currentPath)}`
+      router.push(loginUrl)
     }
   }, [isAuthenticated, isLoading, router])
 

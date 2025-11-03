@@ -35,44 +35,28 @@ export class RoleMenuApi {
    * Get menu permissions by role ID
    */
   async getMenuPermissionsByRole(roleId: string): Promise<RoleMenu[]> {
-    const response = await apiClient.get<RoleMenu[]>(`/role-menus/role/${roleId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<RoleMenu[]>(`/role-menus/role/${roleId}`)
   }
 
   /**
    * Get role permissions by menu ID
    */
   async getRolePermissionsByMenu(menuId: string): Promise<RoleMenu[]> {
-    const response = await apiClient.get<RoleMenu[]>(`/role-menus/menu/${menuId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<RoleMenu[]>(`/role-menus/menu/${menuId}`)
   }
 
   /**
    * Set menu permissions for role
    */
   async setMenuPermissions(request: RoleMenuRequest): Promise<RoleMenu> {
-    const response = await apiClient.post<RoleMenu>('/role-menus', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<RoleMenu>('/role-menus', request)
   }
 
   /**
    * Update menu permissions
    */
   async updateMenuPermissions(id: string, request: RoleMenuRequest): Promise<RoleMenu> {
-    const response = await apiClient.put<RoleMenu>(`/role-menus/${id}`, request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<RoleMenu>(`/role-menus/${id}`, request)
   }
 
   /**
@@ -93,13 +77,9 @@ export class RoleMenuApi {
    * Copy permissions from another role
    */
   async copyPermissionsFromRole(targetRoleId: string, sourceRoleId: string): Promise<RoleMenu[]> {
-    const response = await apiClient.post<RoleMenu[]>(
+    return apiClient.post<RoleMenu[]>(
       `/role-menus/role/${targetRoleId}/copy-from/${sourceRoleId}`
     )
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
   }
 
   /**

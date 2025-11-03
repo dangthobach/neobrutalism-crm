@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   organizationsAPI, 
   Organization, 
-  OrganizationReadModel,
   OrganizationRequest,
   OrganizationQueryParams,
   OrganizationStatus 
@@ -22,29 +21,29 @@ const ORGANIZATIONS_QUERY_KEY = 'organizations'
 export function useOrganizations(params?: OrganizationQueryParams) {
   return useQuery({
     queryKey: [ORGANIZATIONS_QUERY_KEY, params],
-    queryFn: () => organizationsAPI.queryAllPaged(params),
+    queryFn: () => organizationsAPI.getAll(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
 
 /**
- * Fetch organization by ID (Write Model)
+ * Fetch all organizations without pagination
+ */
+export function useAllOrganizations() {
+  return useQuery({
+    queryKey: [ORGANIZATIONS_QUERY_KEY, 'all'],
+    queryFn: () => organizationsAPI.getAllUnpaged(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+/**
+ * Fetch organization by ID
  */
 export function useOrganization(id: string) {
   return useQuery({
     queryKey: [ORGANIZATIONS_QUERY_KEY, id],
     queryFn: () => organizationsAPI.getById(id),
-    enabled: !!id,
-  })
-}
-
-/**
- * Fetch organization by ID (Read Model)
- */
-export function useOrganizationReadModel(id: string) {
-  return useQuery({
-    queryKey: [ORGANIZATIONS_QUERY_KEY, 'read', id],
-    queryFn: () => organizationsAPI.queryById(id),
     enabled: !!id,
   })
 }
@@ -66,17 +65,17 @@ export function useOrganizationByCode(code: string) {
 export function useOrganizationsByStatus(status: OrganizationStatus) {
   return useQuery({
     queryKey: [ORGANIZATIONS_QUERY_KEY, 'status', status],
-    queryFn: () => organizationsAPI.queryByStatus(status),
+    queryFn: () => organizationsAPI.getByStatus(status),
   })
 }
 
 /**
- * Fetch active organizations
+ * Fetch active organizations only
  */
 export function useActiveOrganizations() {
   return useQuery({
     queryKey: [ORGANIZATIONS_QUERY_KEY, 'active'],
-    queryFn: () => organizationsAPI.queryActive(),
+    queryFn: () => organizationsAPI.getActive(),
   })
 }
 

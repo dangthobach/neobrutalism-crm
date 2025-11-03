@@ -21,6 +21,7 @@ export default function LoginPage() {
   
   const { login } = useAuth()
   const router = useRouter()
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,17 +44,18 @@ export default function LoginPage() {
       console.log('Login successful, redirecting...')
       toast.success('Login successful!')
 
-      // Check if there's a redirect path stored
-      const redirectPath = typeof window !== 'undefined'
-        ? sessionStorage.getItem('redirect_after_login') || '/admin'
-        : '/admin'
-
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('redirect_after_login')
-      }
+      // Check for returnUrl from query params (set by middleware)
+      const returnUrl = searchParams?.get('returnUrl')
+      const redirectPath = returnUrl || '/admin'
 
       console.log('Redirecting to:', redirectPath)
-      router.push(redirectPath)
+
+      // Use window.location for full page reload to ensure auth state is fresh
+      if (typeof window !== 'undefined') {
+        window.location.href = redirectPath
+      } else {
+        router.push(redirectPath)
+      }
     } catch (error) {
       console.error('Login error:', error)
       toast.error('Login failed', {

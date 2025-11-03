@@ -14,6 +14,9 @@ import {
 import { ApiError } from '@/lib/api/client'
 import { toast } from 'sonner'
 
+// Re-export types for convenience
+export type { ApiEndpoint, HttpMethod, CreateApiEndpointRequest, UpdateApiEndpointRequest, ApiEndpointQueryParams }
+
 const API_ENDPOINTS_QUERY_KEY = 'api-endpoints'
 
 /**

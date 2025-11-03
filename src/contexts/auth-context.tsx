@@ -46,12 +46,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize auth state from localStorage
   useEffect(() => {
     const initializeAuth = async () => {
+      console.log('[AuthContext] Initializing auth...')
       try {
         const token = apiClient.getAccessToken()
+        console.log('[AuthContext] Token from localStorage:', token ? 'EXISTS' : 'NULL')
+
         if (token) {
           // Try to fetch full current user profile from backend
           try {
+            console.log('[AuthContext] Fetching user profile...')
             const profile = await userApi.getCurrentUserProfile()
+            console.log('[AuthContext] Profile fetched:', profile)
+
             if (profile) {
               setUser({
                 id: profile.id,
@@ -65,6 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 roles: (profile as any).roles || [],
                 permissions: (profile as any).permissions || [],
               })
+              console.log('[AuthContext] User set successfully')
               
               // Schedule background refresh if we have an expiry stored
               if (typeof window !== 'undefined') {
@@ -85,15 +92,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
           } catch (err) {
             // Token invalid or profile fetch failed -> clear tokens
+            console.error('[AuthContext] Profile fetch failed:', err)
             apiClient.setAccessToken(null)
             if (typeof window !== 'undefined') localStorage.removeItem('refresh_token')
           }
+        } else {
+          console.log('[AuthContext] No token found, user not authenticated')
         }
       } catch (error) {
-        console.error('Failed to initialize auth:', error)
+        console.error('[AuthContext] Failed to initialize auth:', error)
         // Clear invalid token
         apiClient.setAccessToken(null)
       } finally {
+        console.log('[AuthContext] Initialization complete, isLoading = false')
         setIsLoading(false)
       }
     }
@@ -105,17 +116,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (credentials: LoginRequest) => {
     try {
       setIsLoading(true)
+      console.log('[AuthContext] Login attempt for:', credentials.username)
+
       const response: LoginResponse = await authApi.login(credentials)
-      
+      console.log('[AuthContext] Login response received:', { userId: response.userId, username: response.username })
+
       // Store tokens
       apiClient.setAccessToken(response.accessToken)
-      
+      console.log('[AuthContext] Access token stored')
+
       // Store refresh token
       if (typeof window !== 'undefined') {
         localStorage.setItem('refresh_token', response.refreshToken)
         // store expiry timestamp
         const expiresAt = Date.now() + (response.expiresIn * 1000)
         localStorage.setItem('access_token_expires_at', String(expiresAt))
+        console.log('[AuthContext] Refresh token and expiry stored')
+
         // schedule a refresh 60s before expiry
         const timeout = Math.max(response.expiresIn * 1000 - 60_000, 5_000)
         if (refreshTimer) {
@@ -126,9 +143,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }, timeout)
         setRefreshTimer(id)
       }
-      
-      // Set user data
-      setUser(response.user)
+
+      // Set user data - Map backend response to User interface
+      const userData = {
+        id: response.userId,
+        username: response.username,
+        email: response.email,
+        firstName: response.firstName,
+        lastName: response.lastName,
+        fullName: response.fullName,
+        avatar: undefined, // Backend doesn't return avatar in login
+        organizationId: response.tenantId || '', // Map tenantId to organizationId
+        roles: Array.from(response.roles || []),
+        permissions: [], // Will be fetched separately or from user profile
+      }
+
+      setUser(userData)
+      console.log('[AuthContext] User data set:', userData)
     } catch (error) {
       console.error('Login failed:', error)
       throw error
@@ -193,8 +224,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setRefreshTimer(id)
       }
       
-      // Update user data
-      setUser(response.user)
+      // Update user data - Map backend response to User interface
+      setUser({
+        id: response.userId,
+        username: response.username,
+        email: response.email,
+        firstName: response.firstName,
+        lastName: response.lastName,
+        fullName: response.fullName,
+        avatar: undefined,
+        organizationId: response.tenantId || '',
+        roles: Array.from(response.roles || []),
+        permissions: [],
+      })
     } catch (error) {
       console.error('Token refresh failed:', error)
       // If refresh fails, logout user

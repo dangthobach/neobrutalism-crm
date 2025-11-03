@@ -57,110 +57,70 @@ export class MenuApi {
    * Get all menus with pagination
    */
   async getMenus(params?: MenuQueryParams): Promise<PageResponse<Menu>> {
-    const response = await apiClient.get<PageResponse<Menu>>('/menus', params)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<PageResponse<Menu>>('/menus', params)
   }
 
   /**
    * Get menu by ID
    */
   async getMenuById(id: string): Promise<Menu> {
-    const response = await apiClient.get<Menu>(`/menus/${id}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Menu>(`/menus/${id}`)
   }
 
   /**
    * Get menu by code
    */
   async getMenuByCode(code: string): Promise<Menu> {
-    const response = await apiClient.get<Menu>(`/menus/code/${code}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Menu>(`/menus/code/${code}`)
   }
 
   /**
    * Get child menus
    */
   async getChildMenus(parentId: string): Promise<Menu[]> {
-    const response = await apiClient.get<Menu[]>(`/menus/parent/${parentId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Menu[]>(`/menus/parent/${parentId}`)
   }
 
   /**
    * Get root menus
    */
   async getRootMenus(): Promise<Menu[]> {
-    const response = await apiClient.get<Menu[]>('/menus/root')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Menu[]>('/menus/root')
   }
 
   /**
    * Get visible menus
    */
   async getVisibleMenus(): Promise<Menu[]> {
-    const response = await apiClient.get<Menu[]>('/menus/visible')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<Menu[]>('/menus/visible')
   }
 
   /**
    * Get current user's menu tree with permissions
    */
   async getCurrentUserMenus(): Promise<UserMenu[]> {
-    const response = await apiClient.get<UserMenu[]>('/users/me/menus')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<UserMenu[]>('/users/me/menus')
   }
 
   /**
    * Get specific user's menu tree with permissions
    */
   async getUserMenus(userId: string): Promise<UserMenu[]> {
-    const response = await apiClient.get<UserMenu[]>(`/users/${userId}/menus`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<UserMenu[]>(`/users/${userId}/menus`)
   }
 
   /**
    * Create new menu
    */
   async createMenu(menu: Partial<Menu>): Promise<Menu> {
-    const response = await apiClient.post<Menu>('/menus', menu)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<Menu>('/menus', menu)
   }
 
   /**
    * Update menu
    */
   async updateMenu(id: string, menu: Partial<Menu>): Promise<Menu> {
-    const response = await apiClient.put<Menu>(`/menus/${id}`, menu)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<Menu>(`/menus/${id}`, menu)
   }
 
   /**
@@ -175,7 +135,7 @@ export class MenuApi {
    */
   async checkCode(code: string): Promise<boolean> {
     const response = await apiClient.get<boolean>(`/menus/check-code/${code}`)
-    return response.data ?? false
+    return response ?? false
   }
 }
 

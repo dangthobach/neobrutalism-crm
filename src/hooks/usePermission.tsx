@@ -1,5 +1,9 @@
+'use client'
+
+import React from 'react'
 import { useAuth } from '@/contexts/auth-context'
-import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { userApi } from '@/lib/api/users'
 
 /**
  * Permission action types matching backend PermissionType
@@ -47,16 +51,16 @@ interface UserMenu {
  * }
  */
 export function usePermission() {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
 
-  // Get user's menu tree with permissions (should be fetched from API)
-  // For now, we'll use a placeholder - in real implementation, this should come from:
-  // GET /api/users/me/menus
-  const userMenus: UserMenu[] = useMemo(() => {
-    // TODO: Fetch from API
-    // This should be cached in auth context or fetched once on login
-    return []
-  }, [user])
+  // Fetch user's menu tree with permissions from API
+  const { data: userMenus = [] } = useQuery<UserMenu[]>({
+    queryKey: ['userMenus', user?.id],
+    queryFn: () => userApi.getCurrentUserMenus(),
+    enabled: isAuthenticated && !!user,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1,
+  })
 
   /**
    * Find menu by route or code
@@ -104,7 +108,7 @@ export function usePermission() {
    */
   const hasPermission = (routeOrCode: string, action: PermissionAction | MenuPermission): boolean => {
     // If it's already a menu permission, check directly
-    if (action in ['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport', 'canImport']) {
+    if (['canView', 'canCreate', 'canEdit', 'canDelete', 'canExport', 'canImport'].includes(action)) {
       return hasMenuPermission(routeOrCode, action as MenuPermission)
     }
 

@@ -1,6 +1,8 @@
 {
   "extends": ["next", "prettier"],
   "rules": {
-    "@next/next/no-img-element": 0
+    "@next/next/no-img-element": 0,
+    "react/no-unescaped-entities": 0,
+    "react-hooks/exhaustive-deps": "warn"
   }
 }

@@ -88,88 +88,56 @@ export class UserApi {
    * Get all users with pagination
    */
   async getUsers(params?: UserQueryParams): Promise<PageResponse<User>> {
-    const response = await apiClient.get<PageResponse<User>>('/users', params)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<PageResponse<User>>('/users', params)
   }
 
   /**
    * Get user by ID
    */
   async getUserById(id: string): Promise<User> {
-    const response = await apiClient.get<User>(`/users/${id}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<User>(`/users/${id}`)
   }
 
   /**
    * Get user by username
    */
   async getUserByUsername(username: string): Promise<User> {
-    const response = await apiClient.get<User>(`/users/username/${username}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<User>(`/users/username/${username}`)
   }
 
   /**
    * Get user by email
    */
   async getUserByEmail(email: string): Promise<User> {
-    const response = await apiClient.get<User>(`/users/email/${email}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<User>(`/users/email/${email}`)
   }
 
   /**
    * Get users by organization
    */
   async getUsersByOrganization(organizationId: string): Promise<User[]> {
-    const response = await apiClient.get<User[]>(`/users/organization/${organizationId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<User[]>(`/users/organization/${organizationId}`)
   }
 
   /**
    * Get users by status
    */
   async getUsersByStatus(status: UserStatus): Promise<User[]> {
-    const response = await apiClient.get<User[]>(`/users/status/${status}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<User[]>(`/users/status/${status}`)
   }
 
   /**
    * Create new user
    */
   async createUser(request: CreateUserRequest): Promise<User> {
-    const response = await apiClient.post<User>('/users', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<User>('/users', request)
   }
 
   /**
    * Update user
    */
   async updateUser(id: string, request: UpdateUserRequest): Promise<User> {
-    const response = await apiClient.put<User>(`/users/${id}`, request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<User>(`/users/${id}`, request)
   }
 
   /**
@@ -183,56 +151,40 @@ export class UserApi {
    * Activate user
    */
   async activateUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.post<User>(
+    return apiClient.post<User>(
       `/users/${id}/activate`,
       reason ? { reason } : undefined
     )
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
   }
 
   /**
    * Suspend user
    */
   async suspendUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.post<User>(
+    return apiClient.post<User>(
       `/users/${id}/suspend`,
       reason ? { reason } : undefined
     )
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
   }
 
   /**
    * Lock user
    */
   async lockUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.post<User>(
+    return apiClient.post<User>(
       `/users/${id}/lock`,
       reason ? { reason } : undefined
     )
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
   }
 
   /**
    * Unlock user
    */
   async unlockUser(id: string, reason?: string): Promise<User> {
-    const response = await apiClient.post<User>(
+    return apiClient.post<User>(
       `/users/${id}/unlock`,
       reason ? { reason } : undefined
     )
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
   }
 
   /**
@@ -240,7 +192,7 @@ export class UserApi {
    */
   async checkUsername(username: string): Promise<boolean> {
     const response = await apiClient.get<boolean>(`/users/check-username/${username}`)
-    return response.data ?? false
+    return response ?? false
   }
 
   /**
@@ -248,73 +200,51 @@ export class UserApi {
    */
   async checkEmail(email: string): Promise<boolean> {
     const response = await apiClient.get<boolean>(`/users/check-email/${email}`)
-    return response.data ?? false
+    return response ?? false
   }
 
   /**
    * Search users with advanced filters
    */
   async searchUsers(request: UserSearchRequest): Promise<PageResponse<User>> {
-    const response = await apiClient.post<PageResponse<User>>('/users/search', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<PageResponse<User>>('/users/search', request)
   }
 
   /**
    * Restore deleted user
    */
   async restoreUser(id: string): Promise<User> {
-    const response = await apiClient.post<User>(`/users/${id}/restore`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<User>(`/users/${id}/restore`)
   }
 
   /**
    * Get current user profile
    */
   async getCurrentUserProfile(): Promise<User> {
+    // apiClient.get already unwraps ApiResponse, so response is User directly
     const response = await apiClient.get<User>('/users/me')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return response
   }
 
   /**
    * Update current user profile
    */
   async updateCurrentUserProfile(request: UserProfileUpdateRequest): Promise<User> {
-    const response = await apiClient.put<User>('/users/me/profile', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<User>('/users/me/profile', request)
   }
 
   /**
    * Get current user's menus
    */
   async getCurrentUserMenus(): Promise<any[]> {
-    const response = await apiClient.get<any[]>('/users/me/menus')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<any[]>('/users/me/menus')
   }
 
   /**
    * Get user's menus by ID
    */
   async getUserMenus(id: string): Promise<any[]> {
-    const response = await apiClient.get<any[]>(`/users/${id}/menus`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<any[]>(`/users/${id}/menus`)
   }
 }
 

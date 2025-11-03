@@ -4,6 +4,7 @@ import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
 import com.neobrutalism.crm.common.exception.ValidationException;
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
 import com.neobrutalism.crm.common.service.BaseService;
+import com.neobrutalism.crm.domain.customer.dto.CustomerStatsResponse;
 import com.neobrutalism.crm.domain.customer.model.Customer;
 import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
@@ -14,8 +15,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -352,6 +355,42 @@ public class CustomerService extends BaseService<Customer> {
      */
     public Page<Customer> findAllActive(Pageable pageable) {
         return customerRepository.findByStatus(CustomerStatus.ACTIVE, pageable);
+    }
+
+    /**
+     * Get customer statistics
+     */
+    public CustomerStatsResponse getStats() {
+        String tenantIdStr = TenantContext.getCurrentTenant();
+        
+        // Get total count
+        Long total = customerRepository.countByTenantId(tenantIdStr);
+        
+        // Get count by status
+        Map<CustomerStatus, Long> byStatus = new java.util.HashMap<>();
+        for (CustomerStatus status : CustomerStatus.values()) {
+            byStatus.put(status, customerRepository.countByStatusAndTenantId(status, tenantIdStr));
+        }
+        
+        // Get count by type
+        Map<CustomerType, Long> byType = new java.util.HashMap<>();
+        for (CustomerType type : CustomerType.values()) {
+            byType.put(type, customerRepository.countByTypeAndTenantId(type, tenantIdStr));
+        }
+        
+        // Get VIP count
+        Long vipCount = customerRepository.countByIsVipAndTenantId(true, tenantIdStr);
+        
+        // Calculate average revenue (placeholder - implement based on your business logic)
+        BigDecimal averageRevenue = BigDecimal.ZERO;
+        
+        return CustomerStatsResponse.builder()
+                .total(total)
+                .byStatus(byStatus)
+                .byType(byType)
+                .vipCount(vipCount)
+                .averageRevenue(averageRevenue)
+                .build();
     }
 
     @Transactional

@@ -120,4 +120,16 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
      */
     @Query("SELECT c FROM Customer c WHERE c.lastContactDate < :date AND c.status IN :statuses AND c.deleted = false ORDER BY c.lastContactDate")
     List<Customer> findWithNoRecentContact(@Param("date") LocalDate date, @Param("statuses") List<CustomerStatus> statuses);
+
+    /**
+     * Count all customers by tenant ID
+     */
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.tenantId = :tenantId AND c.deleted = false")
+    long countByTenantId(@Param("tenantId") String tenantId);
+
+    /**
+     * Count VIP customers by tenant ID
+     */
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.isVip = :isVip AND c.tenantId = :tenantId AND c.deleted = false")
+    long countByIsVipAndTenantId(@Param("isVip") boolean isVip, @Param("tenantId") String tenantId);
 }

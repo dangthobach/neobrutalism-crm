@@ -29,44 +29,28 @@ export class UserRoleApi {
    * Get roles by user ID
    */
   async getRolesByUser(userId: string): Promise<UserRole[]> {
-    const response = await apiClient.get<UserRole[]>(`/user-roles/user/${userId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<UserRole[]>(`/user-roles/user/${userId}`)
   }
 
   /**
    * Get users by role ID
    */
   async getUsersByRole(roleId: string): Promise<UserRole[]> {
-    const response = await apiClient.get<UserRole[]>(`/user-roles/role/${roleId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<UserRole[]>(`/user-roles/role/${roleId}`)
   }
 
   /**
    * Assign role to user
    */
   async assignRole(request: UserRoleRequest): Promise<UserRole> {
-    const response = await apiClient.post<UserRole>('/user-roles', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<UserRole>('/user-roles', request)
   }
 
   /**
    * Update user-role assignment
    */
   async updateUserRole(id: string, request: UserRoleRequest): Promise<UserRole> {
-    const response = await apiClient.put<UserRole>(`/user-roles/${id}`, request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<UserRole>(`/user-roles/${id}`, request)
   }
 
   /**
@@ -87,13 +71,9 @@ export class UserRoleApi {
    * Copy roles from another user
    */
   async copyRolesFromUser(targetUserId: string, sourceUserId: string): Promise<UserRole[]> {
-    const response = await apiClient.post<UserRole[]>(
+    return apiClient.post<UserRole[]>(
       `/user-roles/user/${targetUserId}/copy-from/${sourceUserId}`
     )
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
   }
 
   /**
@@ -101,7 +81,7 @@ export class UserRoleApi {
    */
   async hasRole(userId: string, roleId: string): Promise<boolean> {
     const response = await apiClient.get<boolean>(`/user-roles/check/${userId}/${roleId}`)
-    return response.data ?? false
+    return response ?? false
   }
 }
 
