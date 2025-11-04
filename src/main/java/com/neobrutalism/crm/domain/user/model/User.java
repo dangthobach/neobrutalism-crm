@@ -26,7 +26,13 @@ import java.util.UUID;
         @Index(name = "idx_user_email", columnList = "email", unique = true),
         @Index(name = "idx_user_org_id", columnList = "organization_id"),
         @Index(name = "idx_user_deleted_id", columnList = "deleted, id"),
-        @Index(name = "idx_user_status", columnList = "status")
+        @Index(name = "idx_user_status", columnList = "status"),
+        // ✅ PHASE 1: Performance optimization indexes
+        @Index(name = "idx_user_tenant", columnList = "tenant_id"),
+        @Index(name = "idx_user_tenant_org_deleted", columnList = "tenant_id, organization_id, deleted"),
+        @Index(name = "idx_user_tenant_status_deleted", columnList = "tenant_id, status, deleted"),
+        @Index(name = "idx_user_branch", columnList = "branch_id"),
+        @Index(name = "idx_user_last_login", columnList = "last_login_at")
 })
 @Getter
 @Setter

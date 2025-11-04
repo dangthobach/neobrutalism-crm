@@ -28,7 +28,15 @@ import java.util.UUID;
         @Index(name = "idx_customer_type", columnList = "customer_type"),
         @Index(name = "idx_customer_tenant_id", columnList = "tenant_id"),
         @Index(name = "idx_customer_owner_id", columnList = "owner_id"),
-        @Index(name = "idx_customer_deleted_id", columnList = "deleted, id")
+        @Index(name = "idx_customer_deleted_id", columnList = "deleted, id"),
+        // ✅ PHASE 1: Performance optimization indexes
+        @Index(name = "idx_customer_tenant_status_deleted", columnList = "tenant_id, status, deleted"),
+        @Index(name = "idx_customer_tenant_type_deleted", columnList = "tenant_id, customer_type, deleted"),
+        @Index(name = "idx_customer_tenant_vip_deleted", columnList = "tenant_id, is_vip, deleted"),
+        @Index(name = "idx_customer_org_branch", columnList = "organization_id, branch_id, deleted"),
+        @Index(name = "idx_customer_acquisition_date", columnList = "acquisition_date"),
+        @Index(name = "idx_customer_last_contact", columnList = "last_contact_date"),
+        @Index(name = "idx_customer_company_name", columnList = "company_name")
     }
 )
 public class Customer extends TenantAwareAggregateRoot<CustomerStatus> {

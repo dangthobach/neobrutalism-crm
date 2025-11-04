@@ -10,6 +10,8 @@ import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
 import com.neobrutalism.crm.domain.customer.repository.CustomerRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Service for Customer management
+ * ✅ PHASE 1 WEEK 2: Service for Customer management with Redis caching
+ * Cache region: "customers" with 5 minutes TTL
  */
 @Slf4j
 @Service
@@ -47,8 +50,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Create a new customer
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer create(Customer customer) {
         log.info("Creating new customer: {}", customer.getCode());
 
@@ -80,8 +85,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Update existing customer
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer update(UUID id, Customer updatedCustomer) {
         log.info("Updating customer: {}", id);
 
@@ -133,7 +140,9 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Find customer by code
+     * Cached: 5 minutes TTL, key by code and tenant
      */
+    @Cacheable(value = "customers", key = "'code:' + #code + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public Optional<Customer> findByCode(String code) {
         String tenantIdStr = TenantContext.getCurrentTenant();
         return customerRepository.findByCodeAndTenantId(code, tenantIdStr);
@@ -148,7 +157,9 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Find all customers by organization
+     * Cached: 5 minutes TTL, key by organization ID
      */
+    @Cacheable(value = "customers", key = "'org:' + #organizationId")
     public List<Customer> findByOrganizationId(UUID organizationId) {
         return customerRepository.findByOrganizationId(organizationId);
     }
@@ -169,7 +180,9 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Find customers by type
+     * Cached: 5 minutes TTL, key by type and tenant
      */
+    @Cacheable(value = "customers", key = "'type:' + #type + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Customer> findByCustomerType(CustomerType type) {
         String tenantIdStr = TenantContext.getCurrentTenant();
         return customerRepository.findByCustomerType(type, tenantIdStr);
@@ -177,7 +190,9 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Find customers by status
+     * Cached: 5 minutes TTL, key by status and tenant
      */
+    @Cacheable(value = "customers", key = "'status:' + #status + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Customer> findByStatus(CustomerStatus status) {
         return customerRepository.findByStatus(status);
     }
@@ -241,8 +256,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Convert lead to prospect
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer convertToProspect(UUID customerId, String reason) {
         log.info("Converting customer {} to PROSPECT", customerId);
         Customer customer = findById(customerId);
@@ -253,8 +270,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Convert prospect to active customer
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer convertToActive(UUID customerId, String reason) {
         log.info("Converting customer {} to ACTIVE", customerId);
         Customer customer = findById(customerId);
@@ -271,8 +290,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Mark customer as inactive
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer markInactive(UUID customerId, String reason) {
         log.info("Marking customer {} as INACTIVE", customerId);
         Customer customer = findById(customerId);
@@ -283,8 +304,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Mark customer as churned
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer markChurned(UUID customerId, String reason) {
         log.info("Marking customer {} as CHURNED", customerId);
         Customer customer = findById(customerId);
@@ -295,8 +318,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Blacklist customer
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer blacklist(UUID customerId, String reason) {
         log.info("Blacklisting customer {}", customerId);
         Customer customer = findById(customerId);
@@ -307,8 +332,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Reactivate customer
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer reactivate(UUID customerId, String reason) {
         log.info("Reactivating customer {}", customerId);
         Customer customer = findById(customerId);
@@ -319,8 +346,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Update last contact date
+     * Cache eviction: Clears all customers cache
      */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public Customer updateLastContactDate(UUID customerId) {
         Customer customer = findById(customerId);
         customer.setLastContactDate(LocalDate.now());
@@ -393,7 +422,12 @@ public class CustomerService extends BaseService<Customer> {
                 .build();
     }
 
+    /**
+     * Soft delete customer
+     * Cache eviction: Clears all customers cache
+     */
     @Transactional
+    @CacheEvict(value = "customers", allEntries = true)
     public void deleteById(UUID id) {
         log.info("Soft deleting customer: {}", id);
         Customer customer = findById(id);

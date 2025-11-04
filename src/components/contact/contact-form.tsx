@@ -1,10 +1,12 @@
 /**
  * Contact Form Component
  * Form for creating/editing contacts with 4-section layout
+ * ✅ PHASE 1: Integrated with ErrorHandler
  */
 
 'use client'
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Contact, CreateContactRequest, UpdateContactRequest, ContactRole, ContactStatus } from '@/types/contact'
 import { Button } from '@/components/ui/button'
@@ -19,6 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ErrorHandler, useErrorHandler } from '@/lib/errors/error-handler'
+import { ErrorDisplay, InlineError } from '@/components/errors/error-display'
+import type { ApiError } from '@/lib/api/client'
 
 interface ContactFormProps {
   contact?: Contact
@@ -28,6 +33,9 @@ interface ContactFormProps {
 }
 
 export function ContactForm({ contact, customerId, onSubmit, isSubmitting }: ContactFormProps) {
+  const [apiError, setApiError] = useState<ApiError | null>(null)
+  const { handleError, getFieldErrors } = useErrorHandler()
+  
   const {
     register,
     handleSubmit,
@@ -44,15 +52,30 @@ export function ContactForm({ contact, customerId, onSubmit, isSubmitting }: Con
 
   const watchIsPrimary = watch('isPrimary')
 
-  const onFormSubmit = (data: any) => {
-    if (customerId && !contact) {
-      data.customerId = customerId
+  const onFormSubmit = async (data: any) => {
+    try {
+      setApiError(null)
+      if (customerId && !contact) {
+        data.customerId = customerId
+      }
+      await onSubmit(data)
+    } catch (error) {
+      const apiErr = error as ApiError
+      setApiError(apiErr)
+      ErrorHandler.toast(apiErr)
     }
-    onSubmit(data)
   }
+  
+  const fieldErrors = apiError ? getFieldErrors(apiError) : {}
 
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
+      {apiError && (
+        <ErrorDisplay
+          error={handleError(apiError)}
+          onRetry={() => handleSubmit(onFormSubmit)()}
+        />
+      )}
       {/* Section 1: Basic Information */}
       <div className="rounded border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <div className="border-b-2 border-black bg-green-200 px-6 py-4">

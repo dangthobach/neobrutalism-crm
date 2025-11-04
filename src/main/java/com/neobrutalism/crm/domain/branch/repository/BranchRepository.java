@@ -3,6 +3,9 @@ package com.neobrutalism.crm.domain.branch.repository;
 import com.neobrutalism.crm.common.repository.StatefulRepository;
 import com.neobrutalism.crm.domain.branch.Branch;
 import com.neobrutalism.crm.domain.branch.BranchStatus;
+import com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO;
+import com.neobrutalism.crm.domain.organization.model.Organization;
+import com.neobrutalism.crm.domain.user.model.User;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -88,4 +91,62 @@ public interface BranchRepository extends StatefulRepository<Branch, BranchStatu
      */
     @Query("SELECT COUNT(b) FROM Branch b WHERE b.organizationId = :organizationId AND b.deleted = false")
     long countByOrganizationId(@Param("organizationId") UUID organizationId);
+
+    // ========================================
+    // ✅ PHASE 1: OPTIMIZED QUERIES WITH DTO PROJECTION
+    // ========================================
+
+    /**
+     * Find branches by organization with full details (prevents N+1)
+     * Uses DTO projection to fetch organization and parent data in single query
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO(" +
+           "b.id, b.code, b.name, b.description, b.status, " +
+           "b.organizationId, o.name, " +
+           "b.parentId, parent.name, " +
+           "b.level, b.path, " +
+           "b.managerId, CONCAT(manager.firstName, ' ', manager.lastName), " +
+           "b.tenantId, b.deleted) " +
+           "FROM Branch b " +
+           "LEFT JOIN Organization o ON b.organizationId = o.id " +
+           "LEFT JOIN Branch parent ON b.parentId = parent.id " +
+           "LEFT JOIN User manager ON b.managerId = manager.id " +
+           "WHERE b.organizationId = :orgId AND b.deleted = false " +
+           "ORDER BY b.displayOrder, b.name")
+    List<com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO> findByOrganizationWithDetails(@Param("orgId") UUID orgId);
+
+    /**
+     * Find all root branches with details (prevents N+1)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO(" +
+           "b.id, b.code, b.name, b.description, b.status, " +
+           "b.organizationId, o.name, " +
+           "b.managerId, CONCAT(manager.firstName, ' ', manager.lastName), " +
+           "b.level, b.path, " +
+           "b.tenantId, b.deleted) " +
+           "FROM Branch b " +
+           "LEFT JOIN Organization o ON b.organizationId = o.id " +
+           "LEFT JOIN User manager ON b.managerId = manager.id " +
+           "WHERE b.parentId IS NULL AND b.tenantId = :tenantId AND b.deleted = false " +
+           "ORDER BY b.displayOrder, b.name")
+    List<com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO> findRootBranchesWithDetails(@Param("tenantId") UUID tenantId);
+
+    /**
+     * Find branches by status with details (optimized for filtering)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO(" +
+           "b.id, b.code, b.name, b.description, b.status, " +
+           "b.organizationId, o.name, " +
+           "b.managerId, CONCAT(manager.firstName, ' ', manager.lastName), " +
+           "b.level, b.path, " +
+           "b.tenantId, b.deleted) " +
+           "FROM Branch b " +
+           "LEFT JOIN Organization o ON b.organizationId = o.id " +
+           "LEFT JOIN User manager ON b.managerId = manager.id " +
+           "WHERE b.status = :status AND b.tenantId = :tenantId AND b.deleted = false " +
+           "ORDER BY b.displayOrder, b.name")
+    List<com.neobrutalism.crm.domain.branch.dto.BranchWithDetailsDTO> findByStatusWithDetails(
+        @Param("status") BranchStatus status, 
+        @Param("tenantId") UUID tenantId
+    );
 }

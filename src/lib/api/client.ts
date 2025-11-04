@@ -236,7 +236,18 @@ class ApiClient {
       // Handle abort/timeout
       if (error.name === 'AbortError') {
         console.error('⏱️ Request aborted/timeout:', { endpoint })
-        throw new ApiError(0, 'TIMEOUT', 'Request timeout or cancelled')
+        const timeoutError = new ApiError(0, 'TIMEOUT', 'Request timeout or cancelled')
+        
+        // ✅ PHASE 1: Log to monitoring service for server errors
+        if (typeof window !== 'undefined' && window.console) {
+          console.error('[API Client] Timeout error:', {
+            endpoint,
+            method: options.method || 'GET',
+            timestamp: new Date().toISOString()
+          })
+        }
+        
+        throw timeoutError
       }
 
       if (error instanceof ApiError) {
@@ -245,6 +256,32 @@ class ApiClient {
           code: error.code,
           message: error.message,
         })
+        
+        // ✅ FIX #3: Log server errors to Sentry monitoring
+        if (error.status >= 500) {
+          if (typeof window !== 'undefined' && window.console) {
+            console.error('[API Client] Server error:', {
+              status: error.status,
+              code: error.code,
+              message: error.message,
+              endpoint,
+              method: options.method || 'GET',
+              timestamp: new Date().toISOString(),
+              data: error.data
+            })
+
+            // ✅ Send to Sentry (when installed)
+            import('@/lib/monitoring/sentry').then(({ captureApiError }) => {
+              captureApiError(new Error(error.message), {
+                endpoint,
+                method: options.method || 'GET',
+                statusCode: error.status,
+              })
+            }).catch(() => {
+              // Sentry not available, ignore
+            })
+          }
+        }
         
         // Retry logic for server errors (5xx) and network errors
         if (retryCount < maxRetries) {

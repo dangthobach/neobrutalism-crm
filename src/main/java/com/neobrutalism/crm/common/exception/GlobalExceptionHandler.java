@@ -32,6 +32,21 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), "RESOURCE_NOT_FOUND"));
     }
 
+    /**
+     * ✅ PHASE 1: Handle tenant isolation violation (403 FORBIDDEN)
+     * Prevents cross-tenant data access
+     */
+    @ExceptionHandler(TenantViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTenantViolationException(TenantViolationException ex) {
+        log.error("Tenant violation detected: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(
+                    "Access denied: Cannot access resources from another organization",
+                    "TENANT_VIOLATION"
+                ));
+    }
+
     @ExceptionHandler(InvalidStateTransitionException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidStateTransitionException(InvalidStateTransitionException ex) {
         log.warn("Invalid state transition: {}", ex.getMessage());
@@ -104,21 +119,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle database integrity constraint violations
-     * This is a fallback handler if the exception is not caught by service layer
-     * Returns 409 CONFLICT for duplicate/unique constraints
+     * ✅ PHASE 1: Enhanced database integrity constraint handler
+     * Returns 409 CONFLICT for duplicate/unique constraints with detailed field info
      * Returns 400 BAD_REQUEST for other constraint violations
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleDataIntegrityViolationException(
             DataIntegrityViolationException ex) {
         log.warn("Database integrity violation: {}", ex.getMessage());
 
         // Check if it's a unique constraint violation (duplicate)
         boolean isUniqueViolation = DatabaseExceptionHandler.isUniqueConstraintViolation(ex);
 
-        // Extract entity name from the exception message (e.g., "ORGANIZATIONS" -> "Organization")
+        // Extract entity name and constraint details
         String entityName = extractEntityName(ex.getMessage());
+        Map<String, String> details = extractConstraintViolation(ex);
 
         // Try to provide a user-friendly message
         ValidationException validationException = DatabaseExceptionHandler.handleDataIntegrityViolation(
@@ -131,7 +146,56 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(status)
-                .body(ApiResponse.error(validationException.getMessage(), errorCode));
+                .body(ApiResponse.error(
+                    validationException.getMessage(),
+                    errorCode,
+                    details
+                ));
+    }
+
+    /**
+     * ✅ PHASE 1: Extract constraint violation details
+     * Provides structured error information for frontend
+     */
+    private Map<String, String> extractConstraintViolation(DataIntegrityViolationException ex) {
+        Map<String, String> details = new HashMap<>();
+        String message = ex.getMostSpecificCause().getMessage();
+        
+        if (message == null) {
+            return details;
+        }
+
+        // Extract constraint name
+        java.util.regex.Pattern constraintPattern = java.util.regex.Pattern.compile(
+            "constraint\\s+\"?([a-z_0-9]+)\"?",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+        );
+        java.util.regex.Matcher constraintMatcher = constraintPattern.matcher(message);
+        if (constraintMatcher.find()) {
+            details.put("constraint", constraintMatcher.group(1));
+        }
+
+        // Extract column name
+        java.util.regex.Pattern columnPattern = java.util.regex.Pattern.compile(
+            "\\(([a-z_0-9, ]+)\\)",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+        );
+        java.util.regex.Matcher columnMatcher = columnPattern.matcher(message);
+        if (columnMatcher.find()) {
+            details.put("field", columnMatcher.group(1).trim());
+        }
+
+        // Extract conflicting value if present
+        java.util.regex.Pattern valuePattern = java.util.regex.Pattern.compile(
+            "=\\(([^)]+)\\)",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+        );
+        java.util.regex.Matcher valueMatcher = valuePattern.matcher(message);
+        if (valueMatcher.find()) {
+            details.put("value", valueMatcher.group(1).trim());
+        }
+
+        return details;
     }
 
     /**

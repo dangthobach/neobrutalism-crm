@@ -24,8 +24,15 @@ import java.util.UUID;
         @Index(name = "idx_branch_parent_id", columnList = "parent_id"),
         @Index(name = "idx_branch_code", columnList = "code"),
         @Index(name = "idx_branch_deleted_id", columnList = "deleted, id"),
+        // ✅ PHASE 1: Performance optimization indexes
+        @Index(name = "idx_branch_tenant", columnList = "tenant_id"),
+        @Index(name = "idx_branch_status", columnList = "status"),
+        @Index(name = "idx_branch_manager", columnList = "manager_id"),
+        @Index(name = "idx_branch_tenant_org_deleted", columnList = "tenant_id, organization_id, deleted"),
+        @Index(name = "idx_branch_org_status", columnList = "organization_id, status, deleted"),
     }
 )
+
 public class Branch extends TenantAwareAggregateRoot<BranchStatus> {
 
     /**

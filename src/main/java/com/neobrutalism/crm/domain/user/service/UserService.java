@@ -13,6 +13,8 @@ import com.neobrutalism.crm.domain.user.repository.UserRepository;
 import com.neobrutalism.crm.domain.user.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,7 +29,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Service for User entity
+ * ✅ PHASE 1 WEEK 3: Service for User management with Redis caching
+ * Cache region: "users" with 10 minutes TTL
  */
 @Slf4j
 @Service
@@ -94,14 +97,18 @@ public class UserService extends StatefulService<User, UserStatus> {
 
     /**
      * Find user by username
+     * Cached: 10 minutes TTL, key by username and tenant
      */
+    @Cacheable(value = "users", key = "'username:' + #username + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
     /**
      * Find user by email
+     * Cached: 10 minutes TTL, key by email and tenant
      */
+    @Cacheable(value = "users", key = "'email:' + #email + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
@@ -136,39 +143,49 @@ public class UserService extends StatefulService<User, UserStatus> {
 
     /**
      * Find users by organization
+     * Cached: 10 minutes TTL, key by organization ID
      */
+    @Cacheable(value = "users", key = "'org:' + #organizationId")
     public List<User> findByOrganizationId(UUID organizationId) {
         return userRepository.findByOrganizationId(organizationId);
     }
 
     /**
      * Activate user
+     * Cache eviction: Clears all users cache
      */
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public User activate(UUID id, String reason) {
         return transitionTo(id, UserStatus.ACTIVE, reason);
     }
 
     /**
      * Suspend user
+     * Cache eviction: Clears all users cache
      */
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public User suspend(UUID id, String reason) {
         return transitionTo(id, UserStatus.SUSPENDED, reason);
     }
 
     /**
      * Lock user
+     * Cache eviction: Clears all users cache
      */
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public User lock(UUID id, String reason) {
         return transitionTo(id, UserStatus.LOCKED, reason);
     }
 
     /**
      * Unlock user
+     * Cache eviction: Clears all users cache
      */
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public User unlock(UUID id, String reason) {
         User user = findById(id);
         user.resetFailedLoginAttempts();
@@ -178,7 +195,9 @@ public class UserService extends StatefulService<User, UserStatus> {
 
     /**
      * Find users by status
+     * Cached: 10 minutes TTL, key by status and tenant
      */
+    @Cacheable(value = "users", key = "'status:' + #status + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<User> findByStatus(UserStatus status) {
         return userRepository.findByStatus(status);
     }
@@ -187,18 +206,22 @@ public class UserService extends StatefulService<User, UserStatus> {
 
     /**
      * Create user with database integrity constraint checking
+     * Cache eviction: Clears all users cache
      */
     @Override
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public User create(User entity) {
         return createWithIntegrityCheck(entity, CONSTRAINT_MESSAGES);
     }
 
     /**
      * Update user with database integrity constraint checking
+     * Cache eviction: Clears all users cache
      */
     @Override
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public User update(UUID id, User entity) {
         return updateWithIntegrityCheck(id, entity, CONSTRAINT_MESSAGES);
     }
@@ -218,9 +241,11 @@ public class UserService extends StatefulService<User, UserStatus> {
 
     /**
      * Delete user with foreign key constraint checking
+     * Cache eviction: Clears all users cache
      */
     @Override
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public void delete(User entity) {
         deleteWithIntegrityCheck(entity, "related entities (roles, groups, etc.)");
     }

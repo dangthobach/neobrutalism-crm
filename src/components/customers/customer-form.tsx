@@ -1,10 +1,12 @@
 /**
  * Customer Form Component
  * Create/Edit customer form with validation
+ * ✅ PHASE 1: Integrated with ErrorHandler for consistent error display
  */
 
 'use client'
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -28,6 +30,9 @@ import {
   CustomerType,
   CustomerStatus,
 } from '@/types/customer'
+import { ErrorHandler, useErrorHandler } from '@/lib/errors/error-handler'
+import { ErrorDisplay, InlineError } from '@/components/errors/error-display'
+import type { ApiError } from '@/lib/api/client'
 
 interface CustomerFormProps {
   customer?: Customer
@@ -38,6 +43,8 @@ interface CustomerFormProps {
 export function CustomerForm({ customer, onSubmit, isLoading }: CustomerFormProps) {
   const router = useRouter()
   const isEdit = !!customer
+  const [apiError, setApiError] = useState<ApiError | null>(null)
+  const { handleError, getFieldErrors } = useErrorHandler()
 
   const {
     register,
@@ -80,11 +87,32 @@ export function CustomerForm({ customer, onSubmit, isLoading }: CustomerFormProp
   })
 
   const handleFormSubmit = async (data: any) => {
-    await onSubmit(data)
+    try {
+      setApiError(null)
+      await onSubmit(data)
+    } catch (error) {
+      // Handle API errors
+      const apiErr = error as ApiError
+      setApiError(apiErr)
+      
+      // Show toast notification
+      ErrorHandler.toast(apiErr)
+    }
   }
+  
+  // Get field-level errors from API
+  const fieldErrors = apiError ? getFieldErrors(apiError) : {}
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      {/* API Error Display */}
+      {apiError && (
+        <ErrorDisplay
+          error={handleError(apiError)}
+          onRetry={() => handleSubmit(handleFormSubmit)()}
+        />
+      )}
+      
       {/* Basic Information */}
       <Card className="border-4 border-black">
         <CardHeader className="bg-yellow-300 border-b-4 border-black">
@@ -121,6 +149,9 @@ export function CustomerForm({ customer, onSubmit, isLoading }: CustomerFormProp
               />
               {errors.companyName && (
                 <p className="text-sm text-red-500">Company name is required</p>
+              )}
+              {fieldErrors.companyName && (
+                <InlineError message={fieldErrors.companyName} />
               )}
             </div>
           </div>
@@ -239,6 +270,9 @@ export function CustomerForm({ customer, onSubmit, isLoading }: CustomerFormProp
                 placeholder="contact@acme.com"
                 className="border-2 border-black"
               />
+              {fieldErrors.email && (
+                <InlineError message={fieldErrors.email} />
+              )}
             </div>
 
             <div className="space-y-2">

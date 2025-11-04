@@ -88,6 +88,19 @@ public class RedisCacheConfig {
         // Custom TTL per cache
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
+        // ✅ PHASE 1 WEEK 2-3: Entity caches with optimized TTL
+        // Short-lived caches (5 minutes) - Frequently changing data
+        cacheConfigurations.put("branches", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("customers", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("contacts", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        
+        // Medium-lived caches (10 minutes) - User and group data
+        cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put("usergroups", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        
+        // Long-lived caches (1 hour) - Rarely changing data
+        cacheConfigurations.put("roles", defaultConfig.entryTtl(Duration.ofHours(1)));
+        
         // Menu tree - 1 hour (rarely changes)
         cacheConfigurations.put("menuTree", defaultConfig.entryTtl(Duration.ofHours(1)));
 

@@ -1,9 +1,13 @@
 package com.neobrutalism.crm.domain.customer.repository;
 
 import com.neobrutalism.crm.common.repository.StatefulRepository;
+import com.neobrutalism.crm.domain.branch.Branch;
+import com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO;
 import com.neobrutalism.crm.domain.customer.model.Customer;
 import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
+import com.neobrutalism.crm.domain.organization.model.Organization;
+import com.neobrutalism.crm.domain.user.model.User;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -132,4 +136,81 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
      */
     @Query("SELECT COUNT(c) FROM Customer c WHERE c.isVip = :isVip AND c.tenantId = :tenantId AND c.deleted = false")
     long countByIsVipAndTenantId(@Param("isVip") boolean isVip, @Param("tenantId") String tenantId);
+
+    // ========================================
+    // ✅ PHASE 1: OPTIMIZED QUERIES WITH DTO PROJECTION
+    // ========================================
+
+    /**
+     * Find customers by organization with full details (prevents N+1)
+     * Uses DTO projection to fetch organization, owner, and branch data in single query
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.industry, c.email, c.phone, c.isVip, " +
+           "c.totalRevenue, c.acquisitionDate, c.lastContactDate, " +
+           "c.organizationId, o.name, " +
+           "c.ownerId, CONCAT(owner.firstName, ' ', owner.lastName), " +
+           "c.branchId, branch.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "LEFT JOIN User owner ON c.ownerId = owner.id " +
+           "LEFT JOIN Branch branch ON c.branchId = branch.id " +
+           "WHERE c.organizationId = :orgId AND c.deleted = false " +
+           "ORDER BY c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findByOrganizationWithDetails(@Param("orgId") UUID orgId);
+
+    /**
+     * Find customers by status with details (optimized for filtering)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.email, c.phone, c.isVip, " +
+           "c.organizationId, o.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "WHERE c.status = :status AND c.tenantId = :tenantId AND c.deleted = false " +
+           "ORDER BY c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findByStatusWithDetails(
+        @Param("status") CustomerStatus status, 
+        @Param("tenantId") String tenantId
+    );
+
+    /**
+     * Find customers by type with details (optimized for filtering)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.email, c.phone, c.isVip, " +
+           "c.organizationId, o.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "WHERE c.customerType = :type AND c.tenantId = :tenantId AND c.deleted = false " +
+           "ORDER BY c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findByTypeWithDetails(
+        @Param("type") CustomerType type, 
+        @Param("tenantId") String tenantId
+    );
+
+    /**
+     * Find VIP customers with details (optimized for reporting)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.industry, c.email, c.phone, c.isVip, " +
+           "c.totalRevenue, c.acquisitionDate, c.lastContactDate, " +
+           "c.organizationId, o.name, " +
+           "c.ownerId, CONCAT(owner.firstName, ' ', owner.lastName), " +
+           "c.branchId, branch.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "LEFT JOIN User owner ON c.ownerId = owner.id " +
+           "LEFT JOIN Branch branch ON c.branchId = branch.id " +
+           "WHERE c.isVip = true AND c.tenantId = :tenantId AND c.deleted = false " +
+           "ORDER BY c.totalRevenue DESC, c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findVipCustomersWithDetails(@Param("tenantId") String tenantId);
 }

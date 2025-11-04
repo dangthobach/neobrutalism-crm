@@ -8,6 +8,8 @@ import com.neobrutalism.crm.domain.branch.Branch;
 import com.neobrutalism.crm.domain.branch.BranchStatus;
 import com.neobrutalism.crm.domain.branch.repository.BranchRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Service for Branch management
+ * ✅ PHASE 1 WEEK 2: Service for Branch management with Redis caching
+ * Cache region: "branches" with 5 minutes TTL
  */
 @Slf4j
 @Service
@@ -41,8 +44,10 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Create a new branch
+     * Cache eviction: Clears all branches cache for this organization
      */
     @Transactional
+    @CacheEvict(value = "branches", allEntries = true)
     public Branch create(Branch branch) {
         log.info("Creating new branch: {}", branch.getCode());
 
@@ -79,8 +84,10 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Update existing branch
+     * Cache eviction: Clears all branches cache
      */
     @Transactional
+    @CacheEvict(value = "branches", allEntries = true)
     public Branch update(UUID id, Branch updatedBranch) {
         log.info("Updating branch: {}", id);
 
@@ -165,14 +172,18 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Get all branches by organization
+     * Cached: 5 minutes TTL, key by organization ID
      */
+    @Cacheable(value = "branches", key = "'org:' + #organizationId")
     public List<Branch> findByOrganizationId(UUID organizationId) {
         return branchRepository.findByOrganizationId(organizationId);
     }
 
     /**
      * Get branch by code
+     * Cached: 5 minutes TTL, key by code and tenant
      */
+    @Cacheable(value = "branches", key = "'code:' + #code + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public Optional<Branch> findByCode(String code) {
         String tenantIdStr = TenantContext.getCurrentTenant();
         return branchRepository.findByCodeAndTenantId(code, tenantIdStr != null ? UUID.fromString(tenantIdStr) : null);
@@ -187,7 +198,9 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Get all root branches (no parent)
+     * Cached: 5 minutes TTL, key by tenant
      */
+    @Cacheable(value = "branches", key = "'root:tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Branch> getRootBranches() {
         String tenantIdStr = TenantContext.getCurrentTenant();
         UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
@@ -257,7 +270,9 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Get branches by type
+     * Cached: 5 minutes TTL, key by type and tenant
      */
+    @Cacheable(value = "branches", key = "'type:' + #branchType + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Branch> findByBranchType(Branch.BranchType branchType) {
         String tenantIdStr = TenantContext.getCurrentTenant();
         UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
@@ -282,7 +297,9 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Get branches by status
+     * Cached: 5 minutes TTL, key by status and tenant
      */
+    @Cacheable(value = "branches", key = "'status:' + #status + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Branch> findByStatus(BranchStatus status) {
         return branchRepository.findByStatus(status);
     }
@@ -296,8 +313,10 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Activate branch
+     * Cache eviction: Clears all branches cache
      */
     @Transactional
+    @CacheEvict(value = "branches", allEntries = true)
     public Branch activate(UUID branchId, String reason) {
         log.info("Activating branch: {}", branchId);
         Branch branch = findById(branchId);
@@ -308,8 +327,10 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Deactivate branch
+     * Cache eviction: Clears all branches cache
      */
     @Transactional
+    @CacheEvict(value = "branches", allEntries = true)
     public Branch deactivate(UUID branchId, String reason) {
         log.info("Deactivating branch: {}", branchId);
         Branch branch = findById(branchId);
@@ -320,8 +341,10 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Close branch
+     * Cache eviction: Clears all branches cache
      */
     @Transactional
+    @CacheEvict(value = "branches", allEntries = true)
     public Branch close(UUID branchId, String reason) {
         log.info("Closing branch: {}", branchId);
         Branch branch = findById(branchId);
@@ -339,7 +362,9 @@ public class BranchService extends BaseService<Branch> {
 
     /**
      * Get all active branches
+     * Cached: 5 minutes TTL, key by active status and tenant
      */
+    @Cacheable(value = "branches", key = "'active:tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Branch> findAllActive() {
         return branchRepository.findByStatus(BranchStatus.ACTIVE);
     }
@@ -351,7 +376,12 @@ public class BranchService extends BaseService<Branch> {
         return branchRepository.findByStatus(BranchStatus.ACTIVE, pageable);
     }
 
+    /**
+     * Soft delete branch
+     * Cache eviction: Clears all branches cache
+     */
     @Transactional
+    @CacheEvict(value = "branches", allEntries = true)
     public void deleteById(UUID id) {
         log.info("Soft deleting branch: {}", id);
         Branch branch = findById(id);

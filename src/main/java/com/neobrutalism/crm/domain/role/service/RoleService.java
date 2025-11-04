@@ -9,6 +9,8 @@ import com.neobrutalism.crm.domain.role.model.RoleStatus;
 import com.neobrutalism.crm.domain.role.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * ✅ PHASE 1 WEEK 3: Service for Role management with Redis caching
+ * Cache region: "roles" with 1 hour TTL (roles change infrequently)
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -74,35 +80,70 @@ public class RoleService extends StatefulService<Role, RoleStatus> {
         }
     }
 
+    /**
+     * Find role by code
+     * Cached: 1 hour TTL, key by code and tenant
+     */
+    @Cacheable(value = "roles", key = "'code:' + #code + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public Optional<Role> findByCode(String code) {
         return roleRepository.findByCode(code);
     }
 
+    /**
+     * Find roles by organization
+     * Cached: 1 hour TTL, key by organization ID
+     */
+    @Cacheable(value = "roles", key = "'org:' + #organizationId")
     public List<Role> findByOrganizationId(UUID organizationId) {
         return roleRepository.findByOrganizationId(organizationId);
     }
 
+    /**
+     * Find system roles
+     * Cached: 1 hour TTL, key by tenant
+     */
+    @Cacheable(value = "roles", key = "'system:tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Role> findSystemRoles() {
         return roleRepository.findByIsSystemTrue();
     }
 
+    /**
+     * Activate role
+     * Cache eviction: Clears all roles cache
+     */
     @Transactional
+    @CacheEvict(value = "roles", allEntries = true)
     public Role activate(UUID id, String reason) {
         return transitionTo(id, RoleStatus.ACTIVE, reason);
     }
 
+    /**
+     * Find roles by status
+     * Cached: 1 hour TTL, key by status and tenant
+     */
+    @Cacheable(value = "roles", key = "'status:' + #status + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
     public List<Role> findByStatus(RoleStatus status) {
         return roleRepository.findByStatus(status);
     }
 
+    /**
+     * Create role with database integrity constraint checking
+     * Cache eviction: Clears all roles cache
+     */
     @Override
     @Transactional
+    @CacheEvict(value = "roles", allEntries = true)
     public Role create(Role entity) {
         return createWithIntegrityCheck(entity, CONSTRAINT_MESSAGES);
     }
 
+    /**
+     * Update role with database integrity constraint checking
+     * Cache eviction: Clears all roles cache
+     */
     @Override
     @Transactional
+    @CacheEvict(value = "roles", allEntries = true)
     public Role update(UUID id, Role entity) {
         return updateWithIntegrityCheck(id, entity, CONSTRAINT_MESSAGES);
     }
