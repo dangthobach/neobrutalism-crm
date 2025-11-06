@@ -48,6 +48,7 @@ public enum ErrorCode {
 
     // Validation errors
     VALIDATION_ERROR("VALIDATION_ERROR", "Validation error"),
+    INVALID_PASSWORD("INVALID_PASSWORD", "Password does not meet security requirements"),
     DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate entry");
 
     private final String code;

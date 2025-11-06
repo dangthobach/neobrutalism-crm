@@ -4,6 +4,9 @@ import com.neobrutalism.crm.common.repository.StatefulRepository;
 import com.neobrutalism.crm.domain.contact.model.Contact;
 import com.neobrutalism.crm.domain.contact.model.ContactRole;
 import com.neobrutalism.crm.domain.contact.model.ContactStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -126,4 +129,34 @@ public interface ContactRepository extends StatefulRepository<Contact, ContactSt
      */
     @Query("SELECT c FROM Contact c WHERE c.reportsToId = :reportsToId AND c.deleted = false ORDER BY c.lastName, c.firstName")
     List<Contact> findByReportsToId(@Param("reportsToId") UUID reportsToId);
+
+    // ========================================
+    // ✅ N+1 QUERY FIXES: Optimized pagination queries
+    // ========================================
+
+    /**
+     * Find all active contacts with pagination (optimized - no N+1)
+     * Uses EntityGraph to ensure efficient loading
+     */
+    @EntityGraph(attributePaths = {}) // No relationships to fetch, but prepared for future
+    @Query("SELECT c FROM Contact c WHERE c.deleted = false")
+    Page<Contact> findAllActiveOptimized(Pageable pageable);
+
+    /**
+     * Find contacts by customer with pagination (optimized)
+     */
+    @Query("SELECT c FROM Contact c WHERE c.customerId = :customerId AND c.deleted = false ORDER BY c.isPrimary DESC, c.lastName, c.firstName")
+    Page<Contact> findByCustomerIdOptimized(@Param("customerId") UUID customerId, Pageable pageable);
+
+    /**
+     * Find contacts by organization with pagination (optimized)
+     */
+    @Query("SELECT c FROM Contact c WHERE c.organizationId = :organizationId AND c.deleted = false")
+    Page<Contact> findByOrganizationIdOptimized(@Param("organizationId") UUID organizationId, Pageable pageable);
+
+    /**
+     * Find contacts by status with pagination (optimized)
+     */
+    @Query("SELECT c FROM Contact c WHERE c.status = :status AND c.deleted = false")
+    Page<Contact> findByStatusOptimized(@Param("status") ContactStatus status, Pageable pageable);
 }

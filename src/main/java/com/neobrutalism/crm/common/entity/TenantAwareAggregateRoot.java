@@ -11,8 +11,6 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.FilterDef;
 import org.hibernate.annotations.ParamDef;
 
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Base aggregate root with tenant awareness

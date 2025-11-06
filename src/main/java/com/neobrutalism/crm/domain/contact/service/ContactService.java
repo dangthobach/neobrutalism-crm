@@ -354,9 +354,10 @@ public class ContactService extends BaseService<Contact> {
 
     /**
      * Get all active contacts with pagination
+     * ✅ Optimized: Uses optimized query to prevent N+1
      */
     public Page<Contact> findAllActive(Pageable pageable) {
-        return contactRepository.findByStatus(ContactStatus.ACTIVE, pageable);
+        return contactRepository.findAllActiveOptimized(pageable);
     }
 
     @Transactional

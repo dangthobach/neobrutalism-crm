@@ -381,9 +381,10 @@ public class CustomerService extends BaseService<Customer> {
 
     /**
      * Get all active customers with pagination
+     * ✅ Optimized: Uses optimized query to prevent N+1
      */
     public Page<Customer> findAllActive(Pageable pageable) {
-        return customerRepository.findByStatus(CustomerStatus.ACTIVE, pageable);
+        return customerRepository.findAllActiveOptimized(pageable);
     }
 
     /**

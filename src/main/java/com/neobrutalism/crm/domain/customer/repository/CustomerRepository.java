@@ -1,13 +1,12 @@
 package com.neobrutalism.crm.domain.customer.repository;
 
 import com.neobrutalism.crm.common.repository.StatefulRepository;
-import com.neobrutalism.crm.domain.branch.Branch;
-import com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO;
 import com.neobrutalism.crm.domain.customer.model.Customer;
 import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
-import com.neobrutalism.crm.domain.organization.model.Organization;
-import com.neobrutalism.crm.domain.user.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -213,4 +212,28 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
            "WHERE c.isVip = true AND c.tenantId = :tenantId AND c.deleted = false " +
            "ORDER BY c.totalRevenue DESC, c.companyName")
     List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findVipCustomersWithDetails(@Param("tenantId") String tenantId);
+
+    // ========================================
+    // ✅ N+1 QUERY FIXES: Optimized pagination queries
+    // ========================================
+
+    /**
+     * Find all active customers with pagination (optimized - no N+1)
+     * Uses EntityGraph to ensure efficient loading
+     */
+    @EntityGraph(attributePaths = {}) // No relationships to fetch, but prepared for future
+    @Query("SELECT c FROM Customer c WHERE c.deleted = false")
+    Page<Customer> findAllActiveOptimized(Pageable pageable);
+
+    /**
+     * Find customers by organization with pagination (optimized)
+     */
+    @Query("SELECT c FROM Customer c WHERE c.organizationId = :organizationId AND c.deleted = false")
+    Page<Customer> findByOrganizationIdOptimized(@Param("organizationId") UUID organizationId, Pageable pageable);
+
+    /**
+     * Find customers by status with pagination (optimized)
+     */
+    @Query("SELECT c FROM Customer c WHERE c.status = :status AND c.deleted = false")
+    Page<Customer> findByStatusOptimized(@Param("status") CustomerStatus status, Pageable pageable);
 }

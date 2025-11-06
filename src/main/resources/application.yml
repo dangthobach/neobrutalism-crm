@@ -5,6 +5,21 @@ spring:
   profiles:
     active: dev  # Default to dev profile (H2)
 
+  datasource:
+    hikari:
+      maximum-pool-size: 20              # Default 10 quá thấp
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000    # Detect connection leaks
+      # Performance tuning
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -15,6 +30,12 @@ spring:
         enable_lazy_load_no_trans: false
         # Query Performance Monitoring
         generate_statistics: true
+        # ✅ FIX: Enable L2 cache and query cache
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
         session:
           events:
             log:
@@ -109,9 +130,9 @@ jwt:
   refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800000}
   max-refresh-tokens-per-user: 5
 
-# Rate Limiting (disabled for development - requires Redis)
+# Rate Limiting (✅ FIX: Enabled by default, disable explicitly in dev)
 rate-limit:
-  enabled: false
+  enabled: ${RATE_LIMIT_ENABLED:true}  # Default true, set to false in dev profile
   admin-limit: 1000    # Requests per minute for ADMIN role
   user-limit: 100      # Requests per minute for authenticated users
   public-limit: 20     # Requests per minute for public/unauthenticated
@@ -141,3 +162,22 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: 0.1
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+
+# ✅ FIX: Cache configuration for Hibernate L2 cache
+spring:
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10 minutes
+    cache-names:
+      - organizations
+      - users
+      - roles
+      - customer-stats
+      - contact-stats

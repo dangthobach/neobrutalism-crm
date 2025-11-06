@@ -22,6 +22,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -68,12 +69,24 @@ public class SecurityConfig {
                         // Public GET endpoints
                         .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
 
-                        // For development - allow organizations API
-                        .requestMatchers("/api/organizations/**").permitAll()
-
                         // All other requests require authentication
                         .anyRequest().authenticated()
-                );
+                )
+                .headers(headers -> {
+                    headers.contentSecurityPolicy(csp -> csp
+                            .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://eu.i.posthog.com https://eu-assets.i.posthog.com; frame-ancestors 'self'; form-action 'self'; base-uri 'self';")
+                    );
+                    headers.httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31536000)
+                    );
+                    headers.frameOptions(frame -> frame.sameOrigin());
+                    headers.referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER));
+                    headers.permissionsPolicy(policy -> policy
+                            .policy("geolocation=(), microphone=(), camera=(), payment=(), usb=()")
+                    );
+                    headers.contentTypeOptions(org.springframework.security.config.Customizer.withDefaults());
+                });
 
         // Add rate limiting filter if enabled (requires Redis)
         if (rateLimitFilter != null) {
@@ -83,9 +96,22 @@ public class SecurityConfig {
         // JWT authentication filter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Allow H2 console iframe
-        http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
+        // Allow H2 console iframe (already set via headers config)
 
+        return http.build();
+    }
+
+    /**
+     * Development-only security overrides
+     * ⚠️ Only active in 'dev' profile - NEVER in production!
+     */
+    @Bean
+    @Profile("dev")
+    public SecurityFilterChain devSecurityOverrides(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+            // Allow organizations API in dev only
+            .requestMatchers("/api/organizations/**").permitAll()
+        );
         return http.build();
     }
 
@@ -94,10 +120,24 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Total-Count"));
+        // ✅ FIX: Remove wildcard, specify exact headers needed
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "X-Tenant-ID",
+            "X-Request-ID",
+            "X-Organization-ID"
+        ));
+        configuration.setExposedHeaders(Arrays.asList(
+            "Authorization",
+            "X-Total-Count",
+            "X-Page-Number",
+            "X-Page-Size"
+        ));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        // ✅ FIX: Reduce maxAge from 3600s to 600s (10 minutes)
+        configuration.setMaxAge(600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
