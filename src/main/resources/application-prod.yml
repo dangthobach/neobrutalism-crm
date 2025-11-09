@@ -14,22 +14,26 @@ spring:
 
     # Hikari Connection Pool Configuration
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 30              # ✅ Increased for parallel sheet processing
+      minimum-idle: 10                   # ✅ Keep more idle connections ready
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
       pool-name: HikariPool-Prod
-      auto-commit: true
+      auto-commit: false                 # ✅ Manual commit control for better performance
 
-      # PostgreSQL-specific optimizations
+      # ✅ PostgreSQL-specific optimizations for batch operations
       data-source-properties:
         cachePrepStmts: true
-        prepStmtCacheSize: 250
+        prepStmtCacheSize: 500           # ✅ Increased cache
         prepStmtCacheSqlLimit: 2048
         useServerPrepStmts: true
-        reWriteBatchedInserts: true
+        reWriteBatchedInserts: true      # ✅ CRITICAL for PostgreSQL batch performance
+        maintainTimeStats: false         # ✅ Disable for performance
+        defaultRowFetchSize: 1000        # ✅ Fetch more rows at once
+        logUnclosedConnections: true     # ✅ Debug connection leaks
+        tcpKeepAlive: true              # ✅ Keep connections alive
 
   # JPA Configuration
   jpa:
@@ -41,11 +45,12 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
         use_sql_comments: false
+        # ✅ JDBC Batch configuration for migration performance
         jdbc:
-          batch_size: 20
-          fetch_size: 50
-        order_inserts: true
-        order_updates: true
+          batch_size: 1000               # ✅ Batch 1000 records (same as sub-batch size)
+          fetch_size: 1000               # ✅ Fetch 1000 records
+        order_inserts: true              # ✅ Critical for batching
+        order_updates: true              # ✅ Critical for batching
         batch_versioned_data: true
         query:
           plan_cache_max_size: 2048

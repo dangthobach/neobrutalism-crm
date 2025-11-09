@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * Main application class
  */
 @SpringBootApplication
+@EnableScheduling
 @EnableJpaRepositories
 @EnableTransactionManagement
-@EnableScheduling
 public class CrmApplication {
 
     public static void main(String[] args) {

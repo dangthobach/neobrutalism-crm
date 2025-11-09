@@ -7,18 +7,24 @@ spring:
 
   datasource:
     hikari:
-      maximum-pool-size: 20              # Default 10 quá thấp
-      minimum-idle: 5
+      maximum-pool-size: 30              # ✅ Increased for parallel sheet processing
+      minimum-idle: 10                   # ✅ Keep connections ready
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000    # Detect connection leaks
-      # Performance tuning
+      # ✅ Performance tuning for batch operations
       data-source-properties:
         cachePrepStmts: true
-        prepStmtCacheSize: 250
+        prepStmtCacheSize: 500           # ✅ Increased cache size
         prepStmtCacheSqlLimit: 2048
         useServerPrepStmts: true
+        rewriteBatchedStatements: true   # ✅ CRITICAL: Batch multiple inserts into single statement
+        maintainTimeStats: false         # ✅ Disable for performance
+        useLocalSessionState: true       # ✅ Reduce round trips
+        cacheResultSetMetadata: true     # ✅ Cache metadata
+        cacheServerConfiguration: true   # ✅ Cache server config
+        elideSetAutoCommits: true        # ✅ Reduce autocommit calls
 
   jpa:
     hibernate:
@@ -30,6 +36,13 @@ spring:
         enable_lazy_load_no_trans: false
         # Query Performance Monitoring
         generate_statistics: true
+        # ✅ JDBC Batch Insert Configuration - Critical for migration performance
+        jdbc:
+          batch_size: 1000                    # Batch 1000 records per round trip
+          fetch_size: 1000                    # Fetch 1000 records at once
+          batch_versioned_data: true          # Enable batch for versioned entities
+        order_inserts: true                   # Order inserts for better batching
+        order_updates: true                   # Order updates for better batching
         # ✅ FIX: Enable L2 cache and query cache
         cache:
           use_second_level_cache: true
