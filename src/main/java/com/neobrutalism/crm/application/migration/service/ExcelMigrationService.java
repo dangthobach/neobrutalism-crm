@@ -4,6 +4,7 @@ import com.neobrutalism.crm.application.excel.ExcelFacade;
 import com.neobrutalism.crm.application.migration.dto.HSBGCifDTO;
 import com.neobrutalism.crm.application.migration.dto.HSBGHopDongDTO;
 import com.neobrutalism.crm.application.migration.dto.HSBGTapDTO;
+import com.neobrutalism.crm.application.migration.dto.MigrationResult;
 import com.neobrutalism.crm.application.migration.model.MigrationJob;
 import com.neobrutalism.crm.application.migration.model.MigrationSheet;
 import com.neobrutalism.crm.application.migration.model.MigrationStatus;
@@ -68,6 +69,7 @@ public class ExcelMigrationService {
     private final ObjectMapper objectMapper;
     private final MigrationErrorLogger errorLogger;
     private final com.neobrutalism.crm.application.migration.monitoring.MigrationMonitor migrationMonitor;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     /**
      * Memory-aware concurrency control
@@ -363,9 +365,8 @@ public class ExcelMigrationService {
                     // 4. Create staging record
                     StagingHSBGHopDong staging = mapToStagingHopDong(normalized, sheet.getJobId(), sheetId, rowNumber);
                     staging.setValidationStatus(validationResult.isValid() ? "VALID" : "INVALID");
-                    
+
                     if (!validationResult.isValid()) {
-                        staging.setValidationErrors(objectMapper.writeValueAsString(validationResult.getErrors()));
                         invalidCount++;
                     } else {
                         validCount++;
@@ -449,9 +450,8 @@ public class ExcelMigrationService {
                     // 4. Create staging record
                     StagingHSBGCif staging = mapToStagingCif(normalized, sheet.getJobId(), sheetId, rowNumber);
                     staging.setValidationStatus(validationResult.isValid() ? "VALID" : "INVALID");
-                    
+
                     if (!validationResult.isValid()) {
-                        staging.setValidationErrors(objectMapper.writeValueAsString(validationResult.getErrors()));
                         invalidCount++;
                     } else {
                         validCount++;
@@ -532,9 +532,8 @@ public class ExcelMigrationService {
                     // 4. Create staging record
                     StagingHSBGTap staging = mapToStagingTap(normalized, sheet.getJobId(), sheetId, rowNumber);
                     staging.setValidationStatus(validationResult.isValid() ? "VALID" : "INVALID");
-                    
+
                     if (!validationResult.isValid()) {
-                        staging.setValidationErrors(objectMapper.writeValueAsString(validationResult.getErrors()));
                         invalidCount++;
                     } else {
                         validCount++;
@@ -696,42 +695,36 @@ public class ExcelMigrationService {
     }
     
     /**
-     * Insert valid staging records to master data with pagination
-     * Prevents OOM by processing in batches of 5000 records
-     * Each batch has its own mini-transaction to prevent deadlock
+     * Insert valid staging records to master data using optimized stored procedure
+     * Uses PostgreSQL procedure with row-level locking and batch commits
      */
     private void insertToMasterHopDong(UUID sheetId) {
-        int batchSize = 1000; // Reduced from 5000 to 1000 for faster commits
-        int totalInserted = 0;
-        int page = 0;
+        log.info("Starting migration to master data for HSBG_HOP_DONG sheet: {}", sheetId);
 
-        while (true) {
-            // Use Pageable to limit query results and prevent OOM
-            Pageable pageable = PageRequest.of(page, batchSize);
-            List<StagingHSBGHopDong> batch = stagingHopDongRepository.findValidRecordsForInsert(sheetId, pageable);
+        try {
+            // Get job_id from sheet
+            MigrationSheet sheet = sheetRepository.findById(sheetId)
+                .orElseThrow(() -> new RuntimeException("Sheet not found: " + sheetId));
+            UUID jobId = sheet.getJobId();
 
-            if (batch.isEmpty()) {
-                break;
-            }
+            // Call optimized PostgreSQL procedure
+            MigrationResult result = callMigrationProcedure(jobId, "migrate_hsbg_hop_dong", 1000);
 
-            // Process batch in separate transaction to avoid large locks
-            int inserted = insertBatchHopDong(sheetId, batch);
-            totalInserted += inserted;
+            log.info("Migration completed for sheet: {} | Total: {} | Migrated: {} | Duplicates: {} | Errors: {} | Warnings: {}",
+                     sheetId,
+                     result.getTotalProcessed(),
+                     result.getMigratedCount(),
+                     result.getDuplicateCount(),
+                     result.getErrorCount(),
+                     result.getWarningCount());
 
-            log.info("Inserted batch {} ({} records) to master data for sheet: {} (total: {})",
-                     page, inserted, sheetId, totalInserted);
+            // Update sheet statistics
+            updateSheetStatistics(sheetId, result);
 
-            // Since we're marking as inserted, always query page 0 to get next unmarked batch
-            // Don't increment page - always query first page of unmarked records
-
-            // Safety check to avoid infinite loop
-            if (totalInserted > 2_000_000) {
-                log.warn("Reached maximum insert limit for sheet: {}", sheetId);
-                break;
-            }
+        } catch (Exception e) {
+            log.error("Failed to migrate HSBG_HOP_DONG sheet: {}", sheetId, e);
+            throw new RuntimeException("Migration failed for sheet: " + sheetId, e);
         }
-
-        log.info("Completed inserting to master data for sheet: {}, total: {}", sheetId, totalInserted);
     }
 
     /**
@@ -755,33 +748,34 @@ public class ExcelMigrationService {
         }
     }
     
+    /**
+     * Insert valid staging records to master data using optimized stored procedure for CIF
+     */
     private void insertToMasterCif(UUID sheetId) {
-        int batchSize = 1000; // Mini-transactions
-        int totalInserted = 0;
-        int page = 0;
+        log.info("Starting migration to master data for HSBG_CIF sheet: {}", sheetId);
 
-        while (true) {
-            Pageable pageable = PageRequest.of(page, batchSize);
-            List<StagingHSBGCif> batch = stagingCifRepository.findValidRecordsForInsert(sheetId, pageable);
+        try {
+            MigrationSheet sheet = sheetRepository.findById(sheetId)
+                .orElseThrow(() -> new RuntimeException("Sheet not found: " + sheetId));
+            UUID jobId = sheet.getJobId();
 
-            if (batch.isEmpty()) {
-                break;
-            }
+            // Call optimized PostgreSQL procedure for CIF
+            MigrationResult result = callMigrationProcedure(jobId, "migrate_hsbg_cif", 1000);
 
-            // Process batch in separate transaction
-            int inserted = insertBatchCif(sheetId, batch);
-            totalInserted += inserted;
+            log.info("CIF migration completed for sheet: {} | Total: {} | Migrated: {} | Duplicates: {} | Errors: {} | Warnings: {}",
+                     sheetId,
+                     result.getTotalProcessed(),
+                     result.getMigratedCount(),
+                     result.getDuplicateCount(),
+                     result.getErrorCount(),
+                     result.getWarningCount());
 
-            log.info("Inserted batch {} ({} records) to master data for CIF sheet: {} (total: {})",
-                     page, inserted, sheetId, totalInserted);
+            updateSheetStatistics(sheetId, result);
 
-            if (totalInserted > 2_000_000) {
-                log.warn("Reached maximum insert limit for sheet: {}", sheetId);
-                break;
-            }
+        } catch (Exception e) {
+            log.error("Failed to migrate HSBG_CIF sheet: {}", sheetId, e);
+            throw new RuntimeException("CIF migration failed for sheet: " + sheetId, e);
         }
-
-        log.info("Completed inserting to master data for CIF sheet: {}, total: {}", sheetId, totalInserted);
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
@@ -796,7 +790,38 @@ public class ExcelMigrationService {
         }
     }
 
+    /**
+     * Insert valid staging records to master data using optimized stored procedure for TAP
+     */
     private void insertToMasterTap(UUID sheetId) {
+        log.info("Starting migration to master data for HSBG_TAP sheet: {}", sheetId);
+
+        try {
+            MigrationSheet sheet = sheetRepository.findById(sheetId)
+                .orElseThrow(() -> new RuntimeException("Sheet not found: " + sheetId));
+            UUID jobId = sheet.getJobId();
+
+            // Call optimized PostgreSQL procedure for TAP
+            MigrationResult result = callMigrationProcedure(jobId, "migrate_hsbg_tap", 1000);
+
+            log.info("TAP migration completed for sheet: {} | Total: {} | Migrated: {} | Duplicates: {} | Errors: {} | Warnings: {}",
+                     sheetId,
+                     result.getTotalProcessed(),
+                     result.getMigratedCount(),
+                     result.getDuplicateCount(),
+                     result.getErrorCount(),
+                     result.getWarningCount());
+
+            updateSheetStatistics(sheetId, result);
+
+        } catch (Exception e) {
+            log.error("Failed to migrate HSBG_TAP sheet: {}", sheetId, e);
+            throw new RuntimeException("TAP migration failed for sheet: " + sheetId, e);
+        }
+    }
+
+    // Legacy batch insert methods - kept for backward compatibility but no longer used
+    private void insertToMasterTapLegacy(UUID sheetId) {
         int batchSize = 1000; // Mini-transactions
         int totalInserted = 0;
         int page = 0;
@@ -868,7 +893,119 @@ public class ExcelMigrationService {
             .map(StagingHSBGTap::getId)
             .toList();
     }
-    
+
+    /**
+     * Call PostgreSQL migration procedure using JDBC
+     *
+     * @param jobId The migration job ID
+     * @param procedureName Name of the procedure (migrate_hsbg_hop_dong, migrate_hsbg_cif, migrate_hsbg_tap)
+     * @param batchSize Batch size for processing
+     * @return MigrationResult with statistics
+     */
+    private MigrationResult callMigrationProcedure(UUID jobId, String procedureName, int batchSize) {
+        log.info("Calling procedure: {} for job: {} with batch size: {}", procedureName, jobId, batchSize);
+
+        try {
+            // Call the stored procedure using JDBC
+            String sql = String.format("CALL %s(?, ?, ?, ?, ?, ?, ?)", procedureName);
+
+            Integer[] outParams = new Integer[5];
+
+            jdbcTemplate.execute((java.sql.Connection connection) -> {
+                try (java.sql.CallableStatement cs = connection.prepareCall(sql)) {
+                    // Set input parameters
+                    cs.setObject(1, jobId);
+                    cs.setInt(2, batchSize);
+
+                    // Register output parameters
+                    cs.registerOutParameter(3, java.sql.Types.INTEGER); // total_processed
+                    cs.registerOutParameter(4, java.sql.Types.INTEGER); // migrated_count
+                    cs.registerOutParameter(5, java.sql.Types.INTEGER); // duplicate_count
+                    cs.registerOutParameter(6, java.sql.Types.INTEGER); // error_count
+                    cs.registerOutParameter(7, java.sql.Types.INTEGER); // warning_count
+
+                    // Execute procedure
+                    cs.execute();
+
+                    // Get output parameters
+                    outParams[0] = cs.getInt(3);
+                    outParams[1] = cs.getInt(4);
+                    outParams[2] = cs.getInt(5);
+                    outParams[3] = cs.getInt(6);
+                    outParams[4] = cs.getInt(7);
+
+                    return null;
+                }
+            });
+
+            // Build result
+            MigrationResult result = MigrationResult.builder()
+                .totalProcessed(outParams[0])
+                .migratedCount(outParams[1])
+                .duplicateCount(outParams[2])
+                .errorCount(outParams[3])
+                .warningCount(outParams[4])
+                .build();
+
+            log.info("Procedure {} completed successfully: {}", procedureName, result);
+            return result;
+
+        } catch (Exception e) {
+            log.error("Failed to call procedure: {} for job: {}", procedureName, jobId, e);
+            throw new RuntimeException("Migration procedure call failed: " + procedureName, e);
+        }
+    }
+
+    /**
+     * Update sheet statistics after migration
+     *
+     * @param sheetId The sheet ID
+     * @param result Migration result
+     */
+    private void updateSheetStatistics(UUID sheetId, MigrationResult result) {
+        try {
+            MigrationSheet sheet = sheetRepository.findById(sheetId)
+                .orElseThrow(() -> new RuntimeException("Sheet not found: " + sheetId));
+
+            // Update sheet counters
+            sheet.setValidRows(result.getMigratedCount() != null ? result.getMigratedCount().longValue() : 0L);
+            sheet.setInvalidRows(result.getErrorCount() != null ? result.getErrorCount().longValue() : 0L);
+
+            // Calculate skipped rows (duplicates)
+            long skippedRows = result.getDuplicateCount() != null ? result.getDuplicateCount().longValue() : 0L;
+            sheet.setSkippedRows(skippedRows);
+
+            // Update progress
+            if (result.getTotalProcessed() != null && result.getTotalProcessed() > 0) {
+                double progressPct = (result.getMigratedCount() != null ? result.getMigratedCount() : 0) * 100.0
+                                   / result.getTotalProcessed();
+                sheet.setProgressPercent(java.math.BigDecimal.valueOf(progressPct));
+            }
+
+            // Update status
+            if (result.isSuccessful()) {
+                sheet.setStatus(SheetStatus.COMPLETED);
+            } else if (result.getErrorCount() != null && result.getErrorCount() > 0) {
+                sheet.setStatus(SheetStatus.FAILED);
+                sheet.setErrorMessage("Migration completed with " + result.getErrorCount() + " validation errors");
+            }
+
+            sheet.setCompletedAt(Instant.now());
+            sheetRepository.save(sheet);
+
+            log.info("Updated sheet statistics for {}: valid={}, invalid={}, skipped={}, progress={}%",
+                     sheetId,
+                     sheet.getValidRows(),
+                     sheet.getInvalidRows(),
+                     sheet.getSkippedRows(),
+                     sheet.getProgressPercent());
+
+        } catch (Exception e) {
+            log.error("Failed to update sheet statistics for {}", sheetId, e);
+            // Don't throw - this is non-critical
+        }
+    }
+
     /**
      * Calculate file hash using streaming to avoid loading entire file into memory
      * Optimized for large files (500MB - 1GB+)

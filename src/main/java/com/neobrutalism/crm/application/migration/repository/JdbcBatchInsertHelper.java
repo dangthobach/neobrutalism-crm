@@ -53,19 +53,19 @@ public class JdbcBatchInsertHelper {
         }
 
         String sql = """
-            INSERT INTO staging_hsbg_hop_dong 
-            (id, job_id, sheet_id, row_number, warehouse_vpbank, unit_code, 
+            INSERT INTO staging_hsbg_hop_dong
+            (id, job_id, sheet_id, row_number, warehouse_vpbank, unit_code,
              delivery_responsibility, contract_number, volume_name, volume_quantity,
-             customer_cif_cccd_cmt, customer_name, customer_segment, 
+             customer_cif_cccd_cmt, customer_name, customer_segment,
              required_delivery_date, delivery_date, disbursement_date, due_date,
-             document_type, document_flow, credit_term_category, 
+             document_type, document_flow, credit_term_category,
              expected_destruction_date, product, pdm_case_status, notes,
              box_code, vpbank_warehouse_entry_date, crown_warehouse_transfer_date,
              area, row, column, box_condition, box_status, credit_term_months,
-             dao_code, ts_code, rrt_id, nq_code, duplicate_key, 
-             validation_status, validation_errors, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+             dao_code, ts_code, rrt_id, nq_code, duplicate_key,
+             validation_status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
@@ -118,17 +118,17 @@ public class JdbcBatchInsertHelper {
         }
 
         String sql = """
-            INSERT INTO staging_hsbg_cif 
-            (id, job_id, sheet_id, row_number, warehouse_vpbank, unit_code, 
-             delivery_responsibility, customer_cif, customer_name, volume_name, 
+            INSERT INTO staging_hsbg_cif
+            (id, job_id, sheet_id, row_number, warehouse_vpbank, unit_code,
+             delivery_responsibility, customer_cif, customer_name, volume_name,
              volume_quantity, customer_segment, required_delivery_date, delivery_date,
              disbursement_date, document_type, document_flow, credit_term_category,
              product, pdm_case_status, notes, nq_code, box_code,
              vpbank_warehouse_entry_date, crown_warehouse_transfer_date,
              area, row, column, box_condition, box_status, duplicate_key,
-             validation_status, validation_errors, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             validation_status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
         Session session = entityManager.unwrap(Session.class);
@@ -178,15 +178,15 @@ public class JdbcBatchInsertHelper {
         }
 
         String sql = """
-            INSERT INTO staging_hsbg_tap 
-            (id, job_id, sheet_id, row_number, warehouse_vpbank, unit_code, 
+            INSERT INTO staging_hsbg_tap
+            (id, job_id, sheet_id, row_number, warehouse_vpbank, unit_code,
              delivery_responsibility, occurrence_month, volume_name, volume_quantity,
              required_delivery_date, delivery_date, document_type, document_flow,
              credit_term_category, expected_destruction_date, product, pdm_case_status,
              notes, box_code, vpbank_warehouse_entry_date, crown_warehouse_transfer_date,
              area, row, column, box_condition, box_status, duplicate_key,
-             validation_status, validation_errors, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+             validation_status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
@@ -270,7 +270,6 @@ public class JdbcBatchInsertHelper {
         pstmt.setString(idx++, record.getNqCode());
         pstmt.setString(idx++, record.getDuplicateKey());
         pstmt.setString(idx++, record.getValidationStatus());
-        pstmt.setString(idx++, record.getValidationErrors());
     }
 
     private void setPreparedStatementCif(PreparedStatement pstmt, StagingHSBGCif record) throws SQLException {
@@ -307,7 +306,6 @@ public class JdbcBatchInsertHelper {
         pstmt.setString(idx++, record.getBoxStatus());
         pstmt.setString(idx++, record.getDuplicateKey());
         pstmt.setString(idx++, record.getValidationStatus());
-        pstmt.setString(idx++, record.getValidationErrors());
     }
 
     private void setPreparedStatementTap(PreparedStatement pstmt, StagingHSBGTap record) throws SQLException {
@@ -341,6 +339,5 @@ public class JdbcBatchInsertHelper {
         pstmt.setString(idx++, record.getBoxStatus());
         pstmt.setString(idx++, record.getDuplicateKey());
         pstmt.setString(idx++, record.getValidationStatus());
-        pstmt.setString(idx++, record.getValidationErrors());
     }
 }

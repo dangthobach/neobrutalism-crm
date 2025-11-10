@@ -26,7 +26,7 @@ public class HSBGTapDTO {
     @ExcelColumn(name = "Trách nhiệm bàn giao")
     private String deliveryResponsibility;
     
-    @ExcelColumn(name = "Tháng phát sinh", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Tháng phát sinh")
     private LocalDate occurrenceMonth;
     
     @ExcelColumn(name = "Tên tập")
@@ -35,10 +35,10 @@ public class HSBGTapDTO {
     @ExcelColumn(name = "Số lượng tập")
     private Integer volumeQuantity;
     
-    @ExcelColumn(name = "Ngày phải bàn giao", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày phải bàn giao")
     private LocalDate requiredDeliveryDate;
     
-    @ExcelColumn(name = "Ngày bàn giao", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày bàn giao")
     private LocalDate deliveryDate;
     
     @ExcelColumn(name = "Loại hồ sơ")
@@ -50,7 +50,7 @@ public class HSBGTapDTO {
     @ExcelColumn(name = "Phân hạn cấp TD")
     private String creditTermCategory;
     
-    @ExcelColumn(name = "Ngày dự kiến tiêu hủy", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày dự kiến tiêu hủy")
     private LocalDate expectedDestructionDate;
     
     @ExcelColumn(name = "Sản phẩm")
@@ -65,10 +65,10 @@ public class HSBGTapDTO {
     @ExcelColumn(name = "Mã thùng")
     private String boxCode;
     
-    @ExcelColumn(name = "Ngày nhập kho VPBank", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày nhập kho VPBank")
     private LocalDate vpbankWarehouseEntryDate;
     
-    @ExcelColumn(name = "Ngày chuyển kho Crown", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày chuyển kho Crown")
     private LocalDate crownWarehouseTransferDate;
     
     @ExcelColumn(name = "Khu vực")

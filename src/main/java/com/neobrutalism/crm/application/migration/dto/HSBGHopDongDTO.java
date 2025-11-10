@@ -44,16 +44,16 @@ public class HSBGHopDongDTO {
     @ExcelColumn(name = "Phân khúc khách hàng")
     private String customerSegment;
     
-    @ExcelColumn(name = "Ngày phải bàn giao", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày phải bàn giao")
     private LocalDate requiredDeliveryDate;
     
-    @ExcelColumn(name = "Ngày bàn giao", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày bàn giao")
     private LocalDate deliveryDate;
     
-    @ExcelColumn(name = "Ngày giải ngân", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày giải ngân")
     private LocalDate disbursementDate;
     
-    @ExcelColumn(name = "Ngày đến hạn", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày đến hạn")
     private LocalDate dueDate;
     
     @ExcelColumn(name = "Loại hồ sơ")
@@ -65,7 +65,7 @@ public class HSBGHopDongDTO {
     @ExcelColumn(name = "Phân hạn cấp TD")
     private String creditTermCategory;
     
-    @ExcelColumn(name = "Ngày dự kiến tiêu hủy", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày dự kiến tiêu hủy")
     private LocalDate expectedDestructionDate;
     
     @ExcelColumn(name = "Sản phẩm")
@@ -80,10 +80,10 @@ public class HSBGHopDongDTO {
     @ExcelColumn(name = "Mã thùng")
     private String boxCode;
     
-    @ExcelColumn(name = "Ngày nhập kho VPBank", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày nhập kho VPBank")
     private LocalDate vpbankWarehouseEntryDate;
     
-    @ExcelColumn(name = "Ngày chuyển kho Crown", cellFormat = ExcelColumn.CellFormatType.DATE)
+    @ExcelColumn(name = "Ngày chuyển kho Crown")
     private LocalDate crownWarehouseTransferDate;
     
     @ExcelColumn(name = "Khu vực")
@@ -101,7 +101,7 @@ public class HSBGHopDongDTO {
     @ExcelColumn(name = "Trạng thái thùng")
     private String boxStatus;
     
-    @ExcelColumn(name = "Thời hạn cấp TD", cellFormat = ExcelColumn.CellFormatType.NUMBER)
+    @ExcelColumn(name = "Thời hạn cấp TD")
     private Integer creditTermMonths;
     
     @ExcelColumn(name = "Mã DAO")

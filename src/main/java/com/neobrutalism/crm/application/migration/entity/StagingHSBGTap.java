@@ -107,13 +107,7 @@ public class StagingHSBGTap {
     @Column(name = "validation_status", nullable = false, length = 50)
     @Builder.Default
     private String validationStatus = "PENDING";
-    
-    @Column(name = "validation_errors", columnDefinition = "JSONB")
-    private String validationErrors;
-    
-    @Column(name = "normalized_data", columnDefinition = "JSONB")
-    private String normalizedData;
-    
+
     @Column(name = "duplicate_key", length = 500)
     private String duplicateKey;
     

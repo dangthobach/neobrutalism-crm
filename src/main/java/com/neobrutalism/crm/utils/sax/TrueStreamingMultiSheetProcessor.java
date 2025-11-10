@@ -58,12 +58,14 @@ public class TrueStreamingMultiSheetProcessor {
         
         try (OPCPackage opcPackage = OPCPackage.open(inputStream)) {
             XSSFReader xssfReader = new XSSFReader(opcPackage);
-            org.apache.poi.xssf.model.SharedStringsTable sharedStringsTable = 
+            org.apache.poi.xssf.model.SharedStringsTable sharedStringsTable =
                 (org.apache.poi.xssf.model.SharedStringsTable) xssfReader.getSharedStringsTable();
             StylesTable stylesTable = xssfReader.getStylesTable();
-            
+
             XSSFReader.SheetIterator sheetIterator = (XSSFReader.SheetIterator) xssfReader.getSheetsData();
-            DataFormatter dataFormatter = new DataFormatter();
+
+            // ✅ FIX: Use SerialNumberDataFormatter for consistent date handling
+            DataFormatter dataFormatter = new TrueStreamingSAXProcessor.SerialNumberDataFormatter();
             
             while (sheetIterator.hasNext()) {
                 try (InputStream sheetStream = sheetIterator.next()) {

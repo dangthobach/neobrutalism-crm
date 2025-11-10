@@ -12,6 +12,7 @@ import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
 import org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler;
 import org.apache.poi.xssf.model.StylesTable;
+import org.apache.poi.ss.usermodel.BuiltinFormats;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
@@ -39,15 +40,20 @@ public class TrueStreamingSAXProcessor<T> {
     private final TypeConverter typeConverter;
     private final Consumer<List<T>> batchProcessor;
     private final MethodHandleMapper<T> methodHandleMapper;
-    
+
     // Cache for ExcelColumn annotations per field name
     private final Map<String, ExcelColumn> fieldAnnotationCache = new ConcurrentHashMap<>();
 
-    
+    // ✅ Performance: Cache field types to avoid repeated lookups
+    private final Map<String, Class<?>> fieldTypeCache = new ConcurrentHashMap<>();
+
     // Statistics
     private final AtomicLong totalProcessed = new AtomicLong(0);
     private final AtomicLong totalErrors = new AtomicLong(0);
     private final long startTime;
+
+    // ✅ Error tracking: Store validation errors for reporting
+    private final List<ValidationError> validationErrors = new ArrayList<>();
     
     public TrueStreamingSAXProcessor(Class<T> beanClass, ExcelConfig config, 
                                    List<ValidationRule> validationRules, 
@@ -97,6 +103,52 @@ public class TrueStreamingSAXProcessor<T> {
     }
     
     /**
+     * Custom DataFormatter that returns serial number for date cells instead of formatted string
+     * This allows us to parse date in any format we want from the serial number
+     * Made public static for use in multi-sheet processor
+     */
+    public static class SerialNumberDataFormatter extends DataFormatter {
+        
+        public SerialNumberDataFormatter() {
+            this.setUseCachedValuesForFormulaCells(false);
+        }
+        
+        /**
+         * Override formatRawCellContents to return serial number for date cells
+         * For date cells: returns serial number as string (e.g., "45234.0")
+         * For non-date cells: uses default formatting
+         */
+        @Override
+        public String formatRawCellContents(double cellValue, int formatIndex, String formatString) {
+            // Check if this is a date format
+            if (isDateFormat(formatIndex, formatString)) {
+                // Return serial number as string so we can parse it later
+                return String.valueOf(cellValue);
+            }
+            
+            // For non-date cells, use default formatting
+            return super.formatRawCellContents(cellValue, formatIndex, formatString);
+        }
+        
+        /**
+         * Check if format index/string represents a date format
+         */
+        private boolean isDateFormat(int formatIndex, String formatString) {
+            if (formatString == null || formatString.isEmpty()) {
+                // Check built-in date formats
+                String builtinFormat = BuiltinFormats.getBuiltinFormat(formatIndex);
+                if (builtinFormat != null) {
+                    return DateUtil.isADateFormat(formatIndex, builtinFormat);
+                }
+                return false;
+            }
+            
+            // Check if format string is a date format
+            return DateUtil.isADateFormat(formatIndex, formatString);
+        }
+    }
+    
+    /**
      * Process Excel với true streaming - không tích lũy kết quả
      */
     public ProcessingResult processExcelStreamTrue(InputStream inputStream) throws Exception {
@@ -113,9 +165,9 @@ public class TrueStreamingSAXProcessor<T> {
             // Setup SAX parser with proper date formatting
             XMLReader xmlReader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
             
-            // Create DataFormatter with proper date formatting
-            DataFormatter dataFormatter = new DataFormatter();
-            dataFormatter.setUseCachedValuesForFormulaCells(false);
+            // Create custom DataFormatter that returns serial number for date cells
+            // This allows us to parse date in any format we want from the serial number
+            SerialNumberDataFormatter dataFormatter = new SerialNumberDataFormatter();
             
             XSSFSheetXMLHandler sheetHandler = new XSSFSheetXMLHandler(
                 stylesTable, sharedStringsTable, contentHandler, dataFormatter, false
@@ -133,18 +185,19 @@ public class TrueStreamingSAXProcessor<T> {
             // Flush remaining batch
             contentHandler.flushRemainingBatch();
         }
-        
+
         long processingTime = System.currentTimeMillis() - startTime;
-        
+
         // Throw if no data rows were processed
         if (totalProcessed.get() == 0) {
             throw new RuntimeException("Tập không có dữ liệu");
         }
-        
+
         return new ProcessingResult(
-            totalProcessed.get(), 
-            totalErrors.get(), 
-            processingTime
+            totalProcessed.get(),
+            totalErrors.get(),
+            processingTime,
+            new ArrayList<>(validationErrors)
         );
     }
     
@@ -174,21 +227,22 @@ public class TrueStreamingSAXProcessor<T> {
         
         // Flush remaining batch
         contentHandler.flushRemainingBatch();
-        
+
         long processingTime = System.currentTimeMillis() - startTime;
-        
+
         // Throw if no data rows were processed
         if (totalProcessed.get() == 0) {
             throw new RuntimeException("Tập không có dữ liệu");
         }
-        
+
         return new ProcessingResult(
-            totalProcessed.get(), 
-            totalErrors.get(), 
-            processingTime
+            totalProcessed.get(),
+            totalErrors.get(),
+            processingTime,
+            new ArrayList<>(validationErrors)
         );
     }
-    
+
     // fieldMapping removed; MethodHandleMapper handles both Excel column names and direct field names
     
     /**
@@ -354,24 +408,65 @@ public class TrueStreamingSAXProcessor<T> {
             }
         }
         
+        /**
+         * Process a single cell value and set to instance field
+         * ✅ FIX: Full error context tracking with ValidationError
+         * ✅ FIX: Check required fields BEFORE processing
+         */
         private void processDataCell(int colIndex, String formattedValue) {
-            // Find field by column index
             String fieldName = findFieldNameByColumnIndex(colIndex);
             if (fieldName == null) {
                 return;
             }
 
+            // ✅ Performance: Trim once at start
+            String trimmedValue = (formattedValue != null) ? formattedValue.trim() : null;
+
             try {
-                // Get field type using MethodHandle mapper
-                Class<?> fieldType = methodHandleMapper.getFieldType(fieldName);
+                // ✅ Performance: Cache field type lookups
+                Class<?> fieldType = fieldTypeCache.computeIfAbsent(
+                    fieldName,
+                    methodHandleMapper::getFieldType
+                );
+
                 if (fieldType != null) {
-                    // Convert and set value using MethodHandle (5x faster)
-                    if (formattedValue != null && !formattedValue.trim().isEmpty()) {
+                    // ✅ FIX: Check required fields BEFORE processing
+                    ExcelColumn annotation = getExcelColumnAnnotation(fieldName);
+                    if (annotation != null && annotation.required()) {
+                        if (trimmedValue == null || trimmedValue.isEmpty()) {
+                            String errorMsg = String.format(
+                                "Row %d, Column %s: Required field '%s' is empty",
+                                currentRowNum + 1,
+                                getColumnName(colIndex),
+                                fieldName
+                            );
+
+                            log.warn(errorMsg);
+
+                            synchronized (validationErrors) {
+                                validationErrors.add(new ValidationError(
+                                    currentRowNum + 1,
+                                    fieldName,
+                                    null,
+                                    "REQUIRED_FIELD_EMPTY"
+                                ));
+                            }
+
+                            totalErrors.incrementAndGet();
+
+                            // ✅ Check abort threshold
+                            checkErrorAbortThreshold();
+
+                            // ✅ Skip processing this cell
+                            return;
+                        }
+                    }
+
+                    if (trimmedValue != null && !trimmedValue.isEmpty()) {
                         rowHasValue = true;
                     }
 
-                    // ✅ SMART PROCESSING: Auto-detect cell type and normalize
-                    String processedValue = smartProcessCellValue(formattedValue, fieldName, fieldType);
+                    String processedValue = smartProcessCellValue(trimmedValue, fieldName, fieldType);
                     Object convertedValue = typeConverter.convert(processedValue, fieldType);
 
                     @SuppressWarnings("unchecked")
@@ -380,18 +475,73 @@ public class TrueStreamingSAXProcessor<T> {
                 }
 
             } catch (Exception e) {
-                log.debug("Failed to set field {} with value '{}': {}", fieldName, formattedValue, e.getMessage());
+                // ✅ FIX: Track error with full context
+                String errorMsg = String.format(
+                    "Row %d, Column %s (%s): Failed to process value '%s' - %s",
+                    currentRowNum + 1,
+                    getColumnName(colIndex),
+                    fieldName,
+                    trimmedValue,
+                    e.getMessage()
+                );
+
+                log.warn(errorMsg);
+
+                // ✅ Store error for reporting
+                synchronized (validationErrors) {
+                    validationErrors.add(new ValidationError(
+                        currentRowNum + 1,
+                        fieldName,
+                        trimmedValue,
+                        e.getMessage()
+                    ));
+                }
+
+                // ✅ Increment error counter
+                totalErrors.incrementAndGet();
+
+                // ✅ Check abort threshold
+                checkErrorAbortThreshold();
             }
         }
 
         /**
-         * ✅ SMART CELL PROCESSING: Auto-detect and normalize cell values
-         * Priority: cellFormat from annotation > fieldType > pattern matching
-         * Handles:
-         * 1. Identity numbers (scientific notation → plain string)
-         * 2. Phone numbers (preserve leading zeros)
-         * 3. Date formats (Excel serial date parsing)
-         * 4. Regular numbers
+         * Check if error count exceeds threshold and abort if needed
+         * ✅ FIX: Use dedicated config instead of calculating from maxRows
+         */
+        private void checkErrorAbortThreshold() {
+            int maxErrors = config.getMaxErrorsBeforeAbort(); // Dedicated config
+            if (totalErrors.get() > maxErrors) {
+                throw new RuntimeException(String.format(
+                    "Quá nhiều lỗi (%d/%d). Dừng xử lý tại row %d. " +
+                    "Vui lòng kiểm tra và sửa lỗi trước khi tải lại.",
+                    totalErrors.get(),
+                    maxErrors,
+                    currentRowNum + 1
+                ));
+            }
+        }
+
+        /**
+         * Helper method to convert column index to Excel column name (A, B, ..., Z, AA, AB, ...)
+         */
+        private String getColumnName(int colIndex) {
+            StringBuilder columnName = new StringBuilder();
+            int index = colIndex + 1; // Convert 0-based to 1-based
+            while (index > 0) {
+                int remainder = (index - 1) % 26;
+                columnName.insert(0, (char) ('A' + remainder));
+                index = (index - 1) / 26;
+            }
+            return columnName.toString();
+        }
+
+        /**
+         * Smart cell value processing based on field type
+         * - Date fields: Parse Excel serial number to ISO format
+         * - Identifier fields: Normalize scientific notation
+         * - Number fields: Handle currency, accounting, percentage formats
+         * - Other fields: Return as-is for TypeConverter
          */
         private String smartProcessCellValue(String rawValue, String fieldName, Class<?> fieldType) {
             if (rawValue == null || rawValue.trim().isEmpty()) {
@@ -400,63 +550,95 @@ public class TrueStreamingSAXProcessor<T> {
 
             String value = rawValue.trim();
 
-            // ✅ Step 1: Check cellFormat from @ExcelColumn annotation (highest priority)
-            ExcelColumn annotation = getExcelColumnAnnotation(fieldName);
-            if (annotation != null && annotation.cellFormat() != ExcelColumn.CellFormatType.GENERAL) {
-                return processByCellFormat(value, annotation.cellFormat(), fieldType);
-            }
-
-            // ✅ Step 2: Auto-detect based on fieldType and patterns (fallback)
-            if (isIdentifierField(fieldName, fieldType, value)) {
-                return normalizeIdentifierValue(value);
-            }
-
             if (isDateField(fieldType)) {
                 return normalizeDateValue(value, fieldType);
             }
 
-            // ✅ Step 3: Regular processing for numbers, booleans, etc.
-            return value;
-        }
-        
-        /**
-         * Process cell value based on explicit cellFormat from annotation
-         */
-        private String processByCellFormat(String value, ExcelColumn.CellFormatType cellFormat, Class<?> fieldType) {
-            switch (cellFormat) {
-                case IDENTIFIER:
-                case TEXT:
-                    // Normalize scientific notation and preserve format
-                    return normalizeIdentifierValue(value);
-                    
-                case DATE:
-                    // Parse Excel serial date
-                    return normalizeDateValue(value, fieldType);
-                    
-                case NUMBER:
-                    // Return as-is for numeric processing
-                    return value;
-                    
-                case GENERAL:
-                default:
-                    // Should not reach here, but return as-is
-                    return value;
+            if (isIdentifierField(fieldName, fieldType, value)) {
+                return normalizeIdentifierValue(value);
             }
+
+            // ✅ FIX: Handle number formats (currency, accounting, percentage)
+            if (isNumericField(fieldType)) {
+                return normalizeNumericValue(value, fieldName, fieldType);
+            }
+
+            return value;
         }
 
         /**
-         * Check if field is an identifier (should be treated as String)
-         * Uses normalized field name matching and value-based detection as fallback
+         * Check if field is numeric type
+         */
+        private boolean isNumericField(Class<?> fieldType) {
+            return fieldType == Integer.class || fieldType == int.class ||
+                   fieldType == Long.class || fieldType == long.class ||
+                   fieldType == Double.class || fieldType == double.class ||
+                   fieldType == Float.class || fieldType == float.class ||
+                   fieldType == java.math.BigDecimal.class;
+        }
+
+        /**
+         * Check if field is percentage type
+         */
+        private boolean isPercentageField(String fieldName) {
+            String normalized = normalizeFieldName(fieldName);
+            return normalized.contains("percent") ||
+                   normalized.contains("rate") ||
+                   normalized.contains("ratio") ||
+                   normalized.contains("tile") || // Vietnamese: tỷ lệ
+                   normalized.contains("phantram"); // Vietnamese: phần trăm
+        }
+
+        /**
+         * Normalize numeric values (currency, accounting, percentage)
+         */
+        private String normalizeNumericValue(String value, String fieldName, Class<?> fieldType) {
+            if (value == null || value.isEmpty()) {
+                return value;
+            }
+
+            // ✅ Step 1: Handle accounting format: (123.45) → -123.45
+            if (value.matches("\\(\\d+\\.?\\d*\\)")) {
+                value = "-" + value.replaceAll("[()]", "");
+                log.debug("Normalized accounting format: (123) → {}", value);
+                return value;
+            }
+
+            // ✅ Step 2: Handle currency symbols: $1,234.56 → 1234.56
+            if (value.matches(".*[^0-9.\\-+Ee].*\\d.*")) {
+                String normalized = value.replaceAll("[^0-9.\\-+Ee]", "");
+                if (!normalized.isEmpty() && !normalized.equals(value)) {
+                    log.debug("Normalized currency: {} → {}", value, normalized);
+                    return normalized;
+                }
+            }
+
+            // ✅ Step 3: Handle percentage fields: 0.15 → 15 (if field name suggests percentage)
+            if (isPercentageField(fieldName) &&
+                (fieldType == Double.class || fieldType == double.class)) {
+                try {
+                    double numValue = Double.parseDouble(value);
+                    if (numValue >= 0 && numValue <= 1) {
+                        String percentage = String.valueOf(numValue * 100);
+                        log.debug("Normalized percentage: {} → {}%", value, percentage);
+                        return percentage;
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            return value;
+        }
+
+        /**
+         * Check if field is an identifier (CMND, phone, tax code, etc.)
          */
         private boolean isIdentifierField(String fieldName, Class<?> fieldType, String value) {
             if (fieldType != String.class) {
-                return false;  // Only String fields can be identifiers
+                return false;
             }
 
-            // ✅ Step 1: Normalize field name (remove diacritics, spaces, convert to lowercase)
             String normalizedFieldName = normalizeFieldName(fieldName);
-
-            // ✅ Step 2: Check patterns on normalized name
             boolean matchesPattern = normalizedFieldName.contains("identity") ||
                                    normalizedFieldName.contains("identitycard") ||
                                    normalizedFieldName.contains("cmnd") ||
@@ -473,41 +655,24 @@ public class TrueStreamingSAXProcessor<T> {
                                    normalizedFieldName.contains("code") ||
                                    (normalizedFieldName.contains("number") && normalizedFieldName.contains("card"));
 
-            if (matchesPattern) {
-                return true;
-            }
-
-            // ✅ Step 3: Fallback - Value-based detection
-            // If fieldName doesn't match but value looks like an identifier
-            if (value != null && !value.trim().isEmpty()) {
-                return looksLikeIdentifierValue(value);
-            }
-
-            return false;
+            return matchesPattern || (value != null && !value.trim().isEmpty() && looksLikeIdentifierValue(value));
         }
 
         /**
-         * Normalize field name: remove diacritics (Vietnamese accents), spaces, convert to lowercase
-         * Example: "Số CMND" → "socmnd"
+         * Normalize field name: remove Vietnamese accents, spaces, lowercase
          */
         private String normalizeFieldName(String fieldName) {
             if (fieldName == null || fieldName.isEmpty()) {
                 return "";
             }
 
-            // Remove diacritics (Vietnamese accents)
             String normalized = Normalizer.normalize(fieldName, Normalizer.Form.NFD);
             normalized = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
-
-            // Convert to lowercase and remove spaces
-            normalized = normalized.toLowerCase().replaceAll("\\s+", "");
-
-            return normalized;
+            return normalized.toLowerCase().replaceAll("\\s+", "");
         }
 
         /**
-         * Check if a value looks like an identifier based on its characteristics
-         * Used as fallback when fieldName doesn't match identifier patterns
+         * Check if value looks like an identifier (scientific notation or long digit string)
          */
         private boolean looksLikeIdentifierValue(String value) {
             if (value == null || value.trim().isEmpty()) {
@@ -516,30 +681,19 @@ public class TrueStreamingSAXProcessor<T> {
 
             String trimmed = value.trim();
 
-            // ✅ Check for scientific notation (strong indicator of identifier)
             if (trimmed.contains("E") || trimmed.contains("e")) {
                 try {
                     java.math.BigDecimal bd = new java.math.BigDecimal(trimmed);
-                    // If it's a large integer in scientific notation, likely an identifier
                     if (bd.scale() == 0 && bd.precision() > 9) {
-                        log.debug("Detected identifier by scientific notation: {}", value);
+                        log.debug("Identifier detected (scientific): {}", value);
                         return true;
                     }
                 } catch (NumberFormatException ignored) {
-                    // Not a number, continue
                 }
             }
 
-            // ✅ Check for long numeric strings (likely identifiers like CMND, phone)
-            // CMND: 9-12 digits, Phone: 10-11 digits, Tax code: 10-13 digits
-            if (trimmed.matches("\\d{9,15}")) {
-                log.debug("Detected identifier by length pattern: {}", value);
-                return true;
-            }
-
-            // ✅ Check for values with trailing ".0" (Excel number formatting issue)
-            if (trimmed.matches("\\d+\\.0+")) {
-                log.debug("Detected identifier by .0 pattern: {}", value);
+            if (trimmed.matches("\\d{9,15}") || trimmed.matches("\\d+\\.0+")) {
+                log.debug("Identifier detected (pattern): {}", value);
                 return true;
             }
 
@@ -547,17 +701,14 @@ public class TrueStreamingSAXProcessor<T> {
         }
 
         /**
-         * Normalize identifier values
-         * Converts scientific notation back to plain string
+         * Normalize identifier values (remove scientific notation and trailing .0)
          */
         private String normalizeIdentifierValue(String value) {
-            // ✅ Detect scientific notation (e.g., "1.234567E+11")
             if (value.contains("E") || value.contains("e")) {
                 try {
                     java.math.BigDecimal bd = new java.math.BigDecimal(value);
                     String plainString = bd.toPlainString();
 
-                    // Remove decimal point if it's ".0"
                     if (plainString.endsWith(".0")) {
                         plainString = plainString.substring(0, plainString.length() - 2);
                     }
@@ -566,12 +717,11 @@ public class TrueStreamingSAXProcessor<T> {
                     return plainString;
 
                 } catch (NumberFormatException e) {
-                    log.warn("Failed to normalize identifier value: {}", value);
+                    log.warn("Failed to normalize identifier: {}", value);
                     return value;
                 }
             }
 
-            // ✅ Remove trailing ".0" from values like "123456.0"
             if (value.matches("\\d+\\.0+")) {
                 return value.substring(0, value.indexOf('.'));
             }
@@ -590,80 +740,70 @@ public class TrueStreamingSAXProcessor<T> {
 
         /**
          * Normalize date values - Parse Excel serial date to ISO format
-         * This approach handles ALL date formats by converting Excel serial date to actual date
-         * instead of pattern matching which cannot cover all formats
+         * ✅ FIX: Handle edge cases (before 1900, time-only, invalid dates)
          */
         private String normalizeDateValue(String value, Class<?> fieldType) {
-            // ✅ Step 1: Try to parse as Excel serial date (most reliable method)
-            // Excel serial dates are numbers (integer or decimal for time)
-            if (value.matches("\\d+\\.?\\d*") && !value.contains("/") && !value.contains("-")) {
+            // Step 1: Parse Excel serial date (from SerialNumberDataFormatter)
+            if (value != null && !value.contains("/") && !value.contains("-") &&
+                (value.matches("\\d+\\.?\\d*") || value.matches("-?\\d+\\.?\\d*"))) {
                 try {
                     double serialDate = Double.parseDouble(value);
-                    // Excel dates typically range from 1 to 2958465 (year 1900 to 9999)
-                    if (serialDate >= 1 && serialDate < 3000000) {
-                        // Convert Excel serial date to Java Date
-                        Date javaDate = DateUtil.getJavaDate(serialDate);
-                        
-                        // Convert to target type format
+
+                    // ✅ FIX: Handle dates before 1900 and up to year 9999
+                    // Excel serial dates: -693593 = 0001-01-01, 2958465 = 9999-12-31
+                    if (serialDate >= -693593 && serialDate < 2958465) {
+                        Date javaDate = DateUtil.getJavaDate(serialDate, false); // use1904windowing=false
+
                         if (fieldType == LocalDate.class) {
                             LocalDate localDate = javaDate.toInstant()
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDate();
-                            String isoDate = localDate.toString(); // yyyy-MM-dd
-                            log.debug("Converted Excel serial date {} → {}", value, isoDate);
+                            String isoDate = localDate.toString();
+                            log.debug("Converted Excel serial {} → {}", value, isoDate);
                             return isoDate;
                         } else if (fieldType == java.time.LocalDateTime.class) {
                             java.time.LocalDateTime localDateTime = javaDate.toInstant()
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDateTime();
-                            String isoDateTime = localDateTime.toString(); // yyyy-MM-ddTHH:mm:ss
-                            log.debug("Converted Excel serial date {} → {}", value, isoDateTime);
+                            String isoDateTime = localDateTime.toString();
+                            log.debug("Converted Excel serial {} → {}", value, isoDateTime);
                             return isoDateTime;
                         } else if (fieldType == Date.class || fieldType == java.sql.Date.class) {
-                            // Return ISO format string for Date type
                             LocalDate localDate = javaDate.toInstant()
                                     .atZone(ZoneId.systemDefault())
                                     .toLocalDate();
                             String isoDate = localDate.toString();
-                            log.debug("Converted Excel serial date {} → {}", value, isoDate);
+                            log.debug("Converted Excel serial {} → {}", value, isoDate);
                             return isoDate;
                         } else {
-                            // Unknown date type, return serial date as-is for TypeConverter to handle
-                            log.debug("Detected Excel serial date for unknown date type: {}", value);
+                            log.debug("Unknown date type for serial: {}", value);
                             return value;
                         }
                     }
                 } catch (Exception e) {
-                    log.debug("Failed to parse Excel serial date '{}': {}", value, e.getMessage());
-                    // Not a valid Excel serial date, continue to pattern matching
+                    log.debug("Failed to parse serial date '{}': {}", value, e.getMessage());
                 }
             }
 
-            // ✅ Step 2: Fallback - Handle common text date formats (for backward compatibility)
-            // Only handle obvious short year formats
-            if (value.matches("\\d{1,2}/\\d{1,2}/\\d{2}")) {
+            // Step 2: Fallback - Handle text date formats (backward compatibility)
+            if (value != null && value.matches("\\d{1,2}/\\d{1,2}/\\d{2}")) {
                 String[] parts = value.split("/");
                 if (parts.length == 3) {
                     String month = parts[0];
                     String day = parts[1];
                     String year = parts[2];
 
-                    // Convert 2-digit year to 4-digit year
                     int yearInt = Integer.parseInt(year);
-                    if (yearInt <= 30) {
-                        year = "20" + year;  // 00-30 → 2000-2030
-                    } else {
-                        year = "19" + year;  // 31-99 → 1931-1999
-                    }
+                    year = (yearInt <= 30) ? "20" + year : "19" + year;
 
                     String normalized = month + "/" + day + "/" + year;
-                    log.debug("Normalized short year date: {} → {}", value, normalized);
+                    log.debug("Normalized short year: {} → {}", value, normalized);
                     return normalized;
                 }
             }
 
-            // ✅ Step 3: Handle dd-MM-yy format
-            if (value.matches("\\d{1,2}-\\d{1,2}-\\d{2}")) {
+            // Step 3: Handle dd-MM-yy format
+            if (value != null && value.matches("\\d{1,2}-\\d{1,2}-\\d{2}")) {
                 String[] parts = value.split("-");
                 if (parts.length == 3) {
                     String day = parts[0];
@@ -671,62 +811,52 @@ public class TrueStreamingSAXProcessor<T> {
                     String year = parts[2];
 
                     int yearInt = Integer.parseInt(year);
-                    if (yearInt <= 30) {
-                        year = "20" + year;
-                    } else {
-                        year = "19" + year;
-                    }
+                    year = (yearInt <= 30) ? "20" + year : "19" + year;
 
                     return day + "/" + month + "/" + year;
                 }
             }
 
-            // ✅ Step 4: Handle dd-MMM-yyyy format (e.g., "15-Jan-2023", "15-January-2023")
-            if (value.matches("\\d{1,2}-[A-Za-z]+-\\d{4}")) {
+            // Step 4: Handle dd-MMM-yyyy format
+            if (value != null && value.matches("\\d{1,2}-[A-Za-z]+-\\d{4}")) {
                 String[] parts = value.split("-");
                 if (parts.length == 3) {
                     String day = parts[0];
                     String monthName = parts[1];
                     String year = parts[2];
-                    
+
                     String monthNumber = parseMonthName(monthName);
                     if (monthNumber != null) {
                         String normalized = day + "/" + monthNumber + "/" + year;
-                        log.debug("Normalized date format dd-MMM-yyyy: {} → {}", value, normalized);
+                        log.debug("Normalized dd-MMM-yyyy: {} → {}", value, normalized);
                         return normalized;
                     }
                 }
             }
 
-            // ✅ Step 5: Handle dd-MMM-yy format (e.g., "15-Jan-23", "15-January-23")
-            if (value.matches("\\d{1,2}-[A-Za-z]+-\\d{2}")) {
+            // Step 5: Handle dd-MMM-yy format
+            if (value != null && value.matches("\\d{1,2}-[A-Za-z]+-\\d{2}")) {
                 String[] parts = value.split("-");
                 if (parts.length == 3) {
                     String day = parts[0];
                     String monthName = parts[1];
                     String year = parts[2];
-                    
+
                     String monthNumber = parseMonthName(monthName);
                     if (monthNumber != null) {
-                        // Convert 2-digit year to 4-digit year
                         int yearInt = Integer.parseInt(year);
-                        if (yearInt <= 30) {
-                            year = "20" + year;  // 00-30 → 2000-2030
-                        } else {
-                            year = "19" + year;  // 31-99 → 1931-1999
-                        }
-                        
+                        year = (yearInt <= 30) ? "20" + year : "19" + year;
+
                         String normalized = day + "/" + monthNumber + "/" + year;
-                        log.debug("Normalized date format dd-MMM-yy: {} → {}", value, normalized);
+                        log.debug("Normalized dd-MMM-yy: {} → {}", value, normalized);
                         return normalized;
                     }
                 }
             }
 
-            // Return as-is for TypeConverter to handle with its formatters
             return value;
         }
-        
+
         /**
          * Parse month name (English or Vietnamese) to month number (01-12)
          * Supports both full names and abbreviations
@@ -961,24 +1091,59 @@ public class TrueStreamingSAXProcessor<T> {
         private final long processedRecords;
         private final long errorCount;
         private final long processingTimeMs;
-        
+        private final List<ValidationError> errors;
+
         public ProcessingResult(long processedRecords, long errorCount, long processingTimeMs) {
+            this(processedRecords, errorCount, processingTimeMs, new ArrayList<>());
+        }
+
+        public ProcessingResult(long processedRecords, long errorCount, long processingTimeMs, List<ValidationError> errors) {
             this.processedRecords = processedRecords;
             this.errorCount = errorCount;
             this.processingTimeMs = processingTimeMs;
+            this.errors = errors;
         }
-        
+
         public long getProcessedRecords() { return processedRecords; }
         public long getErrorCount() { return errorCount; }
         public long getProcessingTimeMs() { return processingTimeMs; }
-        public double getRecordsPerSecond() { 
-            return processingTimeMs > 0 ? (processedRecords * 1000.0) / processingTimeMs : 0; 
+        public List<ValidationError> getErrors() { return errors; }
+        public double getRecordsPerSecond() {
+            return processingTimeMs > 0 ? (processedRecords * 1000.0) / processingTimeMs : 0;
         }
-        
+
         @Override
         public String toString() {
-            return String.format("ProcessingResult{processed=%d, errors=%d, time=%dms, rate=%.1f rec/sec}", 
+            return String.format("ProcessingResult{processed=%d, errors=%d, time=%dms, rate=%.1f rec/sec}",
                     processedRecords, errorCount, processingTimeMs, getRecordsPerSecond());
+        }
+    }
+
+    /**
+     * Validation error with full context
+     */
+    public static class ValidationError {
+        private final int rowNumber;
+        private final String fieldName;
+        private final String cellValue;
+        private final String errorMessage;
+
+        public ValidationError(int rowNumber, String fieldName, String cellValue, String errorMessage) {
+            this.rowNumber = rowNumber;
+            this.fieldName = fieldName;
+            this.cellValue = cellValue;
+            this.errorMessage = errorMessage;
+        }
+
+        public int getRowNumber() { return rowNumber; }
+        public String getFieldName() { return fieldName; }
+        public String getCellValue() { return cellValue; }
+        public String getErrorMessage() { return errorMessage; }
+
+        @Override
+        public String toString() {
+            return String.format("Row %d, Field '%s', Value '%s': %s",
+                    rowNumber, fieldName, cellValue, errorMessage);
         }
     }
 }

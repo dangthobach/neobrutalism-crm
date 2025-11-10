@@ -137,13 +137,7 @@ public class StagingHSBGHopDong {
     @Column(name = "validation_status", nullable = false, length = 50)
     @Builder.Default
     private String validationStatus = "PENDING";
-    
-    @Column(name = "validation_errors", columnDefinition = "JSONB")
-    private String validationErrors; // JSON string
-    
-    @Column(name = "normalized_data", columnDefinition = "JSONB")
-    private String normalizedData; // JSON string
-    
+
     @Column(name = "duplicate_key", length = 500)
     private String duplicateKey;
     

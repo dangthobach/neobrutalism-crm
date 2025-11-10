@@ -26,9 +26,10 @@ public class MigrationErrorLogger {
     
     /**
      * Log validation errors to excel_migration_errors table
+     * REQUIRES_NEW ensures errors are committed immediately, independent of parent transaction
      */
-    @Transactional
-    public void logValidationErrors(UUID sheetId, Long rowNumber, Integer batchNumber, 
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void logValidationErrors(UUID sheetId, Long rowNumber, Integer batchNumber,
                                    ValidationResult validationResult) {
         if (validationResult == null || validationResult.isValid()) {
             return;
@@ -65,8 +66,9 @@ public class MigrationErrorLogger {
     
     /**
      * Log processing error (non-validation errors)
+     * REQUIRES_NEW ensures errors are committed immediately, independent of parent transaction
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void logProcessingError(UUID sheetId, Long rowNumber, Integer batchNumber,
                                   String errorCode, String errorMessage, Throwable throwable) {
         try {
