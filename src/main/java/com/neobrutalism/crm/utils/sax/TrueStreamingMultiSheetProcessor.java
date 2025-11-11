@@ -2,7 +2,7 @@ package com.neobrutalism.crm.utils.sax;
 
 // Removed dependency on ExcelUtil.MultiSheetResult
 import com.neobrutalism.crm.utils.config.ExcelConfig;
-import com.neobrutalism.crm.utils.validation.ExcelEarlyValidator;
+// import com.neobrutalism.crm.utils.validation.ExcelEarlyValidator; // Unused - disabled to prevent InputStream consumption
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -43,17 +43,18 @@ public class TrueStreamingMultiSheetProcessor {
             throws Exception {
         
         Map<String, TrueStreamingSAXProcessor.ProcessingResult> results = new HashMap<>();
-        
-        // Early validation cho toàn bộ file
-        ExcelEarlyValidator.EarlyValidationResult earlyResult = 
-            ExcelEarlyValidator.validateRecordCount(inputStream, config.getMaxErrorsBeforeAbort(), 1);
-        
-        if (!earlyResult.isValid()) {
-            log.error("Multi-sheet file failed early validation: {}", earlyResult.getErrorMessage());
-            throw new RuntimeException("File too large: " + earlyResult.getErrorMessage());
-        }
-        
-        log.info("Multi-sheet early validation passed. Processing {} sheets with true streaming...", 
+
+        // ❌ DISABLED: Early validation consumes InputStream even after reset
+        // ExcelMigrationService already validates file before calling this processor
+        // ExcelEarlyValidator.EarlyValidationResult earlyResult =
+        //     ExcelEarlyValidator.validateRecordCount(inputStream, config.getMaxErrorsBeforeAbort(), 1);
+        //
+        // if (!earlyResult.isValid()) {
+        //     log.error("Multi-sheet file failed early validation: {}", earlyResult.getErrorMessage());
+        //     throw new RuntimeException("File too large: " + earlyResult.getErrorMessage());
+        // }
+
+        log.info("Processing {} sheets with true streaming...",
                 sheetClassMap.size());
         
         try (OPCPackage opcPackage = OPCPackage.open(inputStream)) {
@@ -61,6 +62,12 @@ public class TrueStreamingMultiSheetProcessor {
             org.apache.poi.xssf.model.SharedStringsTable sharedStringsTable =
                 (org.apache.poi.xssf.model.SharedStringsTable) xssfReader.getSharedStringsTable();
             StylesTable stylesTable = xssfReader.getStylesTable();
+            
+            // ✅ NOTE: sharedStringsTable can be null if Excel file doesn't use shared strings
+            // This is normal for small files or files created by certain tools
+            if (sharedStringsTable == null) {
+                log.warn("⚠️ SharedStringsTable is null - file may not use shared strings (this is OK)");
+            }
 
             XSSFReader.SheetIterator sheetIterator = (XSSFReader.SheetIterator) xssfReader.getSheetsData();
 
@@ -70,14 +77,18 @@ public class TrueStreamingMultiSheetProcessor {
             while (sheetIterator.hasNext()) {
                 try (InputStream sheetStream = sheetIterator.next()) {
                     String sheetName = sheetIterator.getSheetName();
+
+                    log.info("🔍 Got sheet stream for '{}', available bytes: {}",
+                             sheetName, sheetStream != null ? sheetStream.available() : "NULL");
+
                     Class<?> beanClass = sheetClassMap.get(sheetName);
                     Consumer<List<?>> sheetProcessor = sheetProcessors.get(sheetName);
-                    
+
                     if (beanClass == null || sheetProcessor == null) {
                         log.warn("Sheet '{}' not configured for processing, skipping", sheetName);
                         continue;
                     }
-                    
+
                     log.info("Processing sheet '{}' with class {}", sheetName, beanClass.getSimpleName());
                     
                     // Create true streaming processor for this sheet

@@ -17,6 +17,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
 import javax.xml.parsers.SAXParserFactory;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.text.Normalizer;
@@ -88,8 +89,15 @@ public class TrueStreamingSAXProcessor<T> {
                     }
                 }
             }
-            log.debug("Cached {} ExcelColumn annotations for class {}", 
+            log.debug("Cached {} ExcelColumn annotations for class {}",
                      fieldAnnotationCache.size(), beanClass.getSimpleName());
+
+            // ✅ DEBUG: Log all cached annotation names
+            log.info("🔍 DEBUG: Cached @ExcelColumn names for {}: {}",
+                    beanClass.getSimpleName(),
+                    fieldAnnotationCache.keySet().stream()
+                        .limit(10)
+                        .toList());
         } catch (Exception e) {
             log.warn("Failed to initialize annotation cache: {}", e.getMessage());
         }
@@ -211,20 +219,76 @@ public class TrueStreamingSAXProcessor<T> {
             org.apache.poi.xssf.model.SharedStringsTable sharedStringsTable,
             DataFormatter dataFormatter) throws Exception {
         
+        // ✅ FIX: Read entire stream into memory to ensure it's fully available
+        // POI's XSSFSheetXMLHandler may need the full stream available
+        byte[] sheetData = sheetStream.readAllBytes();
+        log.info("🔍 Read sheet stream: {} bytes", sheetData.length);
+        
+        // ✅ DEBUG: Check first bytes to verify it's XML
+        if (sheetData.length > 0) {
+            String preview = new String(sheetData, 0, Math.min(100, sheetData.length), java.nio.charset.StandardCharsets.UTF_8);
+            log.info("🔍 First {} bytes: {}", Math.min(100, sheetData.length), preview.substring(0, Math.min(50, preview.length())));
+            
+            // ✅ DEBUG: Check if XML contains row elements
+            String fullXml = new String(sheetData, java.nio.charset.StandardCharsets.UTF_8);
+            boolean hasRow = fullXml.contains("<row") || fullXml.contains("<r>");
+            int rowCount = (fullXml.split("<row")).length - 1;
+            log.info("🔍 XML contains row elements: {}, approximate row count: {}", hasRow, rowCount);
+            if (!hasRow && sheetData.length > 500) {
+                // Log more XML content if no rows found
+                log.warn("🔍 XML content (first 500 chars): {}", fullXml.substring(0, Math.min(500, fullXml.length())));
+            }
+        }
+        
+        // Create new InputStream from byte array to ensure fresh stream
+        ByteArrayInputStream sheetInputStream = new ByteArrayInputStream(sheetData);
+        
+        // ✅ DEBUG: Check shared resources
+        log.info("🔍 Shared resources: stylesTable={}, sharedStringsTable={}, dataFormatter={}",
+                 stylesTable != null ? "OK" : "NULL",
+                 sharedStringsTable != null ? "OK" : "NULL",
+                 dataFormatter != null ? "OK" : "NULL");
+        
         // True streaming content handler - xử lý từng batch ngay
         TrueStreamingContentHandler contentHandler = new TrueStreamingContentHandler();
         
-        // Setup SAX parser
-        XMLReader xmlReader = SAXParserFactory.newInstance().newSAXParser().getXMLReader();
+        // Setup SAX parser with namespace awareness (required for Excel XML)
+        SAXParserFactory saxFactory = SAXParserFactory.newInstance();
+        saxFactory.setNamespaceAware(true);
+        saxFactory.setValidating(false);
+        XMLReader xmlReader = saxFactory.newSAXParser().getXMLReader();
+        
+        // ✅ DEBUG: Set error handler to catch any parsing issues
+        xmlReader.setErrorHandler(new org.xml.sax.ErrorHandler() {
+            @Override
+            public void warning(org.xml.sax.SAXParseException e) {
+                log.warn("🔍 SAX warning: {}", e.getMessage());
+            }
+            @Override
+            public void error(org.xml.sax.SAXParseException e) {
+                log.error("🔍 SAX error: {}", e.getMessage(), e);
+            }
+            @Override
+            public void fatalError(org.xml.sax.SAXParseException e) {
+                log.error("🔍 SAX fatal error: {}", e.getMessage(), e);
+            }
+        });
         
         XSSFSheetXMLHandler sheetHandler = new XSSFSheetXMLHandler(
             stylesTable, sharedStringsTable, contentHandler, dataFormatter, false
         );
         xmlReader.setContentHandler(sheetHandler);
-        
+
         // Process sheet stream directly
-        xmlReader.parse(new InputSource(sheetStream));
-        
+        log.info("🔍 About to parse sheet stream with SAX...");
+        try {
+            xmlReader.parse(new InputSource(sheetInputStream));
+            log.info("🔍 SAX parsing completed. totalProcessed={}", totalProcessed.get());
+        } catch (Exception e) {
+            log.error("🔍 SAX parsing failed", e);
+            throw e;
+        }
+
         // Flush remaining batch
         contentHandler.flushRemainingBatch();
 
@@ -262,9 +326,14 @@ public class TrueStreamingSAXProcessor<T> {
         @Override
         public void startRow(int rowNum) {
             this.currentRowNum = rowNum;
-            
+
+            // ✅ ALWAYS log to see if POI calls this method
+            log.info("🔍 SAX startRow CALLED: rowNum={}, startRow config={}, headerProcessed={}",
+                     rowNum, config.getStartRow(), headerProcessed);
+
             // Skip rows before start row
             if (rowNum < config.getStartRow()) {
+                log.info("🔍 SKIPPING row {} because < startRow {}", rowNum, config.getStartRow());
                 return;
             }
             
@@ -313,10 +382,25 @@ public class TrueStreamingSAXProcessor<T> {
         
         @Override
         public void endRow(int rowNum) {
+            log.info("🔍 SAX endRow called: rowNum={}, startRow={}, headerProcessed={}, headerMapping.size={}",
+                     rowNum, config.getStartRow(), headerProcessed, headerMapping.size());
+
             // Mark header as processed
             if (rowNum == config.getStartRow() && !headerProcessed) {
                 headerProcessed = true;
-                log.debug("Header processed with {} columns", headerMapping.size());
+                log.info("✅ Header processed with {} columns: {}", headerMapping.size(), headerMapping.keySet());
+                log.info("✅ Available @ExcelColumn annotations: {}", fieldAnnotationCache.size());
+
+                // Log header mapping details for debugging
+                for (Map.Entry<String, Integer> entry : headerMapping.entrySet()) {
+                    String headerName = entry.getKey();
+                    String fieldName = resolveExcelColumnToFieldName(headerName);
+                    if (fieldName != null) {
+                        log.debug("  Column '{}' -> field '{}'", headerName, fieldName);
+                    } else {
+                        log.warn("  Column '{}' -> NO MATCHING FIELD", headerName);
+                    }
+                }
                 return;
             }
 
@@ -416,11 +500,14 @@ public class TrueStreamingSAXProcessor<T> {
         private void processDataCell(int colIndex, String formattedValue) {
             String fieldName = findFieldNameByColumnIndex(colIndex);
             if (fieldName == null) {
+                log.trace("Row {}, Column {}: No field mapping found", currentRowNum, colIndex);
                 return;
             }
 
             // ✅ Performance: Trim once at start
             String trimmedValue = (formattedValue != null) ? formattedValue.trim() : null;
+            log.trace("Row {}, Column {}, Field '{}': Processing value '{}'",
+                     currentRowNum, colIndex, fieldName, trimmedValue);
 
             try {
                 // ✅ Performance: Cache field type lookups
