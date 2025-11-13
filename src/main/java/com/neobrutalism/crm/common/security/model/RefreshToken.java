@@ -41,6 +41,13 @@ public class RefreshToken {
     private String tokenHash;
 
     /**
+     * Transient field to hold plaintext token value (only for return, never persisted)
+     * This is set temporarily when creating/rotating tokens to return to client
+     */
+    @Transient
+    private String plaintextToken;
+
+    /**
      * JWT ID (jti claim)
      */
     @Column(name = "jti", unique = true, length = 36)

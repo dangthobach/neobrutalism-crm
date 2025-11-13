@@ -92,8 +92,8 @@ public class RefreshTokenService {
         RefreshToken saved = refreshTokenRepository.save(refreshToken);
         log.info("Created refresh token for user {} on device {}", username, deviceName);
 
-        // Return the actual token value (only time it's available in plaintext)
-        saved.setTokenHash(tokenValue); // Temporarily set for return
+        // Set plaintext token in transient field for return (never persisted to DB)
+        saved.setPlaintextToken(tokenValue);
         return saved;
     }
 
@@ -166,8 +166,8 @@ public class RefreshTokenService {
         log.info("Rotated refresh token for user {} (rotation count: {})",
             oldRefreshToken.getUsername(), newRefreshToken.getRotationCount());
 
-        // Return the actual token value (only time it's available)
-        saved.setTokenHash(newTokenValue);
+        // Set plaintext token in transient field for return (never persisted to DB)
+        saved.setPlaintextToken(newTokenValue);
         return saved;
     }
 

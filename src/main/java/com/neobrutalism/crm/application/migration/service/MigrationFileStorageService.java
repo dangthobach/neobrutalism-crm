@@ -18,7 +18,7 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-public class FileStorageService {
+public class MigrationFileStorageService {
     
     @Value("${app.migration.file-storage.path:./data/migration-files}")
     private String storagePath;
@@ -43,16 +43,18 @@ public class FileStorageService {
     
     /**
      * Retrieve file input stream by job ID
+     * Returns BufferedInputStream to support mark/reset operations
      */
     public InputStream retrieveFile(UUID jobId, String originalFileName) throws IOException {
         String fileName = jobId.toString() + "_" + originalFileName;
         Path filePath = Paths.get(storagePath).resolve(fileName);
-        
+
         if (!Files.exists(filePath)) {
             throw new IOException("File not found: " + fileName);
         }
-        
-        return Files.newInputStream(filePath);
+
+        // ✅ FIX: Wrap with BufferedInputStream to support mark/reset for ExcelEarlyValidator
+        return new java.io.BufferedInputStream(Files.newInputStream(filePath));
     }
     
     /**

@@ -5,6 +5,9 @@ import com.neobrutalism.crm.common.exception.ErrorCode;
 import com.neobrutalism.crm.common.security.dto.LoginRequest;
 import com.neobrutalism.crm.common.security.dto.LoginResponse;
 import com.neobrutalism.crm.common.security.dto.RefreshTokenRequest;
+import com.neobrutalism.crm.common.security.model.RefreshToken;
+import com.neobrutalism.crm.common.security.service.RefreshTokenService;
+import com.neobrutalism.crm.common.security.service.TokenBlacklistService;
 import com.neobrutalism.crm.domain.user.model.User;
 import com.neobrutalism.crm.domain.user.model.UserStatus;
 import com.neobrutalism.crm.domain.user.repository.UserRepository;
@@ -89,15 +92,23 @@ public class AuthenticationService {
         // Create refresh token with rotation support
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(
                 user.getId(),
-                ipAddress,
-                userAgent
+                user.getUsername(),
+                null,
+                null,
+                null,
+                userAgent,
+                ipAddress
         );
+        // Get plaintext token from transient field (not from tokenHash which is the hash)
+        String refreshTokenValue = refreshToken.getPlaintextToken() != null 
+                ? refreshToken.getPlaintextToken() 
+                : refreshToken.getTokenHash(); // Fallback (shouldn't happen)
 
         log.info("User logged in successfully: {} (tenant: {})", user.getUsername(), user.getTenantId());
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken())
+                .refreshToken(refreshTokenValue)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
                 .userId(user.getId())
@@ -123,8 +134,8 @@ public class AuthenticationService {
         RefreshToken oldToken = refreshTokenService.validateRefreshToken(tokenString);
         RefreshToken newToken = refreshTokenService.rotateRefreshToken(
                 tokenString,
-                ipAddress,
-                userAgent
+                userAgent,
+                ipAddress
         );
 
         // Load user
@@ -152,7 +163,9 @@ public class AuthenticationService {
 
         return LoginResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(newToken.getToken()) // Return new rotated refresh token
+                .refreshToken(newToken.getPlaintextToken() != null 
+                        ? newToken.getPlaintextToken() 
+                        : newToken.getTokenHash()) // Return new rotated refresh token (plaintext)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
                 .userId(user.getId())
@@ -174,7 +187,7 @@ public class AuthenticationService {
         userSessionService.clearUserSession(userId);
 
         // Revoke all refresh tokens for the user
-        refreshTokenService.revokeAllUserTokens(userId);
+        refreshTokenService.revokeAllUserTokens(userId, "USER_LOGOUT");
 
         // Blacklist all current tokens for the user (24 hour TTL)
         tokenBlacklistService.blacklistUserTokens(userId.toString(), 86400000L);

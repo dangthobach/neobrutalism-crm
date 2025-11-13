@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,8 +23,8 @@ public interface StagingHSBGHopDongRepository extends JpaRepository<StagingHSBGH
     List<StagingHSBGHopDong> findValidRecordsForInsert(@Param("sheetId") UUID sheetId, org.springframework.data.domain.Pageable pageable);
     
     @Modifying
-    @Query("UPDATE StagingHSBGHopDong s SET s.insertedToMaster = true, s.insertedAt = CURRENT_TIMESTAMP WHERE s.id IN :ids")
-    void markAsInserted(@Param("ids") List<UUID> ids);
+    @Query("UPDATE StagingHSBGHopDong s SET s.insertedToMaster = true, s.insertedAt = :now WHERE s.id IN :ids")
+    void markAsInserted(@Param("ids") List<UUID> ids, @Param("now") Instant now);
     
     @Query("SELECT COUNT(s) FROM StagingHSBGHopDong s WHERE s.sheetId = :sheetId AND s.validationStatus = 'VALID'")
     long countValidRecords(@Param("sheetId") UUID sheetId);

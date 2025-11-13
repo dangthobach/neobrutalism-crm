@@ -1,6 +1,7 @@
 package com.neobrutalism.crm.common.security;
 
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
+import com.neobrutalism.crm.common.security.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

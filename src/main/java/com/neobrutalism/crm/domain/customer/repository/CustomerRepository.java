@@ -147,7 +147,7 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
     @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
            "c.id, c.code, c.companyName, c.customerType, c.status, " +
            "c.industry, c.email, c.phone, c.isVip, " +
-           "c.totalRevenue, c.acquisitionDate, c.lastContactDate, " +
+           "c.annualRevenue, c.acquisitionDate, c.lastContactDate, " +
            "c.organizationId, o.name, " +
            "c.ownerId, CONCAT(owner.firstName, ' ', owner.lastName), " +
            "c.branchId, branch.name, " +
@@ -200,7 +200,7 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
     @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
            "c.id, c.code, c.companyName, c.customerType, c.status, " +
            "c.industry, c.email, c.phone, c.isVip, " +
-           "c.totalRevenue, c.acquisitionDate, c.lastContactDate, " +
+           "c.annualRevenue, c.acquisitionDate, c.lastContactDate, " +
            "c.organizationId, o.name, " +
            "c.ownerId, CONCAT(owner.firstName, ' ', owner.lastName), " +
            "c.branchId, branch.name, " +
@@ -210,7 +210,7 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
            "LEFT JOIN User owner ON c.ownerId = owner.id " +
            "LEFT JOIN Branch branch ON c.branchId = branch.id " +
            "WHERE c.isVip = true AND c.tenantId = :tenantId AND c.deleted = false " +
-           "ORDER BY c.totalRevenue DESC, c.companyName")
+           "ORDER BY c.annualRevenue DESC, c.companyName")
     List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findVipCustomersWithDetails(@Param("tenantId") String tenantId);
 
     // ========================================

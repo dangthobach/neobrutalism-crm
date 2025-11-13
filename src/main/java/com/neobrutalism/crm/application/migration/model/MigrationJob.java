@@ -1,6 +1,6 @@
 package com.neobrutalism.crm.application.migration.model;
 
-import com.neobrutalism.crm.common.entity.BaseEntity;
+import com.neobrutalism.crm.common.entity.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +20,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
-public class MigrationJob extends BaseEntity {
+public class MigrationJob extends AuditableEntity {
     
     @Column(name = "file_name", nullable = false, length = 500)
     private String fileName;
@@ -50,8 +50,5 @@ public class MigrationJob extends BaseEntity {
     
     @Column(name = "error_stack_trace", columnDefinition = "TEXT")
     private String errorStackTrace;
-    
-    @Column(name = "created_by", length = 255)
-    private String createdBy;
 }
 
