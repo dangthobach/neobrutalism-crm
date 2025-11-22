@@ -115,6 +115,48 @@ public class TokenBlacklistService {
     }
 
     /**
+     * Blacklist all tokens for a user by user ID string (for compatibility)
+     * @param userId The user ID as a string
+     * @param expirationMillis Time-to-live in milliseconds
+     */
+    @Transactional
+    public void blacklistUserTokens(String userId, long expirationMillis) {
+        try {
+            UUID userUuid = UUID.fromString(userId);
+            Instant expiresAt = Instant.now().plusMillis(expirationMillis);
+            
+            // Create a blacklist entry for all user tokens
+            // Using a special marker to indicate all tokens for this user are blacklisted
+            String specialTokenHash = "USER_ALL_TOKENS_" + userId;
+            
+            blacklistTokenByHash(
+                specialTokenHash,
+                userUuid,
+                "user:" + userId,
+                BlacklistReason.PASSWORD_CHANGE,
+                expiresAt,
+                null,
+                null,
+                null
+            );
+            
+            log.info("Blacklisted all tokens for user: {}", userId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid user ID format: {}", userId, e);
+        }
+    }
+
+    /**
+     * Check if all tokens for a user are blacklisted
+     * @param userId The user ID as a string
+     * @return true if all user tokens are blacklisted
+     */
+    public boolean areUserTokensBlacklisted(String userId) {
+        String specialTokenHash = "USER_ALL_TOKENS_" + userId;
+        return blacklistRepository.existsByTokenHash(specialTokenHash);
+    }
+
+    /**
      * Check if a token is blacklisted
      */
     public boolean isTokenBlacklisted(String token) {

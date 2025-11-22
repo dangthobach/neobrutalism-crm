@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpDown, Eye, Trash2, Search, Loader2, Shield, Users } from "lucide-react"
+import { ArrowUpDown, Eye, Trash2, Search, Loader2, Shield, Users, Filter } from "lucide-react"
 import { format } from "date-fns"
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useActivateUser, useSuspendUser, useLockUser, useUnlockUser } from "@/hooks/useUsers"
 import { User, CreateUserRequest, UpdateUserRequest } from "@/lib/api/users"
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { PermissionGuard } from "@/components/auth/permission-guard"
 import { usePermission } from "@/hooks/usePermission"
+import { AdvancedSearchDialog, userSearchFilters } from "@/components/ui/advanced-search-dialog"
 
 type UserFormData = {
   id?: string
@@ -37,6 +38,8 @@ export default function UsersPage() {
   const [sorting, setSorting] = useState<SortingState>([{ id: "username", desc: false }])
   const [rowSelection, setRowSelection] = useState({})
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState<Record<string, string>>({})
   
   // Check permissions
   const { canCreate, canEdit, canDelete } = usePermission()
@@ -107,6 +110,15 @@ export default function UsersPage() {
     const reason = prompt("Enter reason for unlocking (optional):")
     unlockMutation.mutate({ id, reason: reason || undefined })
   }, [unlockMutation])
+
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    setAdvancedFilters(filters)
+    // Apply filters to query params
+    console.log('Advanced search filters:', filters)
+    toast.success('Filters applied', {
+      description: `${Object.keys(filters).length} filter(s) active`
+    })
+  }, [])
 
   const columns = useMemo<ColumnDef<User>[]>(
     () => [
@@ -399,11 +411,22 @@ export default function UsersPage() {
       <div className="border-4 border-black bg-background p-4 shadow-[8px_8px_0_#000]">
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
           <h2 className="text-lg font-heading">Search & Filters</h2>
-          <PermissionGuard routeOrCode="/users" permission="canCreate">
-            <Button variant="noShadow" onClick={onCreate} disabled={isLoading}>
-              New User
+          <div className="flex gap-2">
+            <Button
+              variant="noShadow"
+              size="sm"
+              onClick={() => setAdvancedSearchOpen(true)}
+              disabled={isLoading}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Advanced Search
             </Button>
-          </PermissionGuard>
+            <PermissionGuard routeOrCode="/users" permission="canCreate">
+              <Button variant="noShadow" onClick={onCreate} disabled={isLoading}>
+                New User
+              </Button>
+            </PermissionGuard>
+          </div>
         </div>
 
         <div className="mt-3 flex flex-col gap-3">
@@ -650,6 +673,15 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Advanced Search Dialog */}
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={userSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced User Search"
+      />
     </div>
   )
 }

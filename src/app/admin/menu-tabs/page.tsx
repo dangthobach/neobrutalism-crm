@@ -20,6 +20,7 @@ import {
 import { useRootMenus } from "@/hooks/useMenus"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table-reusable"
+import { PermissionGuard } from "@/components/auth/permission-guard"
 
 export default function MenuTabsPage() {
   const [open, setOpen] = useState(false)
@@ -98,17 +99,21 @@ export default function MenuTabsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
-              Edit
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => onDelete(row.original.id)}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
+            <PermissionGuard action="EDIT">
+              <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
+                Edit
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard action="DELETE">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => onDelete(row.original.id)}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </PermissionGuard>
           </div>
         ),
       },

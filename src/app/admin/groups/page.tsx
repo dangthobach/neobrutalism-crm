@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Users, Shield, UserPlus } from "lucide-react"
+import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Users, Shield, UserPlus, Filter } from "lucide-react"
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup, useActivateGroup, useSuspendGroup } from "@/hooks/useGroups"
 import { Group, GroupStatus } from "@/lib/api/groups"
 import { PermissionGuard } from "@/components/auth/permission-guard"
 import { toast } from "sonner"
+import { AdvancedSearchDialog, groupSearchFilters } from "@/components/ui/advanced-search-dialog"
 
 type GroupFormData = Omit<Group, 'id' | 'deleted' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'path' | 'level'> & { id?: string }
 
@@ -22,6 +23,7 @@ export default function GroupsPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
 
   // Fetch groups with React Query
   const { data: groupsData, isLoading, error, refetch } = useGroups({
@@ -57,6 +59,13 @@ export default function GroupsPage() {
     await suspendMutation.mutateAsync(id)
     refetch()
   }, [suspendMutation, refetch])
+
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    console.log('Advanced search filters:', filters)
+    toast.success('Filters applied', {
+      description: `${Object.keys(filters).length} filter(s) active`
+    })
+  }, [])
 
   const columns = useMemo<ColumnDef<Group>[]>(
     () => [
@@ -329,6 +338,15 @@ export default function GroupsPage() {
               className="pl-10 border-2 border-black font-base"
             />
           </div>
+          <Button
+            variant="noShadow"
+            size="sm"
+            onClick={() => setAdvancedSearchOpen(true)}
+            disabled={isLoading}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Advanced Search
+          </Button>
         </div>
 
         {isLoading ? (
@@ -491,6 +509,15 @@ export default function GroupsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Advanced Search Dialog */}
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={groupSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced Group Search"
+      />
     </div>
   )
 }

@@ -49,6 +49,18 @@ export interface TaskComment {
   createdAt: string
   createdBy: string
   createdByName?: string
+  author?: string // For display purposes
+}
+
+export interface TaskActivity {
+  id: string
+  taskId: string
+  activityType: 'CREATED' | 'UPDATED' | 'STATUS_CHANGED' | 'ASSIGNED' | 'COMMENT_ADDED' | 'CHECKLIST_UPDATED' | 'COMPLETED' | 'CANCELLED'
+  description: string
+  changes?: Record<string, any>
+  performedBy: string
+  performedByName?: string
+  createdAt: string
 }
 
 export interface Task {

@@ -12,7 +12,7 @@
 
 "use client"
 
-import React from "react"
+import React, { useCallback } from "react"
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
 import { GenericDataTable } from "@/components/ui/generic-data-table"
@@ -49,6 +49,8 @@ import { Contact, ContactRole, ContactStatus } from "@/types/contact"
 import { Card } from "@/components/ui/card"
 import { PermissionGuard } from "@/components/auth/permission-guard"
 import { usePermission } from "@/hooks/usePermission"
+import { AdvancedSearchDialog, contactSearchFilters } from "@/components/ui/advanced-search-dialog"
+import { toast } from "sonner"
 
 export default function ContactsPage() {
   const [page, setPage] = React.useState(0)
@@ -59,6 +61,8 @@ export default function ContactsPage() {
   const [status, setStatus] = React.useState<ContactStatus | "ALL">("ALL")
   const [sortBy, setSortBy] = React.useState<string>("fullName")
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc")
+  const [advancedSearchOpen, setAdvancedSearchOpen] = React.useState(false)
+  const [advancedFilters, setAdvancedFilters] = React.useState<Record<string, string>>({})
   
   // Check permissions
   const { canCreate, canEdit, canDelete } = usePermission()
@@ -268,6 +272,16 @@ export default function ContactsPage() {
   }
 
   /**
+   * Handle advanced search
+   */
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    setAdvancedFilters(filters)
+    setPage(0)
+    const filterCount = Object.keys(filters).length
+    toast.success(`Applied ${filterCount} advanced filter${filterCount !== 1 ? 's' : ''}`)
+  }, [])
+
+  /**
    * Handle clear filters
    */
   const handleClearFilters = () => {
@@ -277,6 +291,7 @@ export default function ContactsPage() {
     setStatus("ALL")
     setSortBy("fullName")
     setSortDirection("asc")
+    setAdvancedFilters({})
     setPage(0)
   }
 
@@ -385,14 +400,25 @@ export default function ContactsPage() {
 
           {/* Clear Filters */}
           {hasActiveFilters && (
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={handleClearFilters}
-            >
-              <X className="mr-2 h-4 w-4" />
-              Clear
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAdvancedSearchOpen(true)}
+                disabled={isLoading}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Advanced Search
+              </Button>
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={handleClearFilters}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear
+              </Button>
+            </>
           )}
         </div>
       </Card>
@@ -407,6 +433,14 @@ export default function ContactsPage() {
         totalItems={data?.totalElements || 0}
         onPaginationChange={handlePaginationChange}
         emptyMessage="No contacts found. Create your first contact to get started."
+      />
+
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={contactSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced Contact Search"
       />
     </div>
   )

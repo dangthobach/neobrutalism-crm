@@ -92,13 +92,26 @@ public class ExcelMigrationService {
     
     /**
      * Create migration job from uploaded file
+     * 
+     * OPTIMIZATION: Save file to disk FIRST, then parse metadata from disk
+     * This prevents loading large files (50MB+) into memory twice
+     * 
+     * Flow:
+     * 1. Validate file format
+     * 2. Calculate file hash (streaming, no full load)
+     * 3. Check duplicate
+     * 4. Create job record with placeholder
+     * 5. Save file to disk (streaming copy)
+     * 6. Parse metadata from disk file (SAX streaming, ~8MB memory)
+     * 7. Update job with metadata
+     * 8. Create sheet records
      */
     @Transactional
     public MigrationJob createMigrationJob(MultipartFile file) {
         // 1. Validate file
         validateFile(file);
         
-        // 2. Calculate file hash
+        // 2. Calculate file hash (streaming, doesn't load entire file)
         String fileHash = calculateFileHash(file);
         
         // 3. Check duplicate file
@@ -106,34 +119,48 @@ public class ExcelMigrationService {
             throw new DuplicateFileException("File already processed: " + file.getOriginalFilename());
         }
         
-        // 4. Store file (will store after job creation)
-        UUID tempJobId = UUID.randomUUID();
-        
-        // 5. Parse Excel metadata
-        ExcelMetadataParser.ExcelMetadata metadata;
-        try (InputStream inputStream = file.getInputStream()) {
-            metadata = metadataParser.parseMetadata(inputStream);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse Excel metadata", e);
-        }
-        
-        // 6. Create job
+        // 4. Create job record FIRST (with placeholder for metadata)
         MigrationJob job = MigrationJob.builder()
             .fileName(file.getOriginalFilename())
             .fileSize(file.getSize())
             .fileHash(fileHash)
-            .totalSheets(metadata.getSheetCount())
+            .totalSheets(0) // Will update after parsing metadata
             .status(MigrationStatus.PENDING)
             .build();
         job = jobRepository.save(job);
         
-        // 7. Store file with job ID
+        // 5. Store file to disk immediately (streaming copy, low memory)
+        // This saves file BEFORE parsing metadata to avoid double memory usage
         try {
             fileStorageService.storeFile(file, job.getId());
+            log.info("Stored file to disk for job: {} (size: {}MB)", 
+                     job.getId(), file.getSize() / 1024 / 1024);
         } catch (IOException e) {
             log.error("Failed to store file for job: {}", job.getId(), e);
-            throw new RuntimeException("Failed to store file", e);
+            // Cleanup job record since file storage failed
+            jobRepository.delete(job);
+            throw new RuntimeException("Failed to store file: " + e.getMessage(), e);
         }
+        
+        // 6. Parse metadata from disk file (not from MultipartFile)
+        // This uses SAX streaming parser with constant ~8MB memory usage
+        ExcelMetadataParser.ExcelMetadata metadata;
+        try (InputStream diskInputStream = fileStorageService.retrieveFile(job.getId(), job.getFileName())) {
+            metadata = metadataParser.parseMetadata(diskInputStream);
+            log.info("Parsed metadata for job: {} - {} sheets, {} total data rows",
+                     job.getId(), metadata.getSheetCount(), 
+                     metadata.getRowCounts().values().stream().mapToLong(Long::longValue).sum());
+        } catch (Exception e) {
+            log.error("Failed to parse Excel metadata for job: {}", job.getId(), e);
+            // Cleanup: delete file and job record
+            fileStorageService.deleteFile(job.getId(), job.getFileName());
+            jobRepository.delete(job);
+            throw new RuntimeException("Failed to parse Excel metadata: " + e.getMessage(), e);
+        }
+        
+        // 7. Update job with metadata
+        job.setTotalSheets(metadata.getSheetCount());
+        job = jobRepository.save(job);
         
         // 8. Create sheet records
         for (String sheetName : metadata.getSheetNames()) {
@@ -153,7 +180,8 @@ public class ExcelMigrationService {
             sheetRepository.save(sheet);
         }
         
-        log.info("Created migration job: {} with {} sheets", job.getId(), metadata.getSheetCount());
+        log.info("Created migration job: {} with {} sheets (file stored on disk, metadata parsed with streaming)",
+                 job.getId(), metadata.getSheetCount());
         return job;
     }
     
@@ -218,18 +246,37 @@ public class ExcelMigrationService {
             .toList();
 
         // Wait for all sheets to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
             .thenRun(() -> {
-                // Check if all sheets completed successfully
-                boolean allCompleted = sheets.stream()
-                    .allMatch(s -> s.getStatus() == SheetStatus.COMPLETED);
+                // ✅ FIX: Query fresh data from DB after all async tasks complete
+                List<MigrationSheet> updatedSheets = sheetRepository.findByJobId(jobId);
 
-                job.setStatus(allCompleted ? MigrationStatus.COMPLETED : MigrationStatus.FAILED);
+                // Check if all sheets completed successfully
+                long completedCount = updatedSheets.stream()
+                    .filter(s -> s.getStatus() == SheetStatus.COMPLETED)
+                    .count();
+
+                long failedCount = updatedSheets.stream()
+                    .filter(s -> s.getStatus() == SheetStatus.FAILED)
+                    .count();
+
+                // Determine final job status
+                if (completedCount == updatedSheets.size()) {
+                    job.setStatus(MigrationStatus.COMPLETED);
+                    log.info("Job {} completed successfully - all {}/{} sheets processed",
+                             jobId, completedCount, updatedSheets.size());
+                } else if (completedCount > 0) {
+                    job.setStatus(MigrationStatus.COMPLETED);
+                    log.warn("Job {} completed with partial success - {}/{} sheets succeeded, {} failed",
+                             jobId, completedCount, updatedSheets.size(), failedCount);
+                } else {
+                    job.setStatus(MigrationStatus.FAILED);
+                    log.error("Job {} failed - no sheets completed successfully", jobId);
+                }
+
                 job.setCompletedAt(Instant.now());
                 jobRepository.save(job);
             });
-
-        return CompletableFuture.completedFuture(null);
     }
     
     /**

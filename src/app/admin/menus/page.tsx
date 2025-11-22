@@ -11,6 +11,7 @@ import { useMenus, useCreateMenu, useUpdateMenu, useDeleteMenu } from "@/hooks/u
 import { Menu } from "@/lib/api/menus"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PermissionGuard } from "@/components/auth/permission-guard"
 
 type MenuFormData = Omit<Menu, 'id' | 'deleted' | 'createdAt' | 'path' | 'level'> & { id?: string }
 
@@ -189,22 +190,28 @@ export default function MenusPage() {
           </TableCell>
           <TableCell>
             <div className="flex gap-2">
-              <Button variant="noShadow" size="sm" onClick={() => onCreate(menu.id)}>
-                <Plus className="h-3 w-3" />
-              </Button>
-              <Button variant="noShadow" size="sm" onClick={() => onEdit(menu)}>
-                Edit
-              </Button>
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => onDelete(menu.id)}
-                disabled={deleteMutation.isPending || hasChildren}
-                className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
-                title={hasChildren ? "Cannot delete menu with children" : "Delete"}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <PermissionGuard action="CREATE">
+                <Button variant="noShadow" size="sm" onClick={() => onCreate(menu.id)}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard action="EDIT">
+                <Button variant="noShadow" size="sm" onClick={() => onEdit(menu)}>
+                  Edit
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard action="DELETE">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => onDelete(menu.id)}
+                  disabled={deleteMutation.isPending || hasChildren}
+                  className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
+                  title={hasChildren ? "Cannot delete menu with children" : "Delete"}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </PermissionGuard>
             </div>
           </TableCell>
         </TableRow>
@@ -237,10 +244,12 @@ export default function MenusPage() {
               Manage hierarchical menu structure
             </p>
           </div>
-          <Button onClick={() => onCreate()} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
-            <MenuIcon className="h-4 w-4 mr-2" />
-            Add Root Menu
-          </Button>
+          <PermissionGuard action="CREATE">
+            <Button onClick={() => onCreate()} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
+              <MenuIcon className="h-4 w-4 mr-2" />
+              Add Root Menu
+            </Button>
+          </PermissionGuard>
         </div>
       </header>
 

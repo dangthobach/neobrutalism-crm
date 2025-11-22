@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Link from "next/link"
 import { Plus, TrendingUp, Users, DollarSign, Star, Filter, X } from "lucide-react"
 import {
@@ -22,6 +22,8 @@ import {
 import { Card } from "@/components/ui/card"
 import { PermissionGuard } from "@/components/auth/permission-guard"
 import { usePermission } from "@/hooks/usePermission"
+import { AdvancedSearchDialog, customerSearchFilters } from "@/components/ui/advanced-search-dialog"
+import { toast } from "sonner"
 
 export default function CustomersPage() {
   const [page, setPage] = useState(0)
@@ -29,6 +31,8 @@ export default function CustomersPage() {
   const [keyword, setKeyword] = useState("")
   const [tempKeyword, setTempKeyword] = useState("")
   const [type, setType] = useState<CustomerType | "ALL">("ALL")
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<CustomerStatus | "ALL">("ALL")
   const [sortBy, setSortBy] = useState<string>("name")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
@@ -62,6 +66,13 @@ export default function CustomersPage() {
     setPage(0)
   }
 
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    setAdvancedFilters(filters)
+    setPage(0)
+    const filterCount = Object.keys(filters).length
+    toast.success(`Applied ${filterCount} advanced filter${filterCount !== 1 ? 's' : ''}`)
+  }, [])
+
   const handleClearFilters = () => {
     setTempKeyword("")
     setKeyword("")
@@ -69,6 +80,7 @@ export default function CustomersPage() {
     setStatus("ALL")
     setSortBy("name")
     setSortDirection("asc" as "asc" | "desc")
+    setAdvancedFilters({})
     setPage(0)
   }
 
@@ -179,15 +191,27 @@ export default function CustomersPage() {
               <Filter className="mr-2 h-5 w-5" />
               Filters
             </h2>
-            <Button
-              variant="neutral"
-              size="sm"
-              onClick={handleClearFilters}
-              className="font-bold"
-            >
-              <X className="mr-1 h-4 w-4" />
-              Clear
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAdvancedSearchOpen(true)}
+                disabled={isLoading}
+                className="font-bold"
+              >
+                <Filter className="mr-1 h-4 w-4" />
+                Advanced Search
+              </Button>
+              <Button
+                variant="neutral"
+                size="sm"
+                onClick={handleClearFilters}
+                className="font-bold"
+              >
+                <X className="mr-1 h-4 w-4" />
+                Clear
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -285,6 +309,14 @@ export default function CustomersPage() {
           </p>
         </Card>
       )}
+
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={customerSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced Customer Search"
+      />
     </div>
   )
 }

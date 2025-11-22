@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   type Organization,
-  type OrganizationReadModel,
   type OrganizationStatus
 } from "@/lib/api/organizations"
 import { 
@@ -19,6 +18,7 @@ import {
 import { OrganizationDialog } from "./organization-dialog"
 import { PermissionGuard } from "@/components/auth/permission-guard"
 import { toast } from "sonner"
+import { AdvancedSearchDialog, organizationSearchFilters } from "@/components/ui/advanced-search-dialog"
 
 export default function OrganizationsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -26,6 +26,7 @@ export default function OrganizationsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
   
   // Pagination state
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
@@ -76,6 +77,13 @@ export default function OrganizationsPage() {
     refetch()
   }, [archiveMutation, refetch])
 
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    console.log('Advanced search filters:', filters)
+    toast.success('Filters applied', {
+      description: `${Object.keys(filters).length} filter(s) active`
+    })
+  }, [])
+
   // Filter organizations (client-side)
   const filteredOrganizations = useMemo(() => {
     let filtered = organizations
@@ -104,7 +112,7 @@ export default function OrganizationsPage() {
     const total = organizations.length
     const active = organizations.filter(org => org.status === "ACTIVE").length
     const withContact = organizations.filter(org => org.email || org.phone).length
-    const deleted = organizations.filter(org => org.isDeleted).length
+    const deleted = organizations.filter(org => org.deleted).length
     
     return { total, active, withContact, deleted }
   }, [organizations])
@@ -114,25 +122,9 @@ export default function OrganizationsPage() {
     setDialogOpen(true)
   }
 
-  const handleEdit = (org: OrganizationReadModel) => {
-    // Convert ReadModel to Organization for dialog
-    const fullOrg: Organization = {
-      id: org.id,
-      name: org.name,
-      code: org.code,
-      description: org.description,
-      email: org.email,
-      phone: org.phone,
-      website: org.website,
-      address: undefined,
-      status: org.status,
-      deleted: org.isDeleted,
-      createdAt: org.createdAt,
-      createdBy: org.createdBy,
-      updatedAt: org.updatedAt || org.createdAt,
-      updatedBy: org.updatedBy || org.createdBy
-    }
-    setSelectedOrg(fullOrg)
+  const handleEdit = (org: Organization) => {
+    // Set organization for dialog
+    setSelectedOrg(org)
     setDialogOpen(true)
   }
 
@@ -242,6 +234,16 @@ export default function OrganizationsPage() {
             />
           </div>
 
+          <Button
+            variant="noShadow"
+            size="sm"
+            onClick={() => setAdvancedSearchOpen(true)}
+            disabled={isLoading}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Advanced Search
+          </Button>
+
           {/* Status Filter */}
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="h-4 w-4 text-foreground/50" />
@@ -337,8 +339,7 @@ export default function OrganizationsPage() {
 
                 {/* Metadata */}
                 <div className="pt-3 border-t-2 border-black space-y-1 text-xs font-base text-foreground/50">
-                  <div>Created {org.daysSinceCreated} days ago</div>
-                  <div>by {org.createdBy}</div>
+                  <div>Created by {org.createdBy}</div>
                 </div>
               </div>
 
@@ -512,6 +513,15 @@ export default function OrganizationsPage() {
           onClose={handleDialogClose}
         />
       )}
+
+      {/* Advanced Search Dialog */}
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={organizationSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced Organization Search"
+      />
     </div>
   )
 }

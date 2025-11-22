@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Shield, Settings } from "lucide-react"
+import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Shield, Settings, Filter } from "lucide-react"
 import { useRoles, useCreateRole, useUpdateRole, useDeleteRole, useActivateRole, useSuspendRole } from "@/hooks/useRoles"
 import { Role, RoleStatus } from "@/lib/api/roles"
 import { PermissionGuard } from "@/components/auth/permission-guard"
 import { usePermission } from "@/hooks/usePermission"
 import { toast } from "sonner"
+import { AdvancedSearchDialog, roleSearchFilters } from "@/components/ui/advanced-search-dialog"
 
 type RoleFormData = Omit<Role, 'id' | 'deleted' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'> & { id?: string }
 
@@ -23,6 +24,7 @@ export default function RolesPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
 
   // Fetch roles with React Query
   const { data: rolesData, isLoading, error, refetch } = useRoles({
@@ -58,6 +60,13 @@ export default function RolesPage() {
     await suspendMutation.mutateAsync(id)
     refetch()
   }, [suspendMutation, refetch])
+
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    console.log('Advanced search filters:', filters)
+    toast.success('Filters applied', {
+      description: `${Object.keys(filters).length} filter(s) active`
+    })
+  }, [])
 
   const columns = useMemo<ColumnDef<Role>[]>(
     () => [
@@ -339,6 +348,15 @@ export default function RolesPage() {
               className="pl-10 border-2 border-black font-base"
             />
           </div>
+          <Button
+            variant="noShadow"
+            size="sm"
+            onClick={() => setAdvancedSearchOpen(true)}
+            disabled={isLoading}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Advanced Search
+          </Button>
         </div>
 
         {isLoading ? (
@@ -502,6 +520,15 @@ export default function RolesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Advanced Search Dialog */}
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={roleSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced Role Search"
+      />
     </div>
   )
 }

@@ -283,3 +283,84 @@ export const organizationSearchFilters: SearchFilter[] = [
   { field: 'createdAfter', label: 'Created After', type: 'date' },
   { field: 'createdBefore', label: 'Created Before', type: 'date' },
 ]
+
+export const customerSearchFilters: SearchFilter[] = [
+  { field: 'name', label: 'Name', type: 'text', placeholder: 'Enter customer name' },
+  { field: 'email', label: 'Email', type: 'text', placeholder: 'Enter email' },
+  { field: 'phone', label: 'Phone', type: 'text', placeholder: 'Enter phone' },
+  { field: 'companyName', label: 'Company', type: 'text', placeholder: 'Enter company name' },
+  {
+    field: 'customerType',
+    label: 'Type',
+    type: 'select',
+    options: [
+      { label: 'Individual', value: 'INDIVIDUAL' },
+      { label: 'Company', value: 'COMPANY' },
+    ]
+  },
+  {
+    field: 'status',
+    label: 'Status',
+    type: 'select',
+    options: [
+      { label: 'Active', value: 'ACTIVE' },
+      { label: 'Inactive', value: 'INACTIVE' },
+      { label: 'Prospect', value: 'PROSPECT' },
+      { label: 'Blacklisted', value: 'BLACKLISTED' },
+    ]
+  },
+  {
+    field: 'isVip',
+    label: 'VIP Customer',
+    type: 'select',
+    options: [
+      { label: 'Yes', value: 'true' },
+      { label: 'No', value: 'false' },
+    ]
+  },
+  { field: 'branchId', label: 'Branch ID', type: 'text', placeholder: 'Enter branch ID' },
+  { field: 'acquisitionDateAfter', label: 'Acquired After', type: 'date' },
+  { field: 'acquisitionDateBefore', label: 'Acquired Before', type: 'date' },
+]
+
+export const contactSearchFilters: SearchFilter[] = [
+  { field: 'firstName', label: 'First Name', type: 'text', placeholder: 'Enter first name' },
+  { field: 'lastName', label: 'Last Name', type: 'text', placeholder: 'Enter last name' },
+  { field: 'email', label: 'Email', type: 'text', placeholder: 'Enter email' },
+  { field: 'phone', label: 'Phone', type: 'text', placeholder: 'Enter phone' },
+  { field: 'jobTitle', label: 'Job Title', type: 'text', placeholder: 'Enter job title' },
+  { field: 'department', label: 'Department', type: 'text', placeholder: 'Enter department' },
+  {
+    field: 'role',
+    label: 'Role',
+    type: 'select',
+    options: [
+      { label: 'Decision Maker', value: 'DECISION_MAKER' },
+      { label: 'Influencer', value: 'INFLUENCER' },
+      { label: 'Champion', value: 'CHAMPION' },
+      { label: 'Evaluator', value: 'EVALUATOR' },
+      { label: 'Gatekeeper', value: 'GATEKEEPER' },
+      { label: 'User', value: 'USER' },
+      { label: 'Other', value: 'OTHER' },
+    ]
+  },
+  {
+    field: 'status',
+    label: 'Status',
+    type: 'select',
+    options: [
+      { label: 'Active', value: 'ACTIVE' },
+      { label: 'Inactive', value: 'INACTIVE' },
+    ]
+  },
+  {
+    field: 'isPrimary',
+    label: 'Primary Contact',
+    type: 'select',
+    options: [
+      { label: 'Yes', value: 'true' },
+      { label: 'No', value: 'false' },
+    ]
+  },
+  { field: 'customerId', label: 'Customer ID', type: 'text', placeholder: 'Enter customer ID' },
+]

@@ -24,6 +24,7 @@ import { useTabsByMenu } from "@/hooks/useMenuTabs"
 import { useApiEndpoints } from "@/hooks/useApiEndpoints"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table-reusable"
+import { PermissionGuard } from "@/components/auth/permission-guard"
 
 export default function MenuScreensPage() {
   const [open, setOpen] = useState(false)
@@ -112,28 +113,34 @@ export default function MenuScreensPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => openApiDialog(row.original)}
-            >
-              APIs
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => onEdit(row.original)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => onDelete(row.original.id)}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
+            <PermissionGuard action="EDIT">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => openApiDialog(row.original)}
+              >
+                APIs
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard action="EDIT">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => onEdit(row.original)}
+              >
+                Edit
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard action="DELETE">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => onDelete(row.original.id)}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </PermissionGuard>
           </div>
         ),
       },
