@@ -123,6 +123,17 @@ public class RedisCacheConfig {
         // Group members - 30 minutes
         cacheConfigurations.put("groupMembers", defaultConfig.entryTtl(Duration.ofMinutes(30)));
 
+        // ✅ NOTIFICATION MODULE: High-scale caching for 1M users, 50K CCU
+        // Notification preferences - 15 minutes (user checks frequently)
+        cacheConfigurations.put("notification-preferences", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("notification-preference", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+
+        // Notification list - 2 minutes (real-time updates via WebSocket)
+        cacheConfigurations.put("notifications", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+
+        // Unread count - 1 minute (displayed in UI header)
+        cacheConfigurations.put("notification-unread-count", defaultConfig.entryTtl(Duration.ofMinutes(1)));
+
         return RedisCacheManager.builder(connectionFactory)
             .cacheDefaults(defaultConfig)
             .withInitialCacheConfigurations(cacheConfigurations)

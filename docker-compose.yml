@@ -121,6 +121,19 @@ services:
     depends_on:
       - prometheus
 
+  # MailHog - Email testing tool (catches all outgoing emails)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: crm-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - crm-network
+    environment:
+      MH_STORAGE: memory
+      MH_UI_WEB_PATH: mailhog
+
   # Redis Commander (Web UI for Redis) - Optional debug tool
   # redis-commander:
   #   image: rediscommander/redis-commander:latest

@@ -1,5 +1,7 @@
 package com.neobrutalism.crm.application.migration.service;
 
+import com.neobrutalism.crm.common.audit.AuditAction;
+import com.neobrutalism.crm.common.audit.Audited;
 import com.neobrutalism.crm.application.excel.ExcelFacade;
 import com.neobrutalism.crm.application.migration.dto.HSBGCifDTO;
 import com.neobrutalism.crm.application.migration.dto.HSBGHopDongDTO;
@@ -23,6 +25,14 @@ import com.neobrutalism.crm.application.migration.validation.ValidationResult;
 import com.neobrutalism.crm.application.migration.validation.impl.HSBGHopDongValidator;
 import com.neobrutalism.crm.utils.config.ExcelConfig;
 import com.neobrutalism.crm.utils.config.ExcelConfigFactory;
+import com.neobrutalism.crm.domain.customer.model.Customer;
+import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
+import com.neobrutalism.crm.domain.customer.model.CustomerType;
+import com.neobrutalism.crm.domain.customer.repository.CustomerRepository;
+import com.neobrutalism.crm.domain.contract.model.Contract;
+import com.neobrutalism.crm.domain.contract.repository.ContractRepository;
+import com.neobrutalism.crm.domain.document.model.DocumentVolume;
+import com.neobrutalism.crm.domain.document.repository.DocumentVolumeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -69,10 +79,14 @@ public class ExcelMigrationService {
     private final HSBGHopDongValidator hopDongValidator;
     private final com.neobrutalism.crm.application.migration.validation.impl.HSBGCifValidator cifValidator;
     private final com.neobrutalism.crm.application.migration.validation.impl.HSBGTapValidator tapValidator;
-    private final ObjectMapper objectMapper;
     private final MigrationErrorLogger errorLogger;
     private final com.neobrutalism.crm.application.migration.monitoring.MigrationMonitor migrationMonitor;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    
+    // Master data repositories for transformation
+    private final CustomerRepository customerRepository;
+    private final ContractRepository contractRepository;
+    private final DocumentVolumeRepository documentVolumeRepository;
 
     /**
      * Memory-aware concurrency control
@@ -196,6 +210,7 @@ public class ExcelMigrationService {
      * Falls back to legacy per-sheet processing if needed
      */
     @Async("excelMigrationExecutor")
+    @Audited(entity = "MigrationJob", action = AuditAction.IMPORT, description = "Excel migration started")
     public CompletableFuture<Void> startMigration(UUID jobId) {
         log.info("Starting migration for job: {}", jobId);
 
@@ -1162,34 +1177,245 @@ public class ExcelMigrationService {
     
     /**
      * Transform staging records to master data entities and insert
-     * TODO: Implement actual master data transformation based on your domain model
+     * Converts HSBG contract data to master Contract entities
      */
     private List<UUID> transformAndInsertHopDong(List<StagingHSBGHopDong> batch) {
-        // TODO: Transform to actual master data entities
-        // Example:
-        // List<MasterDataEntity> entities = batch.stream()
-        //     .map(this::mapStagingToMaster)
-        //     .collect(Collectors.toList());
-        // masterDataRepository.saveAll(entities);
+        List<UUID> insertedIds = new ArrayList<>();
+        UUID tenantId = null;
         
-        // For now, return all IDs as inserted
-        return batch.stream()
-            .map(StagingHSBGHopDong::getId)
-            .toList();
+        // Get tenantId from first valid record
+        if (!batch.isEmpty()) {
+            MigrationJob job = jobRepository.findById(batch.get(0).getJobId()).orElse(null);
+            if (job != null) {
+                tenantId = job.getTenantId();
+            }
+        }
+        
+        if (tenantId == null) {
+            log.warn("Cannot transform HopDong batch - missing tenantId");
+            return insertedIds;
+        }
+        
+        List<Contract> contracts = new ArrayList<>();
+        final UUID finalTenantId = tenantId;
+        
+        for (StagingHSBGHopDong staging : batch) {
+            try {
+                // Check if already exists
+                if (staging.getContractNumber() != null && 
+                    contractRepository.existsByContractNumberAndTenantId(staging.getContractNumber(), finalTenantId)) {
+                    log.debug("Contract {} already exists, skipping", staging.getContractNumber());
+                    staging.setMasterDataExists(true);
+                    continue;
+                }
+                
+                Contract contract = Contract.builder()
+                    .tenantId(finalTenantId)
+                    .contractNumber(staging.getContractNumber())
+                    .customerCif(staging.getCustomerCifCccdCmt())
+                    .customerName(staging.getCustomerName())
+                    .customerSegment(staging.getCustomerSegment())
+                    .unitCode(staging.getUnitCode())
+                    .warehouseVpbank(staging.getWarehouseVpbank())
+                    .deliveryResponsibility(staging.getDeliveryResponsibility())
+                    .documentType(staging.getDocumentType())
+                    .documentFlow(staging.getDocumentFlow())
+                    .volumeName(staging.getVolumeName())
+                    .volumeQuantity(staging.getVolumeQuantity())
+                    .product(staging.getProduct())
+                    .creditTermCategory(staging.getCreditTermCategory())
+                    .creditTermMonths(staging.getCreditTermMonths())
+                    .requiredDeliveryDate(staging.getRequiredDeliveryDate())
+                    .deliveryDate(staging.getDeliveryDate())
+                    .disbursementDate(staging.getDisbursementDate())
+                    .dueDate(staging.getDueDate())
+                    .expectedDestructionDate(staging.getExpectedDestructionDate())
+                    .pdmCaseStatus(staging.getPdmCaseStatus())
+                    .boxCode(staging.getBoxCode())
+                    .vpbankWarehouseEntryDate(staging.getVpbankWarehouseEntryDate())
+                    .crownWarehouseTransferDate(staging.getCrownWarehouseTransferDate())
+                    .area(staging.getArea())
+                    .row(staging.getRow())
+                    .column(staging.getColumn())
+                    .boxCondition(staging.getBoxCondition())
+                    .boxStatus(staging.getBoxStatus())
+                    .daoCode(staging.getDaoCode())
+                    .tsCode(staging.getTsCode())
+                    .rrtId(staging.getRrtId())
+                    .nqCode(staging.getNqCode())
+                    .notes(staging.getNotes())
+                    .sourceSystem("MIGRATION")
+                    .migrationJobId(staging.getJobId())
+                    .build();
+                
+                contracts.add(contract);
+                insertedIds.add(staging.getId());
+                staging.setInsertedToMaster(true);
+                staging.setInsertedAt(Instant.now());
+                
+            } catch (Exception e) {
+                log.error("Failed to transform HopDong record {}: {}", staging.getId(), e.getMessage(), e);
+            }
+        }
+        
+        // Batch save all contracts
+        if (!contracts.isEmpty()) {
+            contractRepository.saveAll(contracts);
+            log.info("Inserted {} contracts to master data", contracts.size());
+        }
+        
+        // Update staging records
+        stagingHopDongRepository.saveAll(batch);
+        
+        return insertedIds;
     }
     
     private List<UUID> transformAndInsertCif(List<StagingHSBGCif> batch) {
-        // TODO: Implement actual master data transformation
-        return batch.stream()
-            .map(StagingHSBGCif::getId)
-            .toList();
+        List<UUID> insertedIds = new ArrayList<>();
+        UUID tenantId = null;
+        
+        // Get tenantId from first valid record
+        if (!batch.isEmpty()) {
+            MigrationJob job = jobRepository.findById(batch.get(0).getJobId()).orElse(null);
+            if (job != null) {
+                tenantId = job.getTenantId();
+            }
+        }
+        
+        if (tenantId == null) {
+            log.warn("Cannot transform CIF batch - missing tenantId");
+            return insertedIds;
+        }
+        
+        List<Customer> customers = new ArrayList<>();
+        final UUID finalTenantId = tenantId;
+        
+        for (StagingHSBGCif staging : batch) {
+            try {
+                // Check if customer already exists
+                if (staging.getCustomerCif() != null &&
+                    customerRepository.findByCodeAndTenantId(staging.getCustomerCif(), finalTenantId.toString()).isPresent()) {
+                    log.debug("Customer {} already exists, skipping", staging.getCustomerCif());
+                    staging.setMasterDataExists(true);
+                    continue;
+                }
+                
+                Customer customer = new Customer();
+                customer.setTenantId(finalTenantId.toString());
+                customer.setCode(staging.getCustomerCif() != null ? staging.getCustomerCif() : "CIF-" + UUID.randomUUID());
+                customer.setCompanyName(staging.getCustomerName() != null ? staging.getCustomerName() : "Unknown");
+                customer.setCustomerType(CustomerType.B2B); // Default from migration
+                customer.setStatus(CustomerStatus.ACTIVE);
+                
+                // Map additional fields that exist in Customer entity
+                customer.setTags(staging.getCustomerSegment());
+                customer.setNotes(staging.getNotes());
+                
+                customers.add(customer);
+                insertedIds.add(staging.getId());
+                staging.setInsertedToMaster(true);
+                staging.setInsertedAt(Instant.now());
+                
+            } catch (Exception e) {
+                log.error("Failed to transform CIF record {}: {}", staging.getId(), e.getMessage(), e);
+            }
+        }
+        
+        // Batch save all customers
+        if (!customers.isEmpty()) {
+            customerRepository.saveAll(customers);
+            log.info("Inserted {} customers to master data", customers.size());
+        }
+        
+        // Update staging records
+        stagingCifRepository.saveAll(batch);
+        
+        return insertedIds;
     }
     
     private List<UUID> transformAndInsertTap(List<StagingHSBGTap> batch) {
-        // TODO: Implement actual master data transformation
-        return batch.stream()
-            .map(StagingHSBGTap::getId)
-            .toList();
+        List<UUID> insertedIds = new ArrayList<>();
+        UUID tenantId = null;
+        
+        // Get tenantId from first valid record
+        if (!batch.isEmpty()) {
+            MigrationJob job = jobRepository.findById(batch.get(0).getJobId()).orElse(null);
+            if (job != null) {
+                tenantId = job.getTenantId();
+            }
+        }
+        
+        if (tenantId == null) {
+            log.warn("Cannot transform Tap batch - missing tenantId");
+            return insertedIds;
+        }
+        
+        List<DocumentVolume> volumes = new ArrayList<>();
+        final UUID finalTenantId = tenantId;
+        
+        for (StagingHSBGTap staging : batch) {
+            try {
+                // Check if volume already exists
+                if (staging.getVolumeName() != null && staging.getBoxCode() != null &&
+                    documentVolumeRepository.existsByVolumeNameAndBoxCodeAndTenantId(
+                        staging.getVolumeName(), staging.getBoxCode(), finalTenantId)) {
+                    log.debug("DocumentVolume {} already exists, skipping", staging.getVolumeName());
+                    staging.setMasterDataExists(true);
+                    continue;
+                }
+                
+                DocumentVolume volume = DocumentVolume.builder()
+                    .tenantId(finalTenantId)
+                    .volumeName(staging.getVolumeName())
+                    .volumeQuantity(staging.getVolumeQuantity())
+                    .customerCif(staging.getCustomerCif())
+                    .customerName(staging.getCustomerName())
+                    .customerSegment(staging.getCustomerSegment())
+                    .unitCode(staging.getUnitCode())
+                    .warehouseVpbank(staging.getWarehouseVpbank())
+                    .deliveryResponsibility(staging.getDeliveryResponsibility())
+                    .documentType(staging.getDocumentType())
+                    .documentFlow(staging.getDocumentFlow())
+                    .creditTermCategory(staging.getCreditTermCategory())
+                    .requiredDeliveryDate(staging.getRequiredDeliveryDate())
+                    .deliveryDate(staging.getDeliveryDate())
+                    .disbursementDate(staging.getDisbursementDate())
+                    .product(staging.getProduct())
+                    .pdmCaseStatus(staging.getPdmCaseStatus())
+                    .boxCode(staging.getBoxCode())
+                    .vpbankWarehouseEntryDate(staging.getVpbankWarehouseEntryDate())
+                    .crownWarehouseTransferDate(staging.getCrownWarehouseTransferDate())
+                    .area(staging.getArea())
+                    .row(staging.getRow())
+                    .column(staging.getColumn())
+                    .boxCondition(staging.getBoxCondition())
+                    .boxStatus(staging.getBoxStatus())
+                    .nqCode(staging.getNqCode())
+                    .notes(staging.getNotes())
+                    .sourceSystem("MIGRATION")
+                    .migrationJobId(staging.getJobId())
+                    .build();
+                
+                volumes.add(volume);
+                insertedIds.add(staging.getId());
+                staging.setInsertedToMaster(true);
+                staging.setInsertedAt(Instant.now());
+                
+            } catch (Exception e) {
+                log.error("Failed to transform Tap record {}: {}", staging.getId(), e.getMessage(), e);
+            }
+        }
+        
+        // Batch save all volumes
+        if (!volumes.isEmpty()) {
+            documentVolumeRepository.saveAll(volumes);
+            log.info("Inserted {} document volumes to master data", volumes.size());
+        }
+        
+        // Update staging records
+        stagingTapRepository.saveAll(batch);
+        
+        return insertedIds;
     }
 
     /**

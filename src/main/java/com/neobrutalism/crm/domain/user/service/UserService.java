@@ -1,5 +1,7 @@
 package com.neobrutalism.crm.domain.user.service;
 
+import com.neobrutalism.crm.common.audit.AuditAction;
+import com.neobrutalism.crm.common.audit.Audited;
 import com.neobrutalism.crm.common.exception.BusinessException;
 import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
 import com.neobrutalism.crm.common.service.EventPublisher;
@@ -211,6 +213,7 @@ public class UserService extends StatefulService<User, UserStatus> {
     @Override
     @Transactional
     @CacheEvict(value = "users", allEntries = true)
+    @Audited(entity = "User", action = AuditAction.CREATE, description = "User created")
     public User create(User entity) {
         return createWithIntegrityCheck(entity, CONSTRAINT_MESSAGES);
     }
@@ -222,6 +225,7 @@ public class UserService extends StatefulService<User, UserStatus> {
     @Override
     @Transactional
     @CacheEvict(value = "users", allEntries = true)
+    @Audited(entity = "User", action = AuditAction.UPDATE, description = "User updated")
     public User update(UUID id, User entity) {
         return updateWithIntegrityCheck(id, entity, CONSTRAINT_MESSAGES);
     }
@@ -246,6 +250,7 @@ public class UserService extends StatefulService<User, UserStatus> {
     @Override
     @Transactional
     @CacheEvict(value = "users", allEntries = true)
+    @Audited(entity = "User", action = AuditAction.DELETE, description = "User deleted")
     public void delete(User entity) {
         deleteWithIntegrityCheck(entity, "related entities (roles, groups, etc.)");
     }

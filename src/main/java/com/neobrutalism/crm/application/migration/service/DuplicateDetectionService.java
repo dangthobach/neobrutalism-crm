@@ -273,24 +273,133 @@ public class DuplicateDetectionService {
     }
     
     private void checkDuplicatesAgainstMasterHopDong(UUID sheetId) {
-        // TODO: Implement based on master data table structure
-        // Example:
-        // UPDATE staging_hsbg_hop_dong s
-        // SET master_data_exists = TRUE
-        // WHERE EXISTS (
-        //     SELECT 1 FROM master_data_table m
-        //     WHERE m.contract_number = s.so_hop_dong
-        //       AND m.document_type = s.loai_ho_so
-        //       AND m.disbursement_date = s.ngay_giai_ngan
-        // )
+        log.info("Checking duplicates against master data (contracts) for sheet: {}", sheetId);
+        
+        String updateSql = """
+            UPDATE staging_hsbg_hop_dong s
+            SET master_data_exists = TRUE,
+                validation_status = 'DUPLICATE'
+            WHERE s.sheet_id = ?
+              AND s.validation_status = 'VALID'
+              AND EXISTS (
+                  SELECT 1 FROM contracts m
+                  WHERE m.contract_number = s.so_hop_dong
+                    AND m.is_deleted = FALSE
+                    AND m.tenant_id = (SELECT tenant_id FROM migration_jobs WHERE id = s.job_id)
+              )
+            """;
+        
+        int updated = jdbcTemplate.update(updateSql, sheetId);
+        log.info("Marked {} HopDong records as duplicates against master data", updated);
+        
+        // Log errors for duplicates
+        if (updated > 0) {
+            String logErrorSql = """
+                INSERT INTO migration_errors (id, job_id, sheet_id, staging_record_id, row_number, error_type, error_message, created_at)
+                SELECT 
+                    gen_random_uuid(),
+                    s.job_id,
+                    s.sheet_id,
+                    s.id,
+                    s.row_number,
+                    'DUPLICATE',
+                    CONCAT('Contract ', s.so_hop_dong, ' already exists in master data'),
+                    CURRENT_TIMESTAMP
+                FROM staging_hsbg_hop_dong s
+                WHERE s.sheet_id = ?
+                  AND s.master_data_exists = TRUE
+                  AND s.validation_status = 'DUPLICATE'
+                """;
+            
+            jdbcTemplate.update(logErrorSql, sheetId);
+        }
     }
     
     private void checkDuplicatesAgainstMasterCif(UUID sheetId) {
-        // TODO: Implement
+        log.info("Checking duplicates against master data (customers) for sheet: {}", sheetId);
+        
+        String updateSql = """
+            UPDATE staging_hsbg_cif s
+            SET master_data_exists = TRUE,
+                validation_status = 'DUPLICATE'
+            WHERE s.sheet_id = ?
+              AND s.validation_status = 'VALID'
+              AND EXISTS (
+                  SELECT 1 FROM customers m
+                  WHERE m.code = s.so_cif
+                    AND m.deleted = FALSE
+                    AND m.tenant_id = (SELECT CAST(tenant_id AS TEXT) FROM migration_jobs WHERE id = s.job_id)
+              )
+            """;
+        
+        int updated = jdbcTemplate.update(updateSql, sheetId);
+        log.info("Marked {} CIF records as duplicates against master data", updated);
+        
+        // Log errors for duplicates
+        if (updated > 0) {
+            String logErrorSql = """
+                INSERT INTO migration_errors (id, job_id, sheet_id, staging_record_id, row_number, error_type, error_message, created_at)
+                SELECT 
+                    gen_random_uuid(),
+                    s.job_id,
+                    s.sheet_id,
+                    s.id,
+                    s.row_number,
+                    'DUPLICATE',
+                    CONCAT('Customer CIF ', s.so_cif, ' already exists in master data'),
+                    CURRENT_TIMESTAMP
+                FROM staging_hsbg_cif s
+                WHERE s.sheet_id = ?
+                  AND s.master_data_exists = TRUE
+                  AND s.validation_status = 'DUPLICATE'
+                """;
+            
+            jdbcTemplate.update(logErrorSql, sheetId);
+        }
     }
     
     private void checkDuplicatesAgainstMasterTap(UUID sheetId) {
-        // TODO: Implement
+        log.info("Checking duplicates against master data (document volumes) for sheet: {}", sheetId);
+        
+        String updateSql = """
+            UPDATE staging_hsbg_tap s
+            SET master_data_exists = TRUE,
+                validation_status = 'DUPLICATE'
+            WHERE s.sheet_id = ?
+              AND s.validation_status = 'VALID'
+              AND EXISTS (
+                  SELECT 1 FROM document_volumes m
+                  WHERE m.volume_name = s.ten_tap
+                    AND m.box_code = s.ma_thung
+                    AND m.is_deleted = FALSE
+                    AND m.tenant_id = (SELECT tenant_id FROM migration_jobs WHERE id = s.job_id)
+              )
+            """;
+        
+        int updated = jdbcTemplate.update(updateSql, sheetId);
+        log.info("Marked {} Tap records as duplicates against master data", updated);
+        
+        // Log errors for duplicates
+        if (updated > 0) {
+            String logErrorSql = """
+                INSERT INTO migration_errors (id, job_id, sheet_id, staging_record_id, row_number, error_type, error_message, created_at)
+                SELECT 
+                    gen_random_uuid(),
+                    s.job_id,
+                    s.sheet_id,
+                    s.id,
+                    s.row_number,
+                    'DUPLICATE',
+                    CONCAT('Document volume ', s.ten_tap, ' in box ', s.ma_thung, ' already exists in master data'),
+                    CURRENT_TIMESTAMP
+                FROM staging_hsbg_tap s
+                WHERE s.sheet_id = ?
+                  AND s.master_data_exists = TRUE
+                  AND s.validation_status = 'DUPLICATE'
+                """;
+            
+            jdbcTemplate.update(logErrorSql, sheetId);
+        }
     }
 }
 

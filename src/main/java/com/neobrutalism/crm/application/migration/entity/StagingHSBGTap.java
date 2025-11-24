@@ -79,6 +79,22 @@ public class StagingHSBGTap {
     @Column(name = "ghi_chu", columnDefinition = "TEXT")
     private String notes;
     
+    // Additional customer fields for migration
+    @Column(name = "ma_cif_khach_hang")
+    private String customerCif;
+    
+    @Column(name = "ten_khach_hang")
+    private String customerName;
+    
+    @Column(name = "phan_khuc_khach_hang")
+    private String customerSegment;
+    
+    @Column(name = "ngay_giai_ngan")
+    private LocalDate disbursementDate;
+    
+    @Column(name = "ma_nq")
+    private String nqCode;
+    
     @Column(name = "ma_thung")
     private String boxCode;
     

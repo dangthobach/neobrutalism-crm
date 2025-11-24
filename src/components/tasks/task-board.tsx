@@ -6,6 +6,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   DndContext,
   DragEndEvent,
@@ -80,6 +81,7 @@ function isOverdue(dueDate?: string): boolean {
  * Draggable Task Card
  */
 function DraggableTaskCard({ task, onEdit, onDelete, bulkMode, isSelected, onToggleSelect }: TaskCardProps) {
+  const router = useRouter()
   const {
     attributes,
     listeners,
@@ -98,15 +100,21 @@ function DraggableTaskCard({ task, onEdit, onDelete, bulkMode, isSelected, onTog
   const priority = getPriorityBadge(task.priority)
   const overdue = isOverdue(task.dueDate)
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (bulkMode && onToggleSelect) {
+      e.stopPropagation()
+      onToggleSelect(task.id)
+    } else if (!bulkMode) {
+      // Navigate to task detail page
+      router.push(`/admin/tasks/${task.id}`)
+    }
+  }
+
   return (
     <div ref={setNodeRef} style={style} {...(bulkMode ? {} : attributes)} {...(bulkMode ? {} : listeners)}>
-      <Card className={`p-4 mb-3 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all ${bulkMode ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
-        onClick={(e) => {
-          if (bulkMode && onToggleSelect) {
-            e.stopPropagation()
-            onToggleSelect(task.id)
-          }
-        }}
+      <Card
+        className={`p-4 mb-3 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all ${bulkMode ? 'cursor-pointer' : 'cursor-pointer'} ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
+        onClick={handleCardClick}
       >
         <div className="flex items-start justify-between mb-2">
           {bulkMode && onToggleSelect && (

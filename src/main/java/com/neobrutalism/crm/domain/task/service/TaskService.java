@@ -2,6 +2,7 @@ package com.neobrutalism.crm.domain.task.service;
 
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
 import com.neobrutalism.crm.common.repository.BaseRepository;
+import com.neobrutalism.crm.common.security.UserContext;
 import com.neobrutalism.crm.common.service.BaseService;
 import com.neobrutalism.crm.common.service.EventPublisher;
 import com.neobrutalism.crm.domain.task.dto.TaskRequest;
@@ -32,6 +33,7 @@ public class TaskService extends BaseService<Task> {
 
     private final TaskRepository taskRepository;
     private final EventPublisher eventPublisher;
+    private final UserContext userContext;
 
     @Override
     protected BaseRepository<Task> getRepository() {
@@ -268,6 +270,7 @@ public class TaskService extends BaseService<Task> {
 
     /**
      * Helper method to map request DTO to entity
+     * Automatically sets organizationId from current user context
      */
     private void mapRequestToEntity(TaskRequest request, Task task) {
         task.setTitle(request.getTitle());
@@ -278,9 +281,19 @@ public class TaskService extends BaseService<Task> {
         task.setRelatedToId(request.getRelatedToId());
         task.setDueDate(request.getDueDate());
         task.setEstimatedHours(request.getEstimatedHours());
-        task.setOrganizationId(request.getOrganizationId());
-        task.setBranchId(request.getBranchId());
         task.setChecklist(request.getChecklist());
+
+        // Auto-set organizationId from authenticated user context (ignore request value)
+        String orgId = userContext.getCurrentOrganizationId().orElse(null);
+        if (orgId != null) {
+            task.setOrganizationId(UUID.fromString(orgId));
+            log.debug("Setting task organizationId from user context: {}", orgId);
+        }
+
+        // BranchId can be set from request or context
+        if (request.getBranchId() != null) {
+            task.setBranchId(request.getBranchId());
+        }
     }
 
 }

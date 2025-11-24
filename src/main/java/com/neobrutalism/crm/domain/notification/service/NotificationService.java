@@ -3,6 +3,7 @@ package com.neobrutalism.crm.domain.notification.service;
 import com.neobrutalism.crm.common.email.EmailService;
 import com.neobrutalism.crm.common.exception.BusinessException;
 import com.neobrutalism.crm.common.exception.ErrorCode;
+import com.neobrutalism.crm.common.websocket.WebSocketService;
 import com.neobrutalism.crm.domain.notification.model.Notification;
 import com.neobrutalism.crm.domain.notification.model.NotificationStatus;
 import com.neobrutalism.crm.domain.notification.model.NotificationType;
@@ -36,7 +37,9 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final EmailNotificationService emailNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final WebSocketService webSocketService;
 
     /**
      * Create and send notification
@@ -100,15 +103,11 @@ public class NotificationService {
     }
 
     /**
-     * Send notification via WebSocket
+     * Send notification via WebSocket (Enhanced with WebSocketService)
      */
     private void sendViaWebSocket(Notification notification) {
         try {
-            messagingTemplate.convertAndSendToUser(
-                    notification.getRecipientId().toString(),
-                    "/queue/notifications",
-                    notification
-            );
+            webSocketService.sendNotificationToUser(notification.getRecipientId(), notification);
             log.info("Notification sent via WebSocket: {}", notification.getId());
         } catch (Exception e) {
             log.error("Failed to send notification via WebSocket: {}", notification.getId(), e);
@@ -116,7 +115,7 @@ public class NotificationService {
     }
 
     /**
-     * Send notification via Email
+     * Send notification via Email (Enhanced with template support)
      */
     private void sendViaEmail(Notification notification) {
         try {
@@ -133,13 +132,8 @@ public class NotificationService {
                 return;
             }
 
-            // Send email
-            emailService.sendNotificationEmail(
-                    user.getEmail(),
-                    notification.getTitle(),
-                    notification.getMessage(),
-                    notification.getActionUrl()
-            );
+            // Send email using enhanced email notification service with templates
+            emailNotificationService.sendNotificationEmail(notification, user);
 
             notification.setEmailSent(true);
             notification.setEmailSentAt(Instant.now());
@@ -211,7 +205,16 @@ public class NotificationService {
     public Notification markAsRead(UUID notificationId) {
         Notification notification = findById(notificationId);
         notification.markAsRead();
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        
+        // Send WebSocket event for real-time update
+        webSocketService.sendNotificationReadEvent(notification.getRecipientId(), notificationId);
+        
+        // Update unread count
+        Long unreadCount = countUnreadNotifications(notification.getRecipientId());
+        webSocketService.sendUnreadCountUpdate(notification.getRecipientId(), unreadCount);
+        
+        return saved;
     }
 
     /**
@@ -219,7 +222,12 @@ public class NotificationService {
      */
     @Transactional
     public int markAllAsRead(UUID recipientId) {
-        return notificationRepository.markAllAsRead(recipientId, Instant.now());
+        int count = notificationRepository.markAllAsRead(recipientId, Instant.now());
+        
+        // Send unread count update
+        webSocketService.sendUnreadCountUpdate(recipientId, 0L);
+        
+        return count;
     }
 
     /**

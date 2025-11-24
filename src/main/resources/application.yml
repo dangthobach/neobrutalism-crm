@@ -69,20 +69,38 @@ spring:
 
   # Email Configuration
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: true
+          auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: true
-            required: true
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:false}
+            required: ${MAIL_SMTP_STARTTLS_REQUIRED:false}
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+    # From address configuration
+    default-encoding: UTF-8
+    
+# Application-specific notification settings
+notification:
+  email:
+    from: ${MAIL_FROM:noreply@crm.local}
+    from-name: ${MAIL_FROM_NAME:Neobrutalism CRM}
+    enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+    quiet-hours:
+      enabled: ${NOTIFICATION_QUIET_HOURS_ENABLED:false}
+      start: ${NOTIFICATION_QUIET_HOURS_START:22}  # 10 PM
+      end: ${NOTIFICATION_QUIET_HOURS_END:7}      # 7 AM
+      timezone: ${NOTIFICATION_TIMEZONE:Asia/Ho_Chi_Minh}
+    digest:
+      enabled: ${NOTIFICATION_DIGEST_ENABLED:false}
+      schedule: "0 0 8 * * ?"  # 8 AM daily
+      max-age-hours: 24
 
 server:
   port: 8080

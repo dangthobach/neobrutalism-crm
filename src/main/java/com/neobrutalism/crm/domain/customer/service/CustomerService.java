@@ -1,5 +1,7 @@
 package com.neobrutalism.crm.domain.customer.service;
 
+import com.neobrutalism.crm.common.audit.AuditAction;
+import com.neobrutalism.crm.common.audit.Audited;
 import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
 import com.neobrutalism.crm.common.exception.ValidationException;
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
@@ -54,6 +56,7 @@ public class CustomerService extends BaseService<Customer> {
      */
     @Transactional
     @CacheEvict(value = "customers", allEntries = true)
+    @Audited(entity = "Customer", action = AuditAction.CREATE, description = "Customer created")
     public Customer create(Customer customer) {
         log.info("Creating new customer: {}", customer.getCode());
 
@@ -89,6 +92,7 @@ public class CustomerService extends BaseService<Customer> {
      */
     @Transactional
     @CacheEvict(value = "customers", allEntries = true)
+    @Audited(entity = "Customer", action = AuditAction.UPDATE, description = "Customer updated")
     public Customer update(UUID id, Customer updatedCustomer) {
         log.info("Updating customer: {}", id);
 
@@ -429,6 +433,7 @@ public class CustomerService extends BaseService<Customer> {
      */
     @Transactional
     @CacheEvict(value = "customers", allEntries = true)
+    @Audited(entity = "Customer", action = AuditAction.DELETE, description = "Customer soft deleted")
     public void deleteById(UUID id) {
         log.info("Soft deleting customer: {}", id);
         Customer customer = findById(id);

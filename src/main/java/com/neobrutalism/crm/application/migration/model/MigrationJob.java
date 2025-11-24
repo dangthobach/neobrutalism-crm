@@ -9,6 +9,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Migration job entity
@@ -21,6 +22,9 @@ import java.time.Instant;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class MigrationJob extends AuditableEntity {
+    
+    @Column(name = "tenant_id", length = 255)
+    private UUID tenantId;
     
     @Column(name = "file_name", nullable = false, length = 500)
     private String fileName;

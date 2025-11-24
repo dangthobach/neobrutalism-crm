@@ -21,6 +21,7 @@ import {
   useCreateTask,
   useUpdateTask,
 } from "@/hooks/use-tasks"
+import { useUsers } from "@/hooks/useUsers"
 import { TaskBoard } from "@/components/tasks/task-board"
 import { TaskEditModal } from "@/components/tasks/task-edit-modal"
 import { Task, TaskStatus, TaskPriority, CreateTaskRequest, UpdateTaskRequest } from "@/types/task"
@@ -63,6 +64,13 @@ export default function TasksPage() {
 
   // Check permissions
   const { canCreate, canEdit, canDelete } = usePermission()
+
+  // Load users for assignee dropdown
+  const { data: usersData, isLoading: isLoadingUsers } = useUsers({
+    page: 1,
+    limit: 100,
+    status: 'ACTIVE'
+  })
 
   // Fetch tasks with all filters
   const { data: tasksData, isLoading, error, refetch } = useTasks({
@@ -134,15 +142,11 @@ export default function TasksPage() {
           }
         )
       } else {
-        // Create new task - need to add organizationId
-        const createData = {
-          ...formattedData,
-          organizationId: "default", // TODO: Get from current user context
-        } as CreateTaskRequest
-        
-        createMutation.mutate(createData, {
+        // Create new task (organizationId is set by backend from authenticated user context)
+        createMutation.mutate(formattedData, {
           onSuccess: () => {
             setIsModalOpen(false)
+            setEditingTask(null)
             refetch()
           },
         })
@@ -442,7 +446,15 @@ export default function TasksPage() {
                   <SelectItem value="ALL">All Users</SelectItem>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
                   <SelectItem value="me">My Tasks</SelectItem>
-                  {/* TODO: Load users from API */}
+                  {isLoadingUsers ? (
+                    <SelectItem value="" disabled>Loading users...</SelectItem>
+                  ) : (
+                    usersData?.content?.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.fullName || user.username}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

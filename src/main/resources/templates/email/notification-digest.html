@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Digest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .content {
+            padding: 32px 24px;
+        }
+        .summary {
+            background-color: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin-bottom: 24px;
+            border-radius: 4px;
+        }
+        .summary h2 {
+            font-size: 18px;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        .notification-item {
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background-color: #ffffff;
+            transition: box-shadow 0.2s;
+        }
+        .notification-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .notification-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+        .notification-message {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .notification-meta {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+        .priority-urgent {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+        .priority-high {
+            background-color: #fed7aa;
+            color: #ea580c;
+        }
+        .view-all-button {
+            display: inline-block;
+            width: 100%;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 24px;
+        }
+        .footer {
+            padding: 24px;
+            background-color: #f9fafb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 th:text="${appName}">Neobrutalism CRM</h1>
+            <p th:text="${digestPeriod + ' Notification Digest'}">Daily Notification Digest</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Summary -->
+            <div class="summary">
+                <h2>Summary</h2>
+                <p>You have <strong th:text="${totalNotifications}">5</strong> new notifications</p>
+            </div>
+
+            <!-- Notifications -->
+            <div th:each="notification : ${notifications}" class="notification-item">
+                <div class="notification-title">
+                    <span th:if="${notification.priority != null && notification.priority > 1}" 
+                          th:class="${'priority-badge priority-' + (notification.priority >= 3 ? 'urgent' : 'high')}">
+                        <span th:text="${notification.priority >= 3 ? 'URGENT' : 'HIGH'}">HIGH</span>
+                    </span>
+                    <span th:text="${notification.title}">Notification Title</span>
+                </div>
+                <div class="notification-message" th:text="${notification.message}">
+                    Notification message
+                </div>
+                <div class="notification-meta">
+                    <span th:text="${notification.notificationType}">SYSTEM</span> • 
+                    <span th:text="${#temporals.format(notification.createdAt, 'MMM dd, HH:mm')}">Jan 01, 10:00</span>
+                </div>
+            </div>
+
+            <!-- View All Button -->
+            <a th:href="${notificationsUrl}" class="view-all-button">
+                View All Notifications
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>This is your <span th:text="${#strings.toLowerCase(digestPeriod)}">daily</span> notification digest</p>
+            <p>
+                <a th:href="${preferencesUrl}">Manage notification preferences</a>
+            </p>
+            <p style="margin-top: 16px;">
+                © <span th:text="${#temporals.year(#temporals.createNow())}">2025</span> <span th:text="${appName}">Neobrutalism CRM</span>. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

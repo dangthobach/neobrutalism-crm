@@ -199,6 +199,24 @@
             <version>8.5.9</version>
         </dependency>
 
+        <!-- iText PDF for Certificate Generation -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext-core</artifactId>
+            <version>8.0.5</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>kernel</artifactId>
+            <version>8.0.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>layout</artifactId>
+            <version>8.0.5</version>
+        </dependency>
+
         <!-- WebSocket for Real-time Notifications -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
