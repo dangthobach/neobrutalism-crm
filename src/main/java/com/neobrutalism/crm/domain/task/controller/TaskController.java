@@ -3,10 +3,15 @@ package com.neobrutalism.crm.domain.task.controller;
 import com.neobrutalism.crm.common.dto.ApiResponse;
 import com.neobrutalism.crm.common.dto.PageResponse;
 import com.neobrutalism.crm.common.security.UserPrincipal;
+import com.neobrutalism.crm.domain.task.dto.BulkAssignRequest;
+import com.neobrutalism.crm.domain.task.dto.BulkOperationResponse;
+import com.neobrutalism.crm.domain.task.dto.BulkStatusChangeRequest;
+import com.neobrutalism.crm.domain.task.dto.TaskActivityResponse;
 import com.neobrutalism.crm.domain.task.dto.TaskRequest;
 import com.neobrutalism.crm.domain.task.dto.TaskResponse;
 import com.neobrutalism.crm.domain.task.model.Task;
 import com.neobrutalism.crm.domain.task.model.TaskStatus;
+import com.neobrutalism.crm.domain.task.service.TaskActivityService;
 import com.neobrutalism.crm.domain.task.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +41,7 @@ import java.util.stream.Collectors;
 public class TaskController {
 
     private final TaskService taskService;
+    private final TaskActivityService taskActivityService;
 
     @GetMapping
     @Operation(summary = "Get all tasks", description = "Retrieve all tasks with pagination")
@@ -286,5 +292,80 @@ public class TaskController {
                 .collect(Collectors.toList());
 
         return ApiResponse.success(responses);
+    }
+
+    // Bulk operation endpoints
+
+    @PostMapping("/bulk/assign")
+    @Operation(summary = "Bulk assign tasks", description = "Assign multiple tasks to a user")
+    public ApiResponse<BulkOperationResponse> bulkAssignTasks(
+            @Valid @RequestBody BulkAssignRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        BulkOperationResponse response = taskService.bulkAssign(
+                request.getTaskIds(),
+                request.getAssigneeId(),
+                principal.getUsername());
+
+        return ApiResponse.success("Bulk assign completed", response);
+    }
+
+    @PostMapping("/bulk/status")
+    @Operation(summary = "Bulk change status", description = "Change status for multiple tasks")
+    public ApiResponse<BulkOperationResponse> bulkChangeStatus(
+            @Valid @RequestBody BulkStatusChangeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        BulkOperationResponse response = taskService.bulkStatusChange(
+                request.getTaskIds(),
+                request.getStatus(),
+                principal.getUsername());
+
+        return ApiResponse.success("Bulk status change completed", response);
+    }
+
+    @DeleteMapping("/bulk")
+    @Operation(summary = "Bulk delete tasks", description = "Delete multiple tasks (soft delete)")
+    public ApiResponse<BulkOperationResponse> bulkDeleteTasks(
+            @RequestBody List<UUID> taskIds,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        BulkOperationResponse response = taskService.bulkDelete(
+                taskIds,
+                principal.getUsername());
+
+        return ApiResponse.success("Bulk delete completed", response);
+    }
+
+    // Activity timeline endpoints
+
+    @GetMapping("/{taskId}/activities")
+    @Operation(summary = "Get task activities", description = "Get activity timeline for a task")
+    public ApiResponse<List<TaskActivityResponse>> getTaskActivities(
+            @PathVariable UUID taskId) {
+
+        List<TaskActivityResponse> activities = taskActivityService.getTaskActivities(taskId);
+        return ApiResponse.success(activities);
+    }
+
+    @GetMapping("/{taskId}/activities/paginated")
+    @Operation(summary = "Get task activities (paginated)", description = "Get activity timeline with pagination")
+    public ApiResponse<PageResponse<TaskActivityResponse>> getTaskActivitiesPaginated(
+            @PathVariable UUID taskId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TaskActivityResponse> activities = taskActivityService.getTaskActivities(taskId, pageable);
+        return ApiResponse.success(PageResponse.from(activities));
+    }
+
+    @GetMapping("/{taskId}/activities/count")
+    @Operation(summary = "Count task activities", description = "Get total number of activities for a task")
+    public ApiResponse<Long> countTaskActivities(
+            @PathVariable UUID taskId) {
+
+        long count = taskActivityService.countActivities(taskId);
+        return ApiResponse.success(count);
     }
 }

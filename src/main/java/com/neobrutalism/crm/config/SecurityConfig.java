@@ -4,6 +4,7 @@ import com.neobrutalism.crm.common.filter.RateLimitFilter;
 import com.neobrutalism.crm.common.security.CustomUserDetailsService;
 import com.neobrutalism.crm.common.security.JwtAuthenticationEntryPoint;
 import com.neobrutalism.crm.common.security.JwtAuthenticationFilter;
+import com.neobrutalism.crm.config.security.CasbinAuthorizationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -33,16 +34,22 @@ import java.util.List;
 /**
  * Security Configuration
  * Configures Spring Security with JWT authentication, rate limiting, and Casbin authorization
+ * 
+ * Authorization Strategy:
+ * - Uses jCasbin for dynamic role-based authorization (no @PreAuthorize)
+ * - Policies loaded from RoleMenu table on startup
+ * - Multi-tenant support via domain model
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity(prePostEnabled = false) // ⚠️ Disabled - using jCasbin instead
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomUserDetailsService customUserDetailsService;
+    private final CasbinAuthorizationFilter casbinAuthorizationFilter;
 
     // Optional: Rate limiting filter (only available when rate-limit.enabled=true)
     @Autowired(required = false)
@@ -95,6 +102,9 @@ public class SecurityConfig {
 
         // JWT authentication filter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        
+        // Casbin authorization filter (dynamic role-based authorization)
+        http.addFilterAfter(casbinAuthorizationFilter, JwtAuthenticationFilter.class);
 
         // Allow H2 console iframe (already set via headers config)
 

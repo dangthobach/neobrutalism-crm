@@ -49,7 +49,11 @@ public enum ErrorCode {
     // Validation errors
     VALIDATION_ERROR("VALIDATION_ERROR", "Validation error"),
     INVALID_PASSWORD("INVALID_PASSWORD", "Password does not meet security requirements"),
-    DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate entry");
+    DUPLICATE_ENTRY("DUPLICATE_ENTRY", "Duplicate entry"),
+
+    // File and email errors
+    FILE_TOO_LARGE("FILE_TOO_LARGE", "File size exceeds maximum allowed size"),
+    EMAIL_SEND_FAILED("EMAIL_SEND_FAILED", "Failed to send email");
 
     private final String code;
     private final String message;

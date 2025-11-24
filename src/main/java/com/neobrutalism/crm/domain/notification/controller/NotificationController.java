@@ -150,6 +150,34 @@ public class NotificationController {
         return ApiResponse.success("All notifications marked as read", count);
     }
 
+    @PutMapping("/{id}/unread")
+    @Operation(summary = "Mark as unread", description = "Mark notification as unread")
+    public ApiResponse<NotificationResponse> markAsUnread(@PathVariable UUID id) {
+        Notification notification = notificationService.markAsUnread(id);
+        return ApiResponse.success("Notification marked as unread", NotificationResponse.from(notification));
+    }
+
+    @PostMapping("/bulk/read")
+    @Operation(summary = "Bulk mark as read", description = "Mark multiple notifications as read")
+    public ApiResponse<Integer> bulkMarkAsRead(@RequestBody List<UUID> notificationIds) {
+        int count = notificationService.bulkMarkAsRead(notificationIds);
+        return ApiResponse.success("Notifications marked as read", count);
+    }
+
+    @PostMapping("/bulk/unread")
+    @Operation(summary = "Bulk mark as unread", description = "Mark multiple notifications as unread")
+    public ApiResponse<Integer> bulkMarkAsUnread(@RequestBody List<UUID> notificationIds) {
+        int count = notificationService.bulkMarkAsUnread(notificationIds);
+        return ApiResponse.success("Notifications marked as unread", count);
+    }
+
+    @DeleteMapping("/bulk")
+    @Operation(summary = "Bulk delete", description = "Delete multiple notifications")
+    public ApiResponse<Integer> bulkDelete(@RequestBody List<UUID> notificationIds) {
+        int count = notificationService.bulkDelete(notificationIds);
+        return ApiResponse.success("Notifications deleted", count);
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete notification", description = "Delete notification (soft delete)")
     public ApiResponse<Void> deleteNotification(@PathVariable UUID id) {

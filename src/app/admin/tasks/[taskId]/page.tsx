@@ -14,6 +14,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import TaskStatusBadge from '@/components/task/task-status-badge'
 import TaskPriorityBadge from '@/components/task/task-priority-badge'
+import { Checklist } from '@/components/tasks/checklist'
+import { CommentList } from '@/components/tasks/comment-list'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -228,19 +230,15 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                 </TabsContent>
 
                 <TabsContent value="comments">
-                  <div className="text-center py-16 border-2 border-dashed border-gray-300 rounded-lg">
-                    <div className="text-6xl mb-4">💬</div>
-                    <p className="text-lg font-bold text-gray-700">Comments Coming Soon</p>
-                    <p className="text-sm text-gray-500 mt-2">Day 4-5: Add/edit/delete with replies</p>
-                  </div>
+                  <CommentList
+                    taskId={taskId}
+                    currentUserId={task.assignedTo?.id}
+                    currentUserName={task.assignedTo?.fullName || 'User'}
+                  />
                 </TabsContent>
 
                 <TabsContent value="checklist">
-                  <div className="text-center py-16 border-2 border-dashed border-gray-300 rounded-lg">
-                    <div className="text-6xl mb-4">✅</div>
-                    <p className="text-lg font-bold text-gray-700">Checklist Coming Soon</p>
-                    <p className="text-sm text-gray-500 mt-2">Day 6-7: Add/remove items with progress tracking</p>
-                  </div>
+                  <Checklist taskId={taskId} />
                 </TabsContent>
 
                 <TabsContent value="activity">

@@ -231,6 +231,82 @@ public class NotificationService {
     }
 
     /**
+     * Mark notification as unread
+     */
+    @Transactional
+    public Notification markAsUnread(UUID notificationId) {
+        Notification notification = findById(notificationId);
+        notification.markAsUnread();
+        Notification saved = notificationRepository.save(notification);
+        
+        // Send WebSocket event for real-time update
+        Long unreadCount = countUnreadNotifications(notification.getRecipientId());
+        webSocketService.sendUnreadCountUpdate(notification.getRecipientId(), unreadCount);
+        
+        return saved;
+    }
+
+    /**
+     * Bulk mark notifications as read
+     */
+    @Transactional
+    public int bulkMarkAsRead(List<UUID> notificationIds) {
+        log.info("Bulk marking {} notifications as read", notificationIds.size());
+        
+        List<Notification> notifications = notificationRepository.findAllById(notificationIds);
+        notifications.forEach(Notification::markAsRead);
+        notificationRepository.saveAll(notifications);
+        
+        // Update unread counts for affected users
+        notifications.stream()
+            .map(Notification::getRecipientId)
+            .distinct()
+            .forEach(recipientId -> {
+                Long unreadCount = countUnreadNotifications(recipientId);
+                webSocketService.sendUnreadCountUpdate(recipientId, unreadCount);
+            });
+        
+        return notifications.size();
+    }
+
+    /**
+     * Bulk mark notifications as unread
+     */
+    @Transactional
+    public int bulkMarkAsUnread(List<UUID> notificationIds) {
+        log.info("Bulk marking {} notifications as unread", notificationIds.size());
+        
+        List<Notification> notifications = notificationRepository.findAllById(notificationIds);
+        notifications.forEach(Notification::markAsUnread);
+        notificationRepository.saveAll(notifications);
+        
+        // Update unread counts for affected users
+        notifications.stream()
+            .map(Notification::getRecipientId)
+            .distinct()
+            .forEach(recipientId -> {
+                Long unreadCount = countUnreadNotifications(recipientId);
+                webSocketService.sendUnreadCountUpdate(recipientId, unreadCount);
+            });
+        
+        return notifications.size();
+    }
+
+    /**
+     * Bulk delete notifications
+     */
+    @Transactional
+    public int bulkDelete(List<UUID> notificationIds) {
+        log.info("Bulk deleting {} notifications", notificationIds.size());
+        
+        List<Notification> notifications = notificationRepository.findAllById(notificationIds);
+        notifications.forEach(notification -> notification.setDeleted(true));
+        notificationRepository.saveAll(notifications);
+        
+        return notifications.size();
+    }
+
+    /**
      * Delete notification (soft delete)
      */
     @Transactional

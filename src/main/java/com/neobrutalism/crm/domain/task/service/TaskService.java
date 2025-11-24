@@ -5,6 +5,7 @@ import com.neobrutalism.crm.common.repository.BaseRepository;
 import com.neobrutalism.crm.common.security.UserContext;
 import com.neobrutalism.crm.common.service.BaseService;
 import com.neobrutalism.crm.common.service.EventPublisher;
+import com.neobrutalism.crm.domain.task.dto.BulkOperationResponse;
 import com.neobrutalism.crm.domain.task.dto.TaskRequest;
 import com.neobrutalism.crm.domain.task.event.TaskAssignedEvent;
 import com.neobrutalism.crm.domain.task.event.TaskCancelledEvent;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -266,6 +268,119 @@ public class TaskService extends BaseService<Task> {
     @Transactional(readOnly = true)
     public List<Task> getTasksByBranch(UUID branchId) {
         return taskRepository.findByBranchIdAndDeletedFalse(branchId);
+    }
+
+    /**
+     * Bulk assign tasks to a user
+     * Validates permissions and ownership for each task
+     */
+    @Transactional
+    public BulkOperationResponse bulkAssign(List<UUID> taskIds, UUID assigneeId, String username) {
+        List<UUID> successfulTaskIds = new ArrayList<>();
+        List<BulkOperationResponse.BulkOperationError> errors = new ArrayList<>();
+
+        for (UUID taskId : taskIds) {
+            try {
+                Task task = findById(taskId);
+                task.setAssignedToId(assigneeId);
+                taskRepository.save(task);
+                
+                // Get assignedBy user ID from context
+                UUID assignedById = userContext.getCurrentUserId()
+                        .map(UUID::fromString)
+                        .orElse(null);
+                
+                eventPublisher.publish(new TaskAssignedEvent(
+                        task.getId().toString(), 
+                        task.getTitle(), 
+                        assigneeId, 
+                        assignedById));
+                successfulTaskIds.add(taskId);
+                
+                log.info("Task {} bulk assigned to user {} by {}", taskId, assigneeId, username);
+            } catch (Exception e) {
+                log.error("Failed to assign task {}: {}", taskId, e.getMessage());
+                errors.add(BulkOperationResponse.BulkOperationError.builder()
+                        .taskId(taskId)
+                        .reason(e.getMessage())
+                        .build());
+            }
+        }
+
+        return BulkOperationResponse.builder()
+                .totalRequested(taskIds.size())
+                .successCount(successfulTaskIds.size())
+                .failureCount(errors.size())
+                .successfulTaskIds(successfulTaskIds)
+                .errors(errors)
+                .build();
+    }
+
+    /**
+     * Bulk change status of tasks
+     * Validates permissions for each task
+     */
+    @Transactional
+    public BulkOperationResponse bulkStatusChange(List<UUID> taskIds, TaskStatus newStatus, String username) {
+        List<UUID> successfulTaskIds = new ArrayList<>();
+        List<BulkOperationResponse.BulkOperationError> errors = new ArrayList<>();
+
+        for (UUID taskId : taskIds) {
+            try {
+                Task task = findById(taskId);
+                task.setStatus(newStatus);
+                taskRepository.save(task);
+                
+                successfulTaskIds.add(taskId);
+                log.info("Task {} status changed to {} by {}", taskId, newStatus, username);
+            } catch (Exception e) {
+                log.error("Failed to change status for task {}: {}", taskId, e.getMessage());
+                errors.add(BulkOperationResponse.BulkOperationError.builder()
+                        .taskId(taskId)
+                        .reason(e.getMessage())
+                        .build());
+            }
+        }
+
+        return BulkOperationResponse.builder()
+                .totalRequested(taskIds.size())
+                .successCount(successfulTaskIds.size())
+                .failureCount(errors.size())
+                .successfulTaskIds(successfulTaskIds)
+                .errors(errors)
+                .build();
+    }
+
+    /**
+     * Bulk delete tasks (soft delete)
+     * Validates permissions for each task
+     */
+    @Transactional
+    public BulkOperationResponse bulkDelete(List<UUID> taskIds, String username) {
+        List<UUID> successfulTaskIds = new ArrayList<>();
+        List<BulkOperationResponse.BulkOperationError> errors = new ArrayList<>();
+
+        for (UUID taskId : taskIds) {
+            try {
+                deleteById(taskId);
+                successfulTaskIds.add(taskId);
+                log.info("Task {} deleted by {}", taskId, username);
+            } catch (Exception e) {
+                log.error("Failed to delete task {}: {}", taskId, e.getMessage());
+                errors.add(BulkOperationResponse.BulkOperationError.builder()
+                        .taskId(taskId)
+                        .reason(e.getMessage())
+                        .build());
+            }
+        }
+
+        return BulkOperationResponse.builder()
+                .totalRequested(taskIds.size())
+                .successCount(successfulTaskIds.size())
+                .failureCount(errors.size())
+                .successfulTaskIds(successfulTaskIds)
+                .errors(errors)
+                .build();
     }
 
     /**

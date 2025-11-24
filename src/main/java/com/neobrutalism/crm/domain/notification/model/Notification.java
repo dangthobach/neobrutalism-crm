@@ -104,6 +104,17 @@ public class Notification extends AuditableEntity {
     }
 
     /**
+     * Mark notification as unread
+     */
+    public void markAsUnread() {
+        this.isRead = false;
+        this.readAt = null;
+        if (this.status == NotificationStatus.READ) {
+            this.status = NotificationStatus.DELIVERED;
+        }
+    }
+
+    /**
      * Mark notification as sent
      */
     public void markAsSent() {
