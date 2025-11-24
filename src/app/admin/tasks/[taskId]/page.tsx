@@ -12,8 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import TaskStatusBadge from '@/components/task/task-status-badge'
-import TaskPriorityBadge from '@/components/task/task-priority-badge'
+import { TaskStatusBadge } from '@/components/task/task-status-badge'
+import { TaskPriorityBadge } from '@/components/task/task-priority-badge'
 import { Checklist } from '@/components/tasks/checklist'
 import { CommentList } from '@/components/tasks/comment-list'
 import { format } from 'date-fns'

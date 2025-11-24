@@ -11,6 +11,7 @@ import { Calendar, Clock, User, Building2, UserCircle, CheckSquare, MessageSquar
 import { Task } from '@/types/task'
 import { TaskStatusBadge } from './task-status-badge'
 import { TaskPriorityBadge } from './task-priority-badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatDate } from '@/lib/utils'
 
 interface TaskCardProps {
@@ -19,19 +20,59 @@ interface TaskCardProps {
   isDraggable?: boolean
   onDragStart?: (e: React.DragEvent, task: Task) => void
   onDragEnd?: (e: React.DragEvent) => void
+  // Bulk selection props
+  isSelectable?: boolean
+  isSelected?: boolean
+  onSelect?: (taskId: string, checked: boolean) => void
 }
 
-export function TaskCard({ task, onClick, isDraggable = false, onDragStart, onDragEnd }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onClick,
+  isDraggable = false,
+  onDragStart,
+  onDragEnd,
+  isSelectable = false,
+  isSelected = false,
+  onSelect
+}: TaskCardProps) {
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED'
   const completedCount = task.checklistItems?.filter(item => item.isCompleted).length || 0
   const totalCount = task.checklistItems?.length || 0
 
+  const handleCheckboxChange = (checked: boolean) => {
+    if (onSelect) {
+      onSelect(task.id, checked)
+    }
+  }
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger card click if clicking checkbox
+    if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    onClick?.()
+  }
+
   const content = (
     <>
+      {/* Selection Checkbox (if selectable) */}
+      {isSelectable && (
+        <div className="absolute top-3 left-3 z-10" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={handleCheckboxChange}
+            className="border-2 border-black data-[state=checked]:bg-blue-500 data-[state=checked]:border-black h-5 w-5"
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className={`border-b-2 border-black px-4 py-3 ${
         isOverdue ? 'bg-red-200' : 'bg-purple-200'
-      }`}>
+      } ${isSelectable ? 'pl-12' : ''}`}>
         <div className="flex items-start justify-between gap-2">
           <h3 className="flex-1 font-black uppercase leading-tight">{task.title}</h3>
           <TaskPriorityBadge priority={task.priority} />
@@ -139,9 +180,9 @@ export function TaskCard({ task, onClick, isDraggable = false, onDragStart, onDr
     </>
   )
 
-  const cardClasses = `group block transform border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${
+  const cardClasses = `group relative block transform border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${
     isDraggable ? 'cursor-move' : ''
-  }`
+  } ${isSelected ? 'ring-4 ring-blue-500' : ''}`
 
   if (isDraggable) {
     return (
@@ -150,7 +191,7 @@ export function TaskCard({ task, onClick, isDraggable = false, onDragStart, onDr
         onDragStart={(e) => onDragStart?.(e, task)}
         onDragEnd={onDragEnd}
         className={cardClasses}
-        onClick={onClick}
+        onClick={handleCardClick}
       >
         {content}
       </div>
@@ -159,14 +200,19 @@ export function TaskCard({ task, onClick, isDraggable = false, onDragStart, onDr
 
   if (onClick) {
     return (
-      <div onClick={onClick} className={cardClasses + ' cursor-pointer'}>
+      <div onClick={handleCardClick} className={cardClasses + ' cursor-pointer'}>
         {content}
       </div>
     )
   }
 
   return (
-    <Link href={`/admin/tasks/${task.id}`} className={cardClasses}>
+    <Link href={`/admin/tasks/${task.id}`} className={cardClasses} onClick={(e) => {
+      // Prevent navigation if clicking checkbox
+      if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+        e.preventDefault()
+      }
+    }}>
       {content}
     </Link>
   )

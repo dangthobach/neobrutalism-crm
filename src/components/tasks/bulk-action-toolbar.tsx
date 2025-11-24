@@ -31,10 +31,11 @@ export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCEL
 interface BulkActionToolbarProps {
   selectedCount: number
   onClearSelection: () => void
-  onBulkAssign: (userId: string) => Promise<void>
-  onBulkStatusChange: (status: TaskStatus) => Promise<void>
-  onBulkDelete: () => Promise<void>
-  availableUsers?: Array<{ id: string; name: string }>
+  onBulkAssign: (userId: string) => void
+  onBulkStatusChange: (status: TaskStatus) => void
+  onBulkDelete: () => void
+  users?: Array<{ id: string; fullName: string }>
+  isLoading?: boolean
 }
 
 export function BulkActionToolbar({
@@ -43,43 +44,28 @@ export function BulkActionToolbar({
   onBulkAssign,
   onBulkStatusChange,
   onBulkDelete,
-  availableUsers = [],
+  users = [],
+  isLoading = false,
 }: BulkActionToolbarProps) {
-  const [isProcessing, setIsProcessing] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedUser, setSelectedUser] = useState<string>('')
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | ''>('')
 
-  const handleBulkAssign = async () => {
+  const handleBulkAssign = () => {
     if (!selectedUser) return
-    setIsProcessing(true)
-    try {
-      await onBulkAssign(selectedUser)
-      setSelectedUser('')
-    } finally {
-      setIsProcessing(false)
-    }
+    onBulkAssign(selectedUser)
+    setSelectedUser('')
   }
 
-  const handleBulkStatusChange = async () => {
+  const handleBulkStatusChange = () => {
     if (!selectedStatus) return
-    setIsProcessing(true)
-    try {
-      await onBulkStatusChange(selectedStatus as TaskStatus)
-      setSelectedStatus('')
-    } finally {
-      setIsProcessing(false)
-    }
+    onBulkStatusChange(selectedStatus as TaskStatus)
+    setSelectedStatus('')
   }
 
-  const handleBulkDelete = async () => {
-    setIsProcessing(true)
-    try {
-      await onBulkDelete()
-      setShowDeleteDialog(false)
-    } finally {
-      setIsProcessing(false)
-    }
+  const handleBulkDelete = () => {
+    onBulkDelete()
+    setShowDeleteDialog(false)
   }
 
   if (selectedCount === 0) {
@@ -105,15 +91,15 @@ export function BulkActionToolbar({
               <Select
                 value={selectedUser}
                 onValueChange={setSelectedUser}
-                disabled={isProcessing}
+                disabled={isLoading}
               >
                 <SelectTrigger className="w-[180px] border-2 border-black font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   <SelectValue placeholder="Giao cho..." />
                 </SelectTrigger>
                 <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  {availableUsers.map((user) => (
+                  {users.map((user) => (
                     <SelectItem key={user.id} value={user.id} className="font-medium">
-                      {user.name}
+                      {user.fullName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -122,7 +108,7 @@ export function BulkActionToolbar({
                 <Button
                   size="sm"
                   onClick={handleBulkAssign}
-                  disabled={isProcessing}
+                  disabled={isLoading}
                   className="border-2 border-black bg-purple-400 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-purple-500"
                 >
                   Giao
@@ -136,7 +122,7 @@ export function BulkActionToolbar({
               <Select
                 value={selectedStatus}
                 onValueChange={(value) => setSelectedStatus(value as TaskStatus)}
-                disabled={isProcessing}
+                disabled={isLoading}
               >
                 <SelectTrigger className="w-[180px] border-2 border-black font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                   <SelectValue placeholder="Đổi trạng thái..." />
@@ -151,7 +137,7 @@ export function BulkActionToolbar({
                   <SelectItem value="IN_REVIEW" className="font-medium">
                     👀 Review
                   </SelectItem>
-                  <SelectItem value="DONE" className="font-medium">
+                  <SelectItem value="COMPLETED" className="font-medium">
                     ✅ Hoàn thành
                   </SelectItem>
                   <SelectItem value="CANCELLED" className="font-medium">
@@ -163,7 +149,7 @@ export function BulkActionToolbar({
                 <Button
                   size="sm"
                   onClick={handleBulkStatusChange}
-                  disabled={isProcessing}
+                  disabled={isLoading}
                   className="border-2 border-black bg-blue-400 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-blue-500"
                 >
                   Đổi
@@ -174,10 +160,10 @@ export function BulkActionToolbar({
             {/* Bulk Delete */}
             <Button
               size="sm"
-              variant="outline"
+              variant="noShadow"
               onClick={() => setShowDeleteDialog(true)}
-              disabled={isProcessing}
-              className="border-2 border-black font-black text-red-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-50"
+              disabled={isLoading}
+              className="bg-red-500 hover:bg-red-600 text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
             >
               <Trash2 className="mr-1 h-4 w-4" />
               Xóa
@@ -187,9 +173,9 @@ export function BulkActionToolbar({
             <div className="border-l-2 border-black pl-4">
               <Button
                 size="sm"
-                variant="ghost"
+                variant="neutral"
                 onClick={onClearSelection}
-                disabled={isProcessing}
+                disabled={isLoading}
                 className="border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
               >
                 <X className="mr-1 h-4 w-4" />
@@ -198,7 +184,7 @@ export function BulkActionToolbar({
             </div>
 
             {/* Loading Indicator */}
-            {isProcessing && (
+            {isLoading && (
               <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
             )}
           </div>
@@ -223,16 +209,16 @@ export function BulkActionToolbar({
           <AlertDialogFooter>
             <AlertDialogCancel
               className="border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-              disabled={isProcessing}
+              disabled={isLoading}
             >
               Hủy
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDelete}
-              disabled={isProcessing}
+              disabled={isLoading}
               className="border-2 border-black bg-red-500 font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-600"
             >
-              {isProcessing ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Đang xóa...

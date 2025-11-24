@@ -90,17 +90,17 @@ export function CommentItem({
             <div className="flex gap-1">
               <Button
                 size="sm"
-                variant="ghost"
+                variant="noShadow"
                 onClick={() => setIsEditing(true)}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 bg-transparent border-0 hover:bg-gray-100"
               >
                 <Edit2 className="w-3 h-3" />
               </Button>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="noShadow"
                 onClick={handleDelete}
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="h-8 w-8 p-0 bg-transparent border-0 text-red-600 hover:text-red-700 hover:bg-red-50"
               >
                 <Trash2 className="w-3 h-3" />
               </Button>
@@ -128,7 +128,7 @@ export function CommentItem({
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="neutral"
                 onClick={handleCancelEdit}
                 className="border-2 border-black"
               >
@@ -147,9 +147,9 @@ export function CommentItem({
         {!isEditing && !isReply && (
           <Button
             size="sm"
-            variant="ghost"
+            variant="noShadow"
             onClick={() => setIsReplying(!isReplying)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 px-2"
+            className="bg-transparent border-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 px-2"
           >
             <Reply className="w-3 h-3 mr-1" />
             Reply
@@ -178,7 +178,7 @@ export function CommentItem({
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="neutral"
                 onClick={() => {
                   setIsReplying(false)
                   setReplyContent('')

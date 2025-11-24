@@ -22,8 +22,10 @@ import {
   useUpdateTask,
 } from "@/hooks/use-tasks"
 import { useUsers } from "@/hooks/useUsers"
+import { useBulkOperations } from "@/hooks/useBulkOperations"
 import { TaskBoard } from "@/components/tasks/task-board"
 import { TaskEditModal } from "@/components/tasks/task-edit-modal"
+import { BulkActionToolbar } from "@/components/tasks/bulk-action-toolbar"
 import { Task, TaskStatus, TaskPriority, CreateTaskRequest, UpdateTaskRequest } from "@/types/task"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -91,7 +93,18 @@ export default function TasksPage() {
   const createMutation = useCreateTask()
   const updateMutation = useUpdateTask()
 
+  // Bulk operations hook
+  const {
+    bulkAssign,
+    isBulkAssigning,
+    bulkStatusChange,
+    isBulkChangingStatus,
+    bulkDelete,
+    isBulkDeleting
+  } = useBulkOperations()
+
   const tasks = tasksData?.content || []
+  const users = usersData?.content || []
 
   const handleStatusChange = useCallback(
     (taskId: string, newStatus: TaskStatus) => {
@@ -191,43 +204,33 @@ export default function TasksPage() {
 
   const handleBulkDelete = useCallback(() => {
     if (selectedTaskIds.size === 0) return
-    if (confirm(`Delete ${selectedTaskIds.size} selected tasks?`)) {
-      Promise.all(
-        Array.from(selectedTaskIds).map(id => deleteMutation.mutateAsync(id))
-      ).then(() => {
-        setSelectedTaskIds(new Set())
-        setBulkMode(false)
-        refetch()
-        toast.success(`Deleted ${selectedTaskIds.size} tasks`)
-      })
-    }
-  }, [selectedTaskIds, deleteMutation, refetch])
+    bulkDelete(Array.from(selectedTaskIds))
+    // Clear selection after initiating delete
+    setTimeout(() => {
+      setSelectedTaskIds(new Set())
+      setBulkMode(false)
+    }, 1000)
+  }, [selectedTaskIds, bulkDelete])
 
   const handleBulkChangeStatus = useCallback((newStatus: TaskStatus) => {
     if (selectedTaskIds.size === 0) return
-    Promise.all(
-      Array.from(selectedTaskIds).map(id =>
-        changeStatusMutation.mutateAsync({ id, status: newStatus })
-      )
-    ).then(() => {
-      setSelectedTaskIds(new Set())
-      refetch()
-      toast.success(`Updated ${selectedTaskIds.size} tasks to ${newStatus}`)
+    bulkStatusChange({
+      taskIds: Array.from(selectedTaskIds),
+      status: newStatus
     })
-  }, [selectedTaskIds, changeStatusMutation, refetch])
+    // Clear selection after initiating status change
+    setTimeout(() => setSelectedTaskIds(new Set()), 1000)
+  }, [selectedTaskIds, bulkStatusChange])
 
   const handleBulkAssign = useCallback((userId: string) => {
     if (selectedTaskIds.size === 0) return
-    Promise.all(
-      Array.from(selectedTaskIds).map(id =>
-        updateMutation.mutateAsync({ id, data: { assignedToId: userId } })
-      )
-    ).then(() => {
-      setSelectedTaskIds(new Set())
-      refetch()
-      toast.success(`Assigned ${selectedTaskIds.size} tasks`)
+    bulkAssign({
+      taskIds: Array.from(selectedTaskIds),
+      assigneeId: userId
     })
-  }, [selectedTaskIds, updateMutation, refetch])
+    // Clear selection after initiating assign
+    setTimeout(() => setSelectedTaskIds(new Set()), 1000)
+  }, [selectedTaskIds, bulkAssign])
 
   const handleClearFilters = () => {
     setPriority("ALL")
@@ -590,6 +593,19 @@ export default function TasksPage() {
         onSave={handleSaveTask}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
+
+      {/* Bulk Action Toolbar (floating at bottom when tasks are selected) */}
+      {bulkMode && (
+        <BulkActionToolbar
+          selectedCount={selectedTaskIds.size}
+          onClearSelection={() => setSelectedTaskIds(new Set())}
+          onBulkAssign={handleBulkAssign}
+          onBulkStatusChange={handleBulkChangeStatus}
+          onBulkDelete={handleBulkDelete}
+          users={users}
+          isLoading={isBulkAssigning || isBulkChangingStatus || isBulkDeleting}
+        />
+      )}
     </div>
   )
 }
