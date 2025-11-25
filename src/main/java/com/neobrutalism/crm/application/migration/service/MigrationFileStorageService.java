@@ -25,18 +25,22 @@ public class MigrationFileStorageService {
     
     /**
      * Store uploaded file and return file identifier
+     * ✅ FIX: Use try-with-resources to ensure InputStream is closed
      */
     public String storeFile(MultipartFile file, UUID jobId) throws IOException {
         Path storageDir = Paths.get(storagePath);
         if (!Files.exists(storageDir)) {
             Files.createDirectories(storageDir);
         }
-        
+
         String fileName = jobId.toString() + "_" + file.getOriginalFilename();
         Path filePath = storageDir.resolve(fileName);
-        
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-        
+
+        // ✅ FIX: Explicitly close InputStream after copy
+        try (InputStream inputStream = file.getInputStream()) {
+            Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING);
+        }
+
         log.info("Stored migration file: {} for job: {}", fileName, jobId);
         return fileName;
     }

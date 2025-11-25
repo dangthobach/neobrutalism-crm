@@ -291,6 +291,14 @@ public class ExcelMigrationService {
 
                 job.setCompletedAt(Instant.now());
                 jobRepository.save(job);
+
+                // ✅ FIX: Delete temp file after legacy processing complete
+                try {
+                    fileStorageService.deleteFile(jobId, job.getFileName());
+                    log.info("Deleted temp file for completed legacy job: {}", jobId);
+                } catch (Exception e) {
+                    log.warn("Failed to delete temp file for job: {} - {}", jobId, e.getMessage());
+                }
             });
     }
     
@@ -394,20 +402,24 @@ public class ExcelMigrationService {
                 }
             }
 
-            // Get input stream from file storage
-            InputStream inputStream = fileStorageService.retrieveFile(jobId, job.getFileName());
-            ExcelConfig config = ExcelConfigFactory.createLargeFileConfig();
+            // ✅ FIX: Use try-with-resources to ensure InputStream is closed
+            try (InputStream inputStream = fileStorageService.retrieveFile(jobId, job.getFileName())) {
+                ExcelConfig config = ExcelConfigFactory.createLargeFileConfig();
 
-            // ✅ PHASE 1: Process with TrueStreamingMultiSheetProcessor
-            com.neobrutalism.crm.utils.sax.TrueStreamingMultiSheetProcessor processor =
-                new com.neobrutalism.crm.utils.sax.TrueStreamingMultiSheetProcessor(
-                    sheetClassMap, sheetProcessors, config);
+                // ✅ PHASE 1: Process with TrueStreamingMultiSheetProcessor
+                com.neobrutalism.crm.utils.sax.TrueStreamingMultiSheetProcessor processor =
+                    new com.neobrutalism.crm.utils.sax.TrueStreamingMultiSheetProcessor(
+                        sheetClassMap, sheetProcessors, config);
 
-            Map<String, com.neobrutalism.crm.utils.sax.TrueStreamingSAXProcessor.ProcessingResult> results =
-                processor.processTrueStreaming(inputStream);
+                Map<String, com.neobrutalism.crm.utils.sax.TrueStreamingSAXProcessor.ProcessingResult> results =
+                    processor.processTrueStreaming(inputStream);
 
-            log.info("Multi-sheet processing completed for job: {}, processed {} sheets",
-                     jobId, results.size());
+                log.info("Multi-sheet processing completed for job: {}, processed {} sheets",
+                         jobId, results.size());
+            } catch (IOException ioException) {
+                log.error("Failed to read file for job: {}", jobId, ioException);
+                throw new RuntimeException("Failed to read migration file", ioException);
+            }
 
             // ✅ PHASE 3: Update each sheet status independently
             for (MigrationSheet sheet : sheets) {
@@ -495,6 +507,14 @@ public class ExcelMigrationService {
                      jobId,
                      (MAX_MEMORY_BYTES - currentMemoryUsage.get()) / 1024 / 1024,
                      MAX_MEMORY_BYTES / 1024 / 1024);
+
+            // ✅ FIX: Delete temp file after processing to free disk space
+            try {
+                fileStorageService.deleteFile(jobId, job.getFileName());
+                log.info("Deleted temp file for completed job: {}", jobId);
+            } catch (Exception e) {
+                log.warn("Failed to delete temp file for job: {} - {}", jobId, e.getMessage());
+            }
         }
 
         return CompletableFuture.completedFuture(null);
@@ -550,21 +570,21 @@ public class ExcelMigrationService {
             // Get input stream from file storage
             MigrationJob job = jobRepository.findById(sheet.getJobId())
                 .orElseThrow();
-            InputStream inputStream;
-            try {
-                inputStream = fileStorageService.retrieveFile(sheet.getJobId(), job.getFileName());
+
+            // ✅ FIX: Use try-with-resources to ensure InputStream is closed
+            try (InputStream inputStream = fileStorageService.retrieveFile(sheet.getJobId(), job.getFileName())) {
+                // Process based on sheet type
+                ExcelConfig config = ExcelConfigFactory.createLargeFileConfig();
+
+                // Process based on sheet type with proper generics
+                switch (sheet.getSheetType()) {
+                    case HSBG_THEO_HOP_DONG -> processSheetHopDong(sheetId, inputStream, config);
+                    case HSBG_THEO_CIF -> processSheetCif(sheetId, inputStream, config);
+                    case HSBG_THEO_TAP -> processSheetTap(sheetId, inputStream, config);
+                }
             } catch (IOException e) {
+                log.error("Failed to retrieve or process file for sheet: {}", sheetId, e);
                 throw new RuntimeException("Failed to retrieve file for job: " + sheet.getJobId(), e);
-            }
-
-            // Process based on sheet type
-            ExcelConfig config = ExcelConfigFactory.createLargeFileConfig();
-
-            // Process based on sheet type with proper generics
-            switch (sheet.getSheetType()) {
-                case HSBG_THEO_HOP_DONG -> processSheetHopDong(sheetId, inputStream, config);
-                case HSBG_THEO_CIF -> processSheetCif(sheetId, inputStream, config);
-                case HSBG_THEO_TAP -> processSheetTap(sheetId, inputStream, config);
             }
 
             // Post-validation: check duplicates
@@ -1587,15 +1607,16 @@ public class ExcelMigrationService {
     
     /**
      * Cancel a migration job
+     * ✅ FIX: Also delete temp file when job is cancelled
      */
     @Transactional
     public void cancelMigration(UUID jobId) {
         MigrationJob job = jobRepository.findById(jobId)
             .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
-        
+
         job.setStatus(MigrationStatus.CANCELLED);
         jobRepository.save(job);
-        
+
         // Cancel all sheets
         List<MigrationSheet> sheets = sheetRepository.findByJobId(jobId);
         for (MigrationSheet sheet : sheets) {
@@ -1604,7 +1625,15 @@ public class ExcelMigrationService {
                 sheetRepository.save(sheet);
             }
         }
-        
+
+        // ✅ FIX: Delete temp file for cancelled job to free disk space
+        try {
+            fileStorageService.deleteFile(jobId, job.getFileName());
+            log.info("Deleted temp file for cancelled job: {}", jobId);
+        } catch (Exception e) {
+            log.warn("Failed to delete temp file for cancelled job: {} - {}", jobId, e.getMessage());
+        }
+
         log.info("Cancelled migration job: {}", jobId);
     }
     
