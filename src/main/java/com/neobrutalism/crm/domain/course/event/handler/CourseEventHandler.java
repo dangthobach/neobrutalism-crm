@@ -1,6 +1,6 @@
 package com.neobrutalism.crm.domain.course.event.handler;
 
-import com.neobrutalism.crm.common.email.EmailService;
+import com.neobrutalism.crm.domain.notification.service.EmailService;
 import com.neobrutalism.crm.domain.course.event.*;
 import com.neobrutalism.crm.domain.course.repository.EnrollmentRepository;
 import com.neobrutalism.crm.domain.notification.model.NotificationType;

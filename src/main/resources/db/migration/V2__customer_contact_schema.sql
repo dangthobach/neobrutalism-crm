@@ -258,8 +258,8 @@ CREATE INDEX idx_customer_created_at ON customers(created_at);
 CREATE INDEX idx_customer_rating ON customers(rating);
 CREATE INDEX idx_customer_is_vip ON customers(is_vip);
 
--- Full-text search on customer name
-CREATE INDEX idx_customer_company_name_gin ON customers USING gin(to_tsvector('english', company_name));
+-- Full-text search on customer name (PostgreSQL-specific, disabled for H2)
+-- CREATE INDEX idx_customer_company_name_gin ON customers USING gin(to_tsvector('english', company_name));
 
 -- Contacts
 CREATE INDEX idx_contact_customer ON contacts(customer_id);
@@ -271,8 +271,8 @@ CREATE INDEX idx_contact_email ON contacts(email);
 CREATE INDEX idx_contact_is_primary ON contacts(is_primary);
 CREATE INDEX idx_contact_created_at ON contacts(created_at);
 
--- Full-text search on contact name
-CREATE INDEX idx_contact_full_name_gin ON contacts USING gin(to_tsvector('english', full_name));
+-- Full-text search on contact name (PostgreSQL-specific, disabled for H2)
+-- CREATE INDEX idx_contact_full_name_gin ON contacts USING gin(to_tsvector('english', full_name));
 
 -- Composite indexes for common queries
 CREATE INDEX idx_customer_org_status ON customers(organization_id, status);
@@ -282,36 +282,36 @@ CREATE INDEX idx_contact_customer_primary ON contacts(customer_id, is_primary);
 CREATE INDEX idx_contact_org_status ON contacts(organization_id, status);
 
 -- =====================================================
--- TRIGGER: Auto-generate full_name for contacts
+-- TRIGGER: Auto-generate full_name for contacts (PostgreSQL-specific, disabled for H2)
 -- =====================================================
-CREATE OR REPLACE FUNCTION generate_contact_full_name()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.full_name := TRIM(
-        COALESCE(NEW.first_name, '') || ' ' ||
-        COALESCE(NEW.middle_name, '') || ' ' ||
-        COALESCE(NEW.last_name, '')
-    );
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE OR REPLACE FUNCTION generate_contact_full_name()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     NEW.full_name := TRIM(
+--         COALESCE(NEW.first_name, '') || ' ' ||
+--         COALESCE(NEW.middle_name, '') || ' ' ||
+--         COALESCE(NEW.last_name, '')
+--     );
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- CREATE TRIGGER trg_contact_full_name
+--     BEFORE INSERT OR UPDATE ON contacts
+--     FOR EACH ROW
+--     EXECUTE FUNCTION generate_contact_full_name();
 
-CREATE TRIGGER trg_contact_full_name
-    BEFORE INSERT OR UPDATE ON contacts
-    FOR EACH ROW
-    EXECUTE FUNCTION generate_contact_full_name();
-
 -- =====================================================
--- TRIGGER: Update customer member count
+-- TRIGGER: Update customer member count (PostgreSQL-specific, disabled for H2)
 -- =====================================================
-CREATE OR REPLACE FUNCTION update_customer_contact_count()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- This would be implemented if we track contact count in customers table
-    -- Currently not in schema, but useful for future
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE OR REPLACE FUNCTION update_customer_contact_count()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     -- This would be implemented if we track contact count in customers table
+--     -- Currently not in schema, but useful for future
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 -- =====================================================
 -- END OF V2 MIGRATION

@@ -269,46 +269,46 @@ CREATE INDEX idx_security_investigated ON security_events(investigated);
 CREATE INDEX idx_security_requires_investigation ON security_events(requires_investigation);
 
 -- =====================================================
--- AUTOMATIC CLEANUP FUNCTIONS
+-- AUTOMATIC CLEANUP FUNCTIONS (PostgreSQL-specific, disabled for H2)
 -- =====================================================
 
 -- Function to cleanup expired blacklisted tokens
-CREATE OR REPLACE FUNCTION cleanup_expired_blacklist()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM token_blacklist
-    WHERE expires_at < NOW() - INTERVAL '7 days'; -- Keep 7 days after expiry for audit
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE OR REPLACE FUNCTION cleanup_expired_blacklist()
+-- RETURNS void AS $$
+-- BEGIN
+--     DELETE FROM token_blacklist
+--     WHERE expires_at < NOW() - INTERVAL '7 days'; -- Keep 7 days after expiry for audit
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 -- Function to cleanup expired refresh tokens
-CREATE OR REPLACE FUNCTION cleanup_expired_refresh_tokens()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM refresh_tokens
-    WHERE expires_at < NOW() - INTERVAL '30 days' -- Keep 30 days after expiry
-    AND revoked = true;
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE OR REPLACE FUNCTION cleanup_expired_refresh_tokens()
+-- RETURNS void AS $$
+-- BEGIN
+--     DELETE FROM refresh_tokens
+--     WHERE expires_at < NOW() - INTERVAL '30 days' -- Keep 30 days after expiry
+--     AND revoked = true;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 -- Function to cleanup old sessions
-CREATE OR REPLACE FUNCTION cleanup_old_sessions()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM user_sessions
-    WHERE terminated = true
-    AND terminated_at < NOW() - INTERVAL '90 days'; -- Keep 90 days of history
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE OR REPLACE FUNCTION cleanup_old_sessions()
+-- RETURNS void AS $$
+-- BEGIN
+--     DELETE FROM user_sessions
+--     WHERE terminated = true
+--     AND terminated_at < NOW() - INTERVAL '90 days'; -- Keep 90 days of history
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 -- Function to cleanup old audit logs (keep 1 year)
-CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM audit_logs
-    WHERE timestamp < NOW() - INTERVAL '1 year';
-END;
-$$ LANGUAGE plpgsql;
+-- CREATE OR REPLACE FUNCTION cleanup_old_audit_logs()
+-- RETURNS void AS $$
+-- BEGIN
+--     DELETE FROM audit_logs
+--     WHERE timestamp < NOW() - INTERVAL '1 year';
+-- END;
+-- $$ LANGUAGE plpgsql;
 
 -- =====================================================
 -- VIEWS FOR MONITORING

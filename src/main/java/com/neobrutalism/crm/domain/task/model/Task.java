@@ -97,9 +97,9 @@ public class Task extends TenantAwareAggregateRoot<TaskStatus> {
     protected Set<TaskStatus> getAllowedTransitions(TaskStatus currentStatus) {
         return switch (currentStatus) {
             case TODO -> Set.of(TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED);
-            case IN_PROGRESS -> Set.of(TaskStatus.IN_REVIEW, TaskStatus.DONE, TaskStatus.CANCELLED, TaskStatus.TODO);
-            case IN_REVIEW -> Set.of(TaskStatus.DONE, TaskStatus.IN_PROGRESS);
-            case DONE, CANCELLED -> Set.of(); // Terminal states
+            case IN_PROGRESS -> Set.of(TaskStatus.IN_REVIEW, TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.TODO);
+            case IN_REVIEW -> Set.of(TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS);
+            case COMPLETED, CANCELLED, ON_HOLD -> Set.of(); // Terminal states
         };
     }
 
@@ -108,7 +108,7 @@ public class Task extends TenantAwareAggregateRoot<TaskStatus> {
      */
     @Override
     protected void onStatusChanged(TaskStatus oldStatus, TaskStatus newStatus) {
-        if (newStatus == TaskStatus.DONE && completedAt == null) {
+        if (newStatus == TaskStatus.COMPLETED && completedAt == null) {
             completedAt = Instant.now();
             progressPercentage = 100;
         }
@@ -142,7 +142,7 @@ public class Task extends TenantAwareAggregateRoot<TaskStatus> {
      * Complete task
      */
     public void complete(String changedBy) {
-        transitionTo(TaskStatus.DONE, changedBy, "Task completed");
+        transitionTo(TaskStatus.COMPLETED, changedBy, "Task completed");
     }
 
     /**
@@ -162,7 +162,7 @@ public class Task extends TenantAwareAggregateRoot<TaskStatus> {
         this.progressPercentage = percentage;
 
         // Auto complete if 100%
-        if (percentage == 100 && getStatus() != TaskStatus.DONE) {
+        if (percentage == 100 && getStatus() != TaskStatus.COMPLETED) {
             this.completedAt = Instant.now();
         }
     }
@@ -182,6 +182,6 @@ public class Task extends TenantAwareAggregateRoot<TaskStatus> {
      * Check if task is completed
      */
     public boolean isCompleted() {
-        return getStatus() == TaskStatus.DONE;
+        return getStatus() == TaskStatus.COMPLETED;
     }
 }

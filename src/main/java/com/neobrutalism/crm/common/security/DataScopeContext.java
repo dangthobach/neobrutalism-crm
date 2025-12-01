@@ -1,5 +1,6 @@
 package com.neobrutalism.crm.common.security;
 
+import com.neobrutalism.crm.common.multitenancy.TenantContext;
 import com.neobrutalism.crm.domain.user.model.DataScope;
 import lombok.Builder;
 import lombok.Getter;
@@ -55,7 +56,7 @@ public class DataScopeContext {
      */
     public static String getCurrentTenantId() {
         DataScopeContext context = get();
-        return context != null ? context.getTenantId() : TenantContext.getTenantId();
+        return context != null ? context.getTenantId() : TenantContext.getCurrentTenant();
     }
 
     /**

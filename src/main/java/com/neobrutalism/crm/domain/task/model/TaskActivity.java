@@ -1,6 +1,6 @@
 package com.neobrutalism.crm.domain.task.model;
 
-import com.neobrutalism.crm.common.entity.BaseEntity;
+import com.neobrutalism.crm.common.entity.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -27,7 +27,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskActivity extends BaseEntity {
+public class TaskActivity extends AuditableEntity {
 
     @Column(name = "task_id", nullable = false)
     private UUID taskId;

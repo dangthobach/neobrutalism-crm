@@ -57,7 +57,7 @@ public class CommentService {
         comment.setUserId(userId);
         comment.setContent(content);
         comment.setParentId(parentId);
-        comment.setOrganizationId(task.getOrganizationId());
+        // tenantId will be auto-set by @PrePersist
 
         Comment saved = commentRepository.save(comment);
 

@@ -1,6 +1,5 @@
 package com.neobrutalism.crm.domain.notification.service;
 
-import com.neobrutalism.crm.common.email.EmailService;
 import com.neobrutalism.crm.common.exception.BusinessException;
 import com.neobrutalism.crm.common.exception.ErrorCode;
 import com.neobrutalism.crm.common.websocket.WebSocketService;

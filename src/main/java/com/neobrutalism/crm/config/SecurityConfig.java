@@ -1,6 +1,6 @@
 package com.neobrutalism.crm.config;
 
-import com.neobrutalism.crm.common.filter.RateLimitFilter;
+import com.neobrutalism.crm.common.ratelimit.RateLimitFilter;
 import com.neobrutalism.crm.common.security.CustomUserDetailsService;
 import com.neobrutalism.crm.common.security.JwtAuthenticationEntryPoint;
 import com.neobrutalism.crm.common.security.JwtAuthenticationFilter;

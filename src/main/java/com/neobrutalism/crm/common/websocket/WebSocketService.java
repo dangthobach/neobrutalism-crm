@@ -196,15 +196,27 @@ public class WebSocketService {
             Map<String, Object> payload = new HashMap<>();
             payload.put("type", "PING");
             payload.put("timestamp", System.currentTimeMillis());
-            
+
             messagingTemplate.convertAndSendToUser(
                     userId.toString(),
                     "/queue/ping",
                     payload
             );
-            
+
         } catch (Exception e) {
             log.error("Failed to send ping to user: {}", userId, e);
+        }
+    }
+
+    /**
+     * Send message to topic (broadcast to subscribers)
+     */
+    public void sendToTopic(String topic, Map<String, Object> payload) {
+        try {
+            messagingTemplate.convertAndSend(topic, payload);
+            log.debug("Message sent to topic: {}", topic);
+        } catch (Exception e) {
+            log.error("Failed to send message to topic: {}", topic, e);
         }
     }
 }

@@ -291,4 +291,59 @@ public class EmailService {
                 "Failed to send test email: " + e.getMessage());
         }
     }
+
+    /**
+     * Send templated email (backward compatibility)
+     *
+     * @param recipientEmail Recipient email address (can be null, uses toEmail)
+     * @param toEmail Alternative recipient email address
+     * @param subject Email subject
+     * @param templateVariables Variables to pass to template
+     */
+    @Async
+    public void sendTemplateEmail(String recipientEmail, String toEmail, String subject, Map<String, Object> templateVariables) {
+        String targetEmail = recipientEmail != null ? recipientEmail : toEmail;
+
+        if (!emailEnabled) {
+            log.debug("Email sending is disabled. Skipping email to: {}", targetEmail);
+            return;
+        }
+
+        if (isQuietHours()) {
+            log.debug("Quiet hours active. Skipping email to: {}", targetEmail);
+            return;
+        }
+
+        try {
+            log.info("Sending templated email to: {} with subject: {}", targetEmail, subject);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(targetEmail);
+            helper.setSubject(subject);
+
+            // Build email content from template
+            Context context = new Context();
+            context.setVariables(templateVariables);
+
+            // Try to determine template name from variables or use default
+            String templateName = templateVariables.containsKey("templateName")
+                ? (String) templateVariables.get("templateName")
+                : "email/notification";
+
+            String htmlContent = templateEngine.process(templateName, context);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+
+            log.info("Templated email sent successfully to: {}", targetEmail);
+
+        } catch (Exception e) {
+            log.error("Failed to send templated email to: {}", targetEmail, e);
+            throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED,
+                "Failed to send templated email: " + e.getMessage());
+        }
+    }
 }

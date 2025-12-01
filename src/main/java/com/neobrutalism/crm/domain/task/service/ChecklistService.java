@@ -45,7 +45,7 @@ public class ChecklistService {
         item.setTaskId(taskId);
         item.setTitle(title);
         item.setPosition(maxPosition + 1);
-        item.setOrganizationId(task.getOrganizationId());
+        // tenantId will be auto-set by @PrePersist
 
         ChecklistItem saved = checklistItemRepository.save(item);
 
