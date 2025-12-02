@@ -30,6 +30,17 @@ export interface RoleMenuRequest {
   canImport?: boolean
 }
 
+export interface ValidationResult {
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+  info: string[]
+  suggestions: string[]
+  errorCount: number
+  warningCount: number
+  infoCount: number
+}
+
 export class RoleMenuApi {
   /**
    * Get menu permissions by role ID
@@ -107,6 +118,90 @@ export class RoleMenuApi {
     }
 
     return results
+  }
+
+  /**
+   * Validate permission settings before saving
+   */
+  async validatePermissions(request: RoleMenuRequest): Promise<ValidationResult> {
+    return apiClient.post<ValidationResult>('/role-menus/validate', request)
+  }
+
+  /**
+   * Auto-fix permission dependencies
+   */
+  async autoFixPermissions(request: RoleMenuRequest): Promise<RoleMenu> {
+    return apiClient.post<RoleMenu>('/role-menus/auto-fix', request)
+  }
+
+  /**
+   * Export role permissions to Excel
+   */
+  async exportRolePermissions(roleId: string): Promise<Blob> {
+    const response = await fetch(`/api/role-menus/role/${roleId}/export`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to export permissions')
+    }
+
+    return response.blob()
+  }
+
+  /**
+   * Export multiple roles permissions to Excel
+   */
+  async exportMultipleRolePermissions(roleIds: string[]): Promise<Blob> {
+    const response = await fetch('/api/role-menus/export-multiple', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify(roleIds),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to export permissions')
+    }
+
+    return response.blob()
+  }
+
+  /**
+   * Export all role permissions to Excel
+   */
+  async exportAllRolePermissions(): Promise<Blob> {
+    const response = await fetch('/api/role-menus/export-all', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to export permissions')
+    }
+
+    return response.blob()
+  }
+
+  /**
+   * Helper to download blob as file
+   */
+  downloadBlob(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
   }
 }
 
