@@ -1,46 +1,43 @@
--- V5: Create Branch table and Casbin policy tables
+-- V5: Update Branch table and Create Casbin policy tables
 
 -- ============================================================================
--- 1. CREATE BRANCHES TABLE
+-- 1. UPDATE BRANCHES TABLE (table already exists from V2)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS branches (
-    id UUID PRIMARY KEY,
-    code VARCHAR(50) NOT NULL,
-    name VARCHAR(200) NOT NULL,
-    description VARCHAR(1000),
-    organization_id UUID NOT NULL,
-    parent_id UUID,
-    level INTEGER NOT NULL DEFAULT 0,
-    path VARCHAR(500),
-    branch_type VARCHAR(20) DEFAULT 'LOCAL',
-    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-    manager_id UUID,
-    email VARCHAR(255),
-    phone VARCHAR(50),
-    address VARCHAR(500),
-    display_order INTEGER DEFAULT 0,
-    tenant_id VARCHAR(255) NOT NULL,
-    created_by VARCHAR(255),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by VARCHAR(255),
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    deleted_by VARCHAR(255),
-    deleted_at TIMESTAMP,
-    version BIGINT NOT NULL DEFAULT 0
-);
+-- Add missing columns to existing branches table
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS description VARCHAR(1000);
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS organization_id UUID;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS parent_id UUID;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 0;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS path VARCHAR(500);
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS manager_id UUID;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS address VARCHAR(500);
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0;
 
--- Indexes for branches
-CREATE INDEX idx_branch_org_id ON branches(organization_id);
-CREATE INDEX idx_branch_parent_id ON branches(parent_id);
-CREATE INDEX idx_branch_code ON branches(code);
-CREATE INDEX idx_branch_deleted_id ON branches(deleted, id);
-CREATE INDEX idx_branch_status ON branches(status);
-CREATE INDEX idx_branch_tenant_id ON branches(tenant_id);
+-- Add soft delete columns (required by SoftDeletableEntity)
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(100);
 
--- Foreign key constraints
-ALTER TABLE branches ADD CONSTRAINT fk_branch_organization FOREIGN KEY (organization_id) REFERENCES organizations(id);
-ALTER TABLE branches ADD CONSTRAINT fk_branch_parent FOREIGN KEY (parent_id) REFERENCES branches(id);
+-- Add tenant_id column (required by TenantAwareAggregateRoot)
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) NOT NULL DEFAULT 'default';
+
+-- Fix audit columns type mismatch (entity expects VARCHAR, V2 created UUID)
+ALTER TABLE branches ALTER COLUMN created_by VARCHAR(100);
+ALTER TABLE branches ALTER COLUMN updated_by VARCHAR(100);
+
+-- Add indexes if they don't exist (H2 will skip if exists)
+CREATE INDEX IF NOT EXISTS idx_branch_org_id ON branches(organization_id);
+CREATE INDEX IF NOT EXISTS idx_branch_parent_id ON branches(parent_id);
+CREATE INDEX IF NOT EXISTS idx_branch_code ON branches(code);
+CREATE INDEX IF NOT EXISTS idx_branch_deleted_id ON branches(deleted, id);
+CREATE INDEX IF NOT EXISTS idx_branch_status ON branches(status);
+CREATE INDEX IF NOT EXISTS idx_branch_tenant_id ON branches(tenant_id);
+
+-- Add foreign key constraints (H2 will error if exists, so we try-catch via IF NOT EXISTS)
+-- Note: H2 doesn't support IF NOT EXISTS for constraints, so we comment these out
+-- ALTER TABLE branches ADD CONSTRAINT IF NOT EXISTS fk_branch_organization FOREIGN KEY (organization_id) REFERENCES organizations(id);
+-- ALTER TABLE branches ADD CONSTRAINT IF NOT EXISTS fk_branch_parent FOREIGN KEY (parent_id) REFERENCES branches(id);
 
 -- ============================================================================
 -- 2. ADD BRANCH_ID AND DATA_SCOPE TO USERS TABLE

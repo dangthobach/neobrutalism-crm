@@ -350,7 +350,7 @@ SELECT
     e.action_taken,
     e.requires_investigation
 FROM security_events e
-WHERE e.timestamp > NOW() - INTERVAL '7 days'
+WHERE e.timestamp > DATEADD('DAY', -7, NOW())
 ORDER BY e.timestamp DESC;
 
 -- Suspicious activity view
