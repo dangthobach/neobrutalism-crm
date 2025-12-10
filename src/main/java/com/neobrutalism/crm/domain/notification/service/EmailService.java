@@ -269,6 +269,76 @@ public class EmailService {
     }
 
     /**
+     * Send simple email (plain text)
+     */
+    @Async
+    public void sendSimpleEmail(String toEmail, String subject, String body) {
+        if (!emailEnabled) {
+            log.debug("Email sending is disabled. Skipping email to: {}", toEmail);
+            return;
+        }
+
+        if (isQuietHours()) {
+            log.debug("Quiet hours active. Skipping email to: {}", toEmail);
+            return;
+        }
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(body, false);
+
+            mailSender.send(message);
+
+            log.info("Simple email sent successfully to: {}", toEmail);
+
+        } catch (Exception e) {
+            log.error("Failed to send simple email to: {}", toEmail, e);
+            throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED,
+                "Failed to send simple email: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Send HTML email
+     */
+    @Async
+    public void sendHtmlEmail(String toEmail, String subject, String htmlContent) {
+        if (!emailEnabled) {
+            log.debug("Email sending is disabled. Skipping email to: {}", toEmail);
+            return;
+        }
+
+        if (isQuietHours()) {
+            log.debug("Quiet hours active. Skipping email to: {}", toEmail);
+            return;
+        }
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true); // true = HTML
+
+            mailSender.send(message);
+
+            log.info("HTML email sent successfully to: {}", toEmail);
+
+        } catch (Exception e) {
+            log.error("Failed to send HTML email to: {}", toEmail, e);
+            throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED,
+                "Failed to send HTML email: " + e.getMessage());
+        }
+    }
+
+    /**
      * Send test email to verify configuration
      */
     public void sendTestEmail(String toEmail) {

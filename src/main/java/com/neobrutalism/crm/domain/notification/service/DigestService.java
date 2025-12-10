@@ -1,6 +1,6 @@
 package com.neobrutalism.crm.domain.notification.service;
 
-import com.neobrutalism.crm.common.email.EmailService;
+import com.neobrutalism.crm.domain.notification.service.EmailService;
 import com.neobrutalism.crm.domain.notification.dto.NotificationDigest;
 import com.neobrutalism.crm.domain.notification.model.Notification;
 import com.neobrutalism.crm.domain.notification.model.NotificationPreference;

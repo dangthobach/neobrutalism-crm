@@ -1,7 +1,7 @@
 package com.neobrutalism.crm.domain.notification.controller;
 
 import com.neobrutalism.crm.common.dto.ApiResponse;
-import com.neobrutalism.crm.common.email.EmailService;
+import com.neobrutalism.crm.domain.notification.service.EmailService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

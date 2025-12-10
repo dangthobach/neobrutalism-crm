@@ -1,5 +1,6 @@
 package com.neobrutalism.crm.common.event;
 
+import com.neobrutalism.crm.common.audit.AuditLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
