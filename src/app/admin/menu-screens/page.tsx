@@ -79,7 +79,7 @@ export default function MenuScreensPage() {
         accessorKey: "menuId",
         header: "Menu",
         cell: ({ row }) => row.original.menuId ? (
-          <Badge variant="outline">{getMenuName(row.original.menuId)}</Badge>
+          <Badge variant="neutral">{getMenuName(row.original.menuId)}</Badge>
         ) : <span className="text-muted-foreground">-</span>
       },
       {
@@ -113,7 +113,7 @@ export default function MenuScreensPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <PermissionGuard action="EDIT">
+            <PermissionGuard routeOrCode="/menu-screens" permission="canEdit">
               <Button
                 variant="noShadow"
                 size="sm"
@@ -122,7 +122,7 @@ export default function MenuScreensPage() {
                 APIs
               </Button>
             </PermissionGuard>
-            <PermissionGuard action="EDIT">
+            <PermissionGuard routeOrCode="/menu-screens" permission="canEdit">
               <Button
                 variant="noShadow"
                 size="sm"
@@ -131,7 +131,7 @@ export default function MenuScreensPage() {
                 Edit
               </Button>
             </PermissionGuard>
-            <PermissionGuard action="DELETE">
+            <PermissionGuard routeOrCode="/menu-screens" permission="canDelete">
               <Button
                 variant="noShadow"
                 size="sm"
@@ -261,9 +261,6 @@ export default function MenuScreensPage() {
         <DataTable
           columns={columns}
           data={menuScreens}
-          searchColumn="name"
-          searchPlaceholder="Search screens..."
-          isLoading={isLoading}
         />
       </div>
 
@@ -428,7 +425,7 @@ export default function MenuScreensPage() {
                       </Badge>
                       <code className="text-sm">{api.path}</code>
                       {api.tag && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="neutral" className="text-xs">
                           {api.tag}
                         </Badge>
                       )}

@@ -21,7 +21,7 @@ export const taskApi = {
    */
   getAll: async (params?: TaskSearchParams): Promise<PageResponse<Task>> => {
     const response = await apiClient.get<PageResponse<Task>>('/tasks', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -29,7 +29,7 @@ export const taskApi = {
    */
   getById: async (id: string): Promise<Task> => {
     const response = await apiClient.get<Task>(`/tasks/${id}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -37,7 +37,7 @@ export const taskApi = {
    */
   create: async (data: CreateTaskRequest): Promise<Task> => {
     const response = await apiClient.post<Task>('/tasks', data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -45,7 +45,7 @@ export const taskApi = {
    */
   update: async (id: string, data: UpdateTaskRequest): Promise<Task> => {
     const response = await apiClient.put<Task>(`/tasks/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -60,7 +60,7 @@ export const taskApi = {
    */
   getByCustomer: async (customerId: string, params?: TaskSearchParams): Promise<PageResponse<Task>> => {
     const response = await apiClient.get<PageResponse<Task>>(`/tasks/customer/${customerId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -68,7 +68,7 @@ export const taskApi = {
    */
   getByContact: async (contactId: string, params?: TaskSearchParams): Promise<PageResponse<Task>> => {
     const response = await apiClient.get<PageResponse<Task>>(`/tasks/contact/${contactId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -76,7 +76,7 @@ export const taskApi = {
    */
   getByAssignee: async (userId: string, params?: TaskSearchParams): Promise<PageResponse<Task>> => {
     const response = await apiClient.get<PageResponse<Task>>(`/tasks/assigned/${userId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -84,7 +84,7 @@ export const taskApi = {
    */
   getBoard: async (params?: Omit<TaskSearchParams, 'status'>): Promise<TaskBoard> => {
     const response = await apiClient.get<TaskBoard>('/tasks/board', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -92,7 +92,7 @@ export const taskApi = {
    */
   getMyTasks: async (params?: TaskSearchParams): Promise<PageResponse<Task>> => {
     const response = await apiClient.get<PageResponse<Task>>('/tasks/my-tasks', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -100,7 +100,7 @@ export const taskApi = {
    */
   getOverdue: async (params?: TaskSearchParams): Promise<Task[]> => {
     const response = await apiClient.get<Task[]>('/tasks/overdue', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -108,7 +108,7 @@ export const taskApi = {
    */
   getDueToday: async (params?: TaskSearchParams): Promise<Task[]> => {
     const response = await apiClient.get<Task[]>('/tasks/due-today', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -116,7 +116,7 @@ export const taskApi = {
    */
   getDueThisWeek: async (params?: TaskSearchParams): Promise<Task[]> => {
     const response = await apiClient.get<Task[]>('/tasks/due-this-week', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -124,7 +124,7 @@ export const taskApi = {
    */
   changeStatus: async (id: string, status: string): Promise<Task> => {
     const response = await apiClient.post<Task>(`/tasks/${id}/status`, { status })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -132,7 +132,7 @@ export const taskApi = {
    */
   changePriority: async (id: string, priority: string): Promise<Task> => {
     const response = await apiClient.post<Task>(`/tasks/${id}/priority`, { priority })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -140,7 +140,7 @@ export const taskApi = {
    */
   assign: async (id: string, userId: string): Promise<Task> => {
     const response = await apiClient.post<Task>(`/tasks/${id}/assign`, { assignedToId: userId })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -148,7 +148,7 @@ export const taskApi = {
    */
   complete: async (id: string): Promise<Task> => {
     const response = await apiClient.post<Task>(`/tasks/${id}/complete`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -159,7 +159,7 @@ export const taskApi = {
       ? `/tasks/${id}/cancel?reason=${encodeURIComponent(reason)}`
       : `/tasks/${id}/cancel`
     const response = await apiClient.post<Task>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -167,7 +167,7 @@ export const taskApi = {
    */
   getComments: async (taskId: string): Promise<TaskComment[]> => {
     const response = await apiClient.get<TaskComment[]>(`/tasks/${taskId}/comments`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -175,7 +175,7 @@ export const taskApi = {
    */
   addComment: async (data: CreateTaskCommentRequest): Promise<TaskComment> => {
     const response = await apiClient.post<TaskComment>(`/tasks/${data.taskId}/comments`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -190,7 +190,7 @@ export const taskApi = {
    */
   getStats: async (): Promise<TaskStats> => {
     const response = await apiClient.get<TaskStats>('/tasks/stats')
-    return response.data!
+    return response as any
   },
 
   /**
@@ -198,6 +198,6 @@ export const taskApi = {
    */
   search: async (keyword: string): Promise<Task[]> => {
     const response = await apiClient.get<Task[]>('/tasks/search', { keyword })
-    return response.data!
+    return response as any
   },
 }

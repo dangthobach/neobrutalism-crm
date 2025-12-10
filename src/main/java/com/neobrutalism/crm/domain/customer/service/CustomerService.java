@@ -2,9 +2,11 @@ package com.neobrutalism.crm.domain.customer.service;
 
 import com.neobrutalism.crm.common.audit.AuditAction;
 import com.neobrutalism.crm.common.audit.Audited;
+import com.neobrutalism.crm.common.enums.PermissionType;
 import com.neobrutalism.crm.common.exception.ResourceNotFoundException;
 import com.neobrutalism.crm.common.exception.ValidationException;
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
+import com.neobrutalism.crm.common.security.annotation.RequirePermission;
 import com.neobrutalism.crm.common.service.BaseService;
 import com.neobrutalism.crm.domain.customer.dto.CustomerStatsResponse;
 import com.neobrutalism.crm.domain.customer.model.Customer;
@@ -57,6 +59,7 @@ public class CustomerService extends BaseService<Customer> {
     @Transactional
     @CacheEvict(value = "customers", allEntries = true)
     @Audited(entity = "Customer", action = AuditAction.CREATE, description = "Customer created")
+    @RequirePermission(resource = "customer", permission = PermissionType.WRITE)
     public Customer create(Customer customer) {
         log.info("Creating new customer: {}", customer.getCode());
 
@@ -93,6 +96,7 @@ public class CustomerService extends BaseService<Customer> {
     @Transactional
     @CacheEvict(value = "customers", allEntries = true)
     @Audited(entity = "Customer", action = AuditAction.UPDATE, description = "Customer updated")
+    @RequirePermission(resource = "customer", permission = PermissionType.WRITE)
     public Customer update(UUID id, Customer updatedCustomer) {
         log.info("Updating customer: {}", id);
 
@@ -147,6 +151,7 @@ public class CustomerService extends BaseService<Customer> {
      * Cached: 5 minutes TTL, key by code and tenant
      */
     @Cacheable(value = "customers", key = "'code:' + #code + ':tenant:' + T(com.neobrutalism.crm.common.multitenancy.TenantContext).getCurrentTenant()")
+    @RequirePermission(resource = "customer", permission = PermissionType.READ)
     public Optional<Customer> findByCode(String code) {
         String tenantIdStr = TenantContext.getCurrentTenant();
         return customerRepository.findByCodeAndTenantId(code, tenantIdStr);
@@ -379,6 +384,7 @@ public class CustomerService extends BaseService<Customer> {
     /**
      * Get all active customers
      */
+    @RequirePermission(resource = "customer", permission = PermissionType.READ)
     public List<Customer> findAllActive() {
         return customerRepository.findByStatus(CustomerStatus.ACTIVE);
     }
@@ -387,6 +393,7 @@ public class CustomerService extends BaseService<Customer> {
      * Get all active customers with pagination
      * ✅ Optimized: Uses optimized query to prevent N+1
      */
+    @RequirePermission(resource = "customer", permission = PermissionType.READ)
     public Page<Customer> findAllActive(Pageable pageable) {
         return customerRepository.findAllActiveOptimized(pageable);
     }
@@ -434,6 +441,7 @@ public class CustomerService extends BaseService<Customer> {
     @Transactional
     @CacheEvict(value = "customers", allEntries = true)
     @Audited(entity = "Customer", action = AuditAction.DELETE, description = "Customer soft deleted")
+    @RequirePermission(resource = "customer", permission = PermissionType.DELETE)
     public void deleteById(UUID id) {
         log.info("Soft deleting customer: {}", id);
         Customer customer = findById(id);

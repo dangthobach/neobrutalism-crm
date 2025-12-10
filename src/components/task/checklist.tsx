@@ -208,7 +208,7 @@ export function Checklist({ taskId }: ChecklistProps) {
           />
           <Button
             size="sm"
-            variant="outline"
+            variant="neutral"
             onClick={() => {
               setIsAdding(false)
               setNewItemTitle('')
@@ -230,7 +230,7 @@ export function Checklist({ taskId }: ChecklistProps) {
       ) : (
         <Button
           onClick={() => setIsAdding(true)}
-          variant="outline"
+          variant="neutral"
           className="w-full border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-purple-50"
         >
           <Plus className="mr-2 h-4 w-4" />

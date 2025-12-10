@@ -162,7 +162,7 @@ public class AuditService {
      */
     @Transactional(readOnly = true)
     public List<AuditLog> getRecentActivities(UUID tenantId, int limit) {
-        return auditLogRepository.findRecentActivities(tenantId, Pageable.ofSize(limit));
+        return auditLogRepository.findRecentActivities(tenantId, Pageable.ofSize(limit)).getContent();
     }
 
     /**

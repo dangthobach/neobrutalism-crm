@@ -117,12 +117,12 @@ public class Contract {
     
     @Column(name = "area", length = 50)
     private String area;
-    
-    @Column(name = "row", length = 50)
-    private String row;
-    
-    @Column(name = "column", length = 50)
-    private String column;
+
+    @Column(name = "storage_row", length = 50)
+    private String storageRow;
+
+    @Column(name = "storage_column", length = 50)
+    private String storageColumn;
     
     @Column(name = "box_condition", length = 100)
     private String boxCondition;

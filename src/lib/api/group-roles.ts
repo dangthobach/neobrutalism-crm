@@ -24,33 +24,21 @@ export class GroupRoleApi {
    * Get roles by group ID
    */
   async getRolesByGroup(groupId: string): Promise<GroupRole[]> {
-    const response = await apiClient.get<GroupRole[]>(`/group-roles/group/${groupId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<GroupRole[]>(`/group-roles/group/${groupId}`)
   }
 
   /**
    * Get groups by role ID
    */
   async getGroupsByRole(roleId: string): Promise<GroupRole[]> {
-    const response = await apiClient.get<GroupRole[]>(`/group-roles/role/${roleId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<GroupRole[]>(`/group-roles/role/${roleId}`)
   }
 
   /**
    * Assign role to group
    */
   async assignRoleToGroup(request: GroupRoleRequest): Promise<GroupRole> {
-    const response = await apiClient.post<GroupRole>('/group-roles', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<GroupRole>('/group-roles', request)
   }
 
   /**

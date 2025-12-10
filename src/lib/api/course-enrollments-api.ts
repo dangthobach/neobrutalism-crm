@@ -13,7 +13,7 @@ const BASE_URL = '/api/course-enrollments'
 
 export const createEnrollment = async (data: CreateEnrollmentRequest): Promise<CourseEnrollment> => {
   const response = await apiClient.post<CourseEnrollment>(BASE_URL, data)
-  return response.data!
+  return response as any
 }
 
 export const updateEnrollment = async (
@@ -21,7 +21,7 @@ export const updateEnrollment = async (
   data: UpdateEnrollmentRequest
 ): Promise<CourseEnrollment> => {
   const response = await apiClient.put<CourseEnrollment>(`${BASE_URL}/${id}`, data)
-  return response.data!
+  return response as any
 }
 
 export const deleteEnrollment = async (id: string): Promise<void> => {
@@ -30,7 +30,7 @@ export const deleteEnrollment = async (id: string): Promise<void> => {
 
 export const getEnrollmentById = async (id: string): Promise<CourseEnrollment> => {
   const response = await apiClient.get<CourseEnrollment>(`${BASE_URL}/${id}`)
-  return response.data!
+  return response as any
 }
 
 export const getAllEnrollments = async (
@@ -53,7 +53,7 @@ export const getAllEnrollments = async (
   }
 
   const response = await apiClient.get<PageResponse<CourseEnrollment>>(`${BASE_URL}?${params}`)
-  return response.data!
+  return response as any
 }
 
 export const getEnrollmentsByUser = async (
@@ -64,7 +64,7 @@ export const getEnrollmentsByUser = async (
   const response = await apiClient.get<PageResponse<CourseEnrollment>>(
     `${BASE_URL}/user/${userId}?page=${page}&size=${size}`
   )
-  return response.data!
+  return response as any
 }
 
 export const getEnrollmentsByCourse = async (
@@ -75,7 +75,7 @@ export const getEnrollmentsByCourse = async (
   const response = await apiClient.get<PageResponse<CourseEnrollment>>(
     `${BASE_URL}/course/${courseId}?page=${page}&size=${size}`
   )
-  return response.data!
+  return response as any
 }
 
 export const getUserEnrollment = async (userId: string, courseId: string): Promise<CourseEnrollment | null> => {
@@ -83,7 +83,7 @@ export const getUserEnrollment = async (userId: string, courseId: string): Promi
     const response = await apiClient.get<CourseEnrollment>(
       `${BASE_URL}/user/${userId}/course/${courseId}`
     )
-    return response.data!
+    return response as any
   } catch (error) {
     return null
   }
@@ -91,20 +91,20 @@ export const getUserEnrollment = async (userId: string, courseId: string): Promi
 
 export const getEnrollmentProgress = async (enrollmentId: string): Promise<CourseProgressResponse> => {
   const response = await apiClient.get<CourseProgressResponse>(`${BASE_URL}/${enrollmentId}/progress`)
-  return response.data!
+  return response as any
 }
 
 export const issueCertificate = async (enrollmentId: string): Promise<Certificate> => {
   const response = await apiClient.post<Certificate>(`${BASE_URL}/${enrollmentId}/certificate`)
-  return response.data!
+  return response as any
 }
 
 export const getCertificate = async (enrollmentId: string): Promise<Certificate> => {
   const response = await apiClient.get<Certificate>(`${BASE_URL}/${enrollmentId}/certificate`)
-  return response.data!
+  return response as any
 }
 
 export const verifyCertificate = async (verificationCode: string): Promise<Certificate> => {
   const response = await apiClient.get<Certificate>(`${BASE_URL}/certificates/verify/${verificationCode}`)
-  return response.data!
+  return response as any
 }

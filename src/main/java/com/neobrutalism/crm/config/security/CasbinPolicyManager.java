@@ -39,30 +39,35 @@ public class CasbinPolicyManager {
     /**
      * Load all policies from database when application starts
      * This ensures Casbin has all role-menu mappings for authorization
+     *
+     * NEW: Also loads role hierarchy (g2) based on role priority
      */
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
     public void loadPoliciesOnStartup() {
         log.info("Loading Casbin policies from database...");
-        
+
         try {
             // Clear existing policies to avoid duplicates
             enforcer.clearPolicy();
-            
+
             // Load all roles with their menu permissions
             List<Role> roles = roleRepository.findAll();
-            
+
             int policyCount = 0;
             for (Role role : roles) {
                 policyCount += syncRolePolicies(role, false);
             }
-            
+
+            // ✅ NEW: Sync role hierarchy (g2) based on priority
+            int hierarchyCount = syncRoleHierarchy(roles);
+
             // Save all policies to database
             enforcer.savePolicy();
-            
-            log.info("Successfully loaded {} policies for {} roles", 
-                policyCount, roles.size());
-                
+
+            log.info("Successfully loaded {} policies and {} hierarchy relationships for {} roles",
+                policyCount, hierarchyCount, roles.size());
+
         } catch (Exception e) {
             log.error("Failed to load Casbin policies from database", e);
             throw new RuntimeException("Failed to initialize authorization system", e);
@@ -107,19 +112,23 @@ public class CasbinPolicyManager {
             List<String> actions = buildActions(roleMenu);
             
             for (String action : actions) {
-                // Format: p, role, domain, resource, action, allow
+                // ✅ NEW: Determine scope based on role priority
+                String scope = determineRoleScope(role);
+
+                // Format: p, role, domain, resource, action, allow, scope
                 boolean added = enforcer.addPolicy(
                     role.getName(),
                     domain,
                     resource,
                     action,
-                    "allow"
+                    "allow",
+                    scope  // ✅ NEW: Add scope parameter
                 );
-                
+
                 if (added) {
                     count++;
-                    log.trace("Added policy: role={}, domain={}, resource={}, action={}", 
-                        role.getName(), domain, resource, action);
+                    log.trace("Added policy: role={}, domain={}, resource={}, action={}, scope={}",
+                        role.getName(), domain, resource, action, scope);
                 }
             }
         }
@@ -217,5 +226,107 @@ public class CasbinPolicyManager {
     public void reloadAllPolicies() {
         log.info("Manually reloading all Casbin policies...");
         loadPoliciesOnStartup();
+    }
+
+    /**
+     * ✅ NEW: Sync role hierarchy (g2) based on role priority
+     *
+     * Role hierarchy logic:
+     * - Roles with lower priority number have higher privilege
+     * - Example: priority=1 (Admin) > priority=10 (Manager) > priority=20 (User)
+     * - Child roles inherit permissions from parent roles
+     *
+     * Casbin g2 format: g2, child_role, parent_role, domain
+     * - Example: g2, ROLE_MANAGER, ROLE_ADMIN, tenant123
+     * - Means: ROLE_MANAGER inherits from ROLE_ADMIN in tenant123
+     *
+     * @param roles List of all roles
+     * @return Number of hierarchy relationships created
+     */
+    private int syncRoleHierarchy(List<Role> roles) {
+        log.debug("Syncing role hierarchy (g2) based on priority...");
+
+        int count = 0;
+
+        // Group roles by organization (tenant)
+        java.util.Map<String, List<Role>> rolesByOrg = new java.util.HashMap<>();
+        for (Role role : roles) {
+            String orgId = role.getOrganizationId().toString();
+            rolesByOrg.computeIfAbsent(orgId, k -> new java.util.ArrayList<>()).add(role);
+        }
+
+        // For each organization, create hierarchy relationships
+        for (java.util.Map.Entry<String, List<Role>> entry : rolesByOrg.entrySet()) {
+            String domain = entry.getKey();
+            List<Role> orgRoles = entry.getValue();
+
+            // Sort roles by priority (ascending - lower number = higher privilege)
+            orgRoles.sort((r1, r2) -> {
+                Integer p1 = r1.getPriority() != null ? r1.getPriority() : 999;
+                Integer p2 = r2.getPriority() != null ? r2.getPriority() : 999;
+                return p1.compareTo(p2);
+            });
+
+            // Create parent-child relationships
+            // Each role inherits from all roles with lower priority (higher privilege)
+            for (int i = 0; i < orgRoles.size(); i++) {
+                Role childRole = orgRoles.get(i);
+
+                // Find parent roles (roles with lower priority number = higher privilege)
+                for (int j = 0; j < i; j++) {
+                    Role parentRole = orgRoles.get(j);
+
+                    // Add g2 grouping: child inherits from parent
+                    // Format: g2, child_role, parent_role, domain
+                    boolean added = enforcer.addGroupingPolicy(
+                        childRole.getName(),  // child role
+                        parentRole.getName(), // parent role
+                        domain                // tenant/domain
+                    );
+
+                    if (added) {
+                        count++;
+                        log.trace("Added role hierarchy: {} inherits from {} in domain {}",
+                            childRole.getName(), parentRole.getName(), domain);
+                    }
+                }
+            }
+        }
+
+        log.info("Synced {} role hierarchy relationships (g2)", count);
+        return count;
+    }
+
+    /**
+     * ✅ NEW: Determine data scope for a role based on priority
+     *
+     * Scope assignment logic:
+     * - Priority 1-10: ALL_BRANCHES (Management roles)
+     * - Priority 11-20: CURRENT_BRANCH (Branch managers)
+     * - Priority 21+: SELF_ONLY (Regular users)
+     *
+     * @param role Role to determine scope for
+     * @return Scope string (ALL_BRANCHES, CURRENT_BRANCH, or SELF_ONLY)
+     */
+    private String determineRoleScope(Role role) {
+        Integer priority = role.getPriority();
+
+        if (priority == null) {
+            // Default to SELF_ONLY if no priority set
+            return "SELF_ONLY";
+        }
+
+        // Management roles (Admin, Director) - can see all data
+        if (priority <= 10) {
+            return "ALL_BRANCHES";
+        }
+
+        // Branch manager roles - can see branch + sub-branches
+        if (priority <= 20) {
+            return "CURRENT_BRANCH";
+        }
+
+        // Regular user roles - can only see own data
+        return "SELF_ONLY";
     }
 }

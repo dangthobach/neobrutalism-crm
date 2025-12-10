@@ -7,7 +7,7 @@
 
 -- Migration Job Tracking
 CREATE TABLE IF NOT EXISTS excel_migration_jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     file_name VARCHAR(500) NOT NULL,
     file_size BIGINT NOT NULL,
     file_hash VARCHAR(64) NOT NULL,
@@ -23,18 +23,18 @@ CREATE TABLE IF NOT EXISTS excel_migration_jobs (
     version INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_migration_status 
-ON excel_migration_jobs(status) WHERE status IN ('PENDING', 'PROCESSING');
+CREATE INDEX IF NOT EXISTS idx_migration_status 
+ON excel_migration_jobs(status);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_migration_created_at 
+CREATE INDEX IF NOT EXISTS idx_migration_created_at 
 ON excel_migration_jobs(created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_migration_file_hash 
+CREATE INDEX IF NOT EXISTS idx_migration_file_hash 
 ON excel_migration_jobs(file_hash);
 
 -- Migration Sheet Tracking
 CREATE TABLE IF NOT EXISTS excel_migration_sheets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     job_id UUID NOT NULL REFERENCES excel_migration_jobs(id) ON DELETE CASCADE,
     sheet_name VARCHAR(100) NOT NULL,
     sheet_type VARCHAR(50) NOT NULL,
@@ -56,18 +56,18 @@ CREATE TABLE IF NOT EXISTS excel_migration_sheets (
     CONSTRAINT uk_sheet_job_name UNIQUE (job_id, sheet_name)
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sheet_job_id 
+CREATE INDEX IF NOT EXISTS idx_sheet_job_id 
 ON excel_migration_sheets(job_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sheet_status 
-ON excel_migration_sheets(status) WHERE status IN ('PROCESSING', 'STUCK');
+CREATE INDEX IF NOT EXISTS idx_sheet_status 
+ON excel_migration_sheets(status);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sheet_heartbeat 
-ON excel_migration_sheets(last_heartbeat) WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_sheet_heartbeat 
+ON excel_migration_sheets(last_heartbeat);
 
 -- Migration Progress Tracking
 CREATE TABLE IF NOT EXISTS excel_migration_progress (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     sheet_id UUID NOT NULL REFERENCES excel_migration_sheets(id) ON DELETE CASCADE,
     batch_number INTEGER NOT NULL,
     batch_size INTEGER NOT NULL,
@@ -82,34 +82,34 @@ CREATE TABLE IF NOT EXISTS excel_migration_progress (
     completed_at TIMESTAMP
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_progress_sheet_id 
+CREATE INDEX IF NOT EXISTS idx_progress_sheet_id 
 ON excel_migration_progress(sheet_id, batch_number);
 
 -- Migration Errors
 CREATE TABLE IF NOT EXISTS excel_migration_errors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     sheet_id UUID NOT NULL REFERENCES excel_migration_sheets(id) ON DELETE CASCADE,
     row_number BIGINT NOT NULL,
     batch_number INTEGER,
     error_code VARCHAR(50) NOT NULL,
     error_message TEXT NOT NULL,
-    error_data JSONB,
+    error_data CLOB,
     validation_rule VARCHAR(100),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_error_sheet_id 
+CREATE INDEX IF NOT EXISTS idx_error_sheet_id 
 ON excel_migration_errors(sheet_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_error_code 
+CREATE INDEX IF NOT EXISTS idx_error_code 
 ON excel_migration_errors(error_code);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_error_row 
+CREATE INDEX IF NOT EXISTS idx_error_row 
 ON excel_migration_errors(sheet_id, row_number);
 
 -- Staging Table for HSBG_theo_hop_dong
 CREATE TABLE IF NOT EXISTS staging_hsbg_hop_dong (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     job_id UUID NOT NULL,
     sheet_id UUID NOT NULL,
     row_number BIGINT NOT NULL,
@@ -151,8 +151,8 @@ CREATE TABLE IF NOT EXISTS staging_hsbg_hop_dong (
     
     -- Processing fields
     validation_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    validation_errors JSONB,
-    normalized_data JSONB,
+    validation_errors CLOB,
+    normalized_data CLOB,
     duplicate_key VARCHAR(500),
     is_duplicate BOOLEAN NOT NULL DEFAULT FALSE,
     master_data_exists BOOLEAN,
@@ -162,21 +162,21 @@ CREATE TABLE IF NOT EXISTS staging_hsbg_hop_dong (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_job_sheet 
+CREATE INDEX IF NOT EXISTS idx_staging_job_sheet 
 ON staging_hsbg_hop_dong(job_id, sheet_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_validation 
-ON staging_hsbg_hop_dong(validation_status) WHERE validation_status = 'VALID';
+CREATE INDEX IF NOT EXISTS idx_staging_validation 
+ON staging_hsbg_hop_dong(validation_status);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_duplicate 
-ON staging_hsbg_hop_dong(duplicate_key) WHERE duplicate_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_staging_duplicate 
+ON staging_hsbg_hop_dong(duplicate_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_inserted 
-ON staging_hsbg_hop_dong(inserted_to_master) WHERE inserted_to_master = FALSE;
+CREATE INDEX IF NOT EXISTS idx_staging_inserted 
+ON staging_hsbg_hop_dong(inserted_to_master);
 
 -- Staging Table for HSBG_theo_CIF
 CREATE TABLE IF NOT EXISTS staging_hsbg_cif (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     job_id UUID NOT NULL,
     sheet_id UUID NOT NULL,
     row_number BIGINT NOT NULL,
@@ -211,8 +211,8 @@ CREATE TABLE IF NOT EXISTS staging_hsbg_cif (
     
     -- Processing fields
     validation_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    validation_errors JSONB,
-    normalized_data JSONB,
+    validation_errors CLOB,
+    normalized_data CLOB,
     duplicate_key VARCHAR(500),
     is_duplicate BOOLEAN NOT NULL DEFAULT FALSE,
     master_data_exists BOOLEAN,
@@ -222,21 +222,21 @@ CREATE TABLE IF NOT EXISTS staging_hsbg_cif (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_cif_job_sheet 
+CREATE INDEX IF NOT EXISTS idx_staging_cif_job_sheet 
 ON staging_hsbg_cif(job_id, sheet_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_cif_validation 
-ON staging_hsbg_cif(validation_status) WHERE validation_status = 'VALID';
+CREATE INDEX IF NOT EXISTS idx_staging_cif_validation 
+ON staging_hsbg_cif(validation_status);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_cif_duplicate 
-ON staging_hsbg_cif(duplicate_key) WHERE duplicate_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_staging_cif_duplicate 
+ON staging_hsbg_cif(duplicate_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_cif_inserted 
-ON staging_hsbg_cif(inserted_to_master) WHERE inserted_to_master = FALSE;
+CREATE INDEX IF NOT EXISTS idx_staging_cif_inserted 
+ON staging_hsbg_cif(inserted_to_master);
 
 -- Staging Table for HSBG_theo_tap
 CREATE TABLE IF NOT EXISTS staging_hsbg_tap (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     job_id UUID NOT NULL,
     sheet_id UUID NOT NULL,
     row_number BIGINT NOT NULL,
@@ -268,8 +268,8 @@ CREATE TABLE IF NOT EXISTS staging_hsbg_tap (
     
     -- Processing fields
     validation_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-    validation_errors JSONB,
-    normalized_data JSONB,
+    validation_errors CLOB,
+    normalized_data CLOB,
     duplicate_key VARCHAR(500),
     is_duplicate BOOLEAN NOT NULL DEFAULT FALSE,
     master_data_exists BOOLEAN,
@@ -279,22 +279,18 @@ CREATE TABLE IF NOT EXISTS staging_hsbg_tap (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_tap_job_sheet 
+CREATE INDEX IF NOT EXISTS idx_staging_tap_job_sheet 
 ON staging_hsbg_tap(job_id, sheet_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_tap_validation 
-ON staging_hsbg_tap(validation_status) WHERE validation_status = 'VALID';
+CREATE INDEX IF NOT EXISTS idx_staging_tap_validation 
+ON staging_hsbg_tap(validation_status);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_tap_duplicate 
-ON staging_hsbg_tap(duplicate_key) WHERE duplicate_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_staging_tap_duplicate 
+ON staging_hsbg_tap(duplicate_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_staging_tap_inserted 
-ON staging_hsbg_tap(inserted_to_master) WHERE inserted_to_master = FALSE;
+CREATE INDEX IF NOT EXISTS idx_staging_tap_inserted 
+ON staging_hsbg_tap(inserted_to_master);
 
--- Add comments
-COMMENT ON TABLE excel_migration_jobs IS 'Tracks Excel file migration jobs';
-COMMENT ON TABLE excel_migration_sheets IS 'Tracks individual sheet processing within a job';
-COMMENT ON TABLE excel_migration_progress IS 'Tracks batch-level progress for real-time monitoring';
-COMMENT ON TABLE excel_migration_errors IS 'Stores validation and processing errors';
-COMMENT ON TABLE staging_hsbg_hop_dong IS 'Staging table for HSBG_theo_hop_dong sheet data';
+-- Comments: H2 doesn't support COMMENT ON statements
+-- See code documentation for table descriptions
 

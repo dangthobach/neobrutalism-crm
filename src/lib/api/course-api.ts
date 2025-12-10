@@ -16,12 +16,12 @@ const BASE_URL = '/api/courses'
 
 export const createCourse = async (data: CreateCourseRequest): Promise<Course> => {
   const response = await apiClient.post<Course>(BASE_URL, data)
-  return response.data!
+  return response as any
 }
 
 export const updateCourse = async (id: string, data: UpdateCourseRequest): Promise<Course> => {
   const response = await apiClient.put<Course>(`${BASE_URL}/${id}`, data)
-  return response.data!
+  return response as any
 }
 
 export const deleteCourse = async (id: string): Promise<void> => {
@@ -30,7 +30,7 @@ export const deleteCourse = async (id: string): Promise<void> => {
 
 export const getCourseById = async (id: string): Promise<Course> => {
   const response = await apiClient.get<Course>(`${BASE_URL}/${id}`)
-  return response.data!
+  return response as any
 }
 
 // =====================================================
@@ -59,7 +59,7 @@ export const getAllCourses = async (
   }
 
   const response = await apiClient.get<PageResponse<Course>>(`${BASE_URL}?${params}`)
-  return response.data!
+  return response as any
 }
 
 export const getPublishedCourses = async (
@@ -69,12 +69,12 @@ export const getPublishedCourses = async (
   const response = await apiClient.get<PageResponse<Course>>(
     `${BASE_URL}/published?page=${page}&size=${size}`
   )
-  return response.data!
+  return response as any
 }
 
 export const getCourseBySlug = async (slug: string): Promise<Course> => {
   const response = await apiClient.get<Course>(`${BASE_URL}/slug/${slug}`)
-  return response.data!
+  return response as any
 }
 
 export const getCoursesByInstructor = async (
@@ -85,7 +85,7 @@ export const getCoursesByInstructor = async (
   const response = await apiClient.get<PageResponse<Course>>(
     `${BASE_URL}/instructor/${instructorId}?page=${page}&size=${size}`
   )
-  return response.data!
+  return response as any
 }
 
 export const getCoursesByCategory = async (
@@ -96,17 +96,17 @@ export const getCoursesByCategory = async (
   const response = await apiClient.get<PageResponse<Course>>(
     `${BASE_URL}/category/${categoryId}?page=${page}&size=${size}`
   )
-  return response.data!
+  return response as any
 }
 
 export const getFeaturedCourses = async (limit: number = 6): Promise<Course[]> => {
   const response = await apiClient.get<Course[]>(`${BASE_URL}/featured?limit=${limit}`)
-  return response.data!
+  return response as any
 }
 
 export const getPopularCourses = async (limit: number = 6): Promise<Course[]> => {
   const response = await apiClient.get<Course[]>(`${BASE_URL}/popular?limit=${limit}`)
-  return response.data!
+  return response as any
 }
 
 export const searchCourses = async (
@@ -117,7 +117,7 @@ export const searchCourses = async (
   const response = await apiClient.get<PageResponse<Course>>(
     `${BASE_URL}/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`
   )
-  return response.data!
+  return response as any
 }
 
 // =====================================================
@@ -126,22 +126,22 @@ export const searchCourses = async (
 
 export const publishCourse = async (id: string): Promise<Course> => {
   const response = await apiClient.post<Course>(`${BASE_URL}/${id}/publish`)
-  return response.data!
+  return response as any
 }
 
 export const unpublishCourse = async (id: string): Promise<Course> => {
   const response = await apiClient.post<Course>(`${BASE_URL}/${id}/unpublish`)
-  return response.data!
+  return response as any
 }
 
 export const archiveCourse = async (id: string): Promise<Course> => {
   const response = await apiClient.post<Course>(`${BASE_URL}/${id}/archive`)
-  return response.data!
+  return response as any
 }
 
 export const duplicateCourse = async (id: string): Promise<Course> => {
   const response = await apiClient.post<Course>(`${BASE_URL}/${id}/duplicate`)
-  return response.data!
+  return response as any
 }
 
 // =====================================================
@@ -150,7 +150,7 @@ export const duplicateCourse = async (id: string): Promise<Course> => {
 
 export const getCourseStats = async (): Promise<CourseStatsResponse> => {
   const response = await apiClient.get<CourseStatsResponse>(`${BASE_URL}/stats`)
-  return response.data!
+  return response as any
 }
 
 export const getCourseEnrollmentStats = async (courseId: string): Promise<{
@@ -160,6 +160,5 @@ export const getCourseEnrollmentStats = async (courseId: string): Promise<{
   averageProgress: number
   completionRate: number
 }> => {
-  const response = await apiClient.get(`${BASE_URL}/${courseId}/enrollment-stats`)
-  return response.data as any
+  return apiClient.get(`${BASE_URL}/${courseId}/enrollment-stats`)
 }

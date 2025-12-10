@@ -1,8 +1,10 @@
 package com.neobrutalism.crm.domain.task.service;
 
+import com.neobrutalism.crm.common.enums.PermissionType;
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
 import com.neobrutalism.crm.common.repository.BaseRepository;
 import com.neobrutalism.crm.common.security.UserContext;
+import com.neobrutalism.crm.common.security.annotation.RequirePermission;
 import com.neobrutalism.crm.common.service.BaseService;
 import com.neobrutalism.crm.common.service.EventPublisher;
 import com.neobrutalism.crm.domain.task.dto.BulkOperationResponse;
@@ -51,6 +53,7 @@ public class TaskService extends BaseService<Task> {
      * Create new task
      */
     @Transactional
+    @RequirePermission(resource = "task", permission = PermissionType.WRITE)
     public Task create(TaskRequest request, String createdBy) {
         Task task = new Task();
         mapRequestToEntity(request, task);
@@ -77,6 +80,7 @@ public class TaskService extends BaseService<Task> {
      * Update existing task
      */
     @Transactional
+    @RequirePermission(resource = "task", permission = PermissionType.WRITE)
     public Task update(UUID id, TaskRequest request, String updatedBy) {
         Task task = findById(id);
         mapRequestToEntity(request, task);
@@ -92,6 +96,7 @@ public class TaskService extends BaseService<Task> {
      * Assign task to user
      */
     @Transactional
+    @RequirePermission(resource = "task", permission = PermissionType.WRITE)
     public Task assignTo(UUID taskId, UUID userId, String assignedBy) {
         Task task = findById(taskId);
         task.assignTo(userId, assignedBy);
@@ -194,6 +199,7 @@ public class TaskService extends BaseService<Task> {
      * Get tasks assigned to user
      */
     @Transactional(readOnly = true)
+    @RequirePermission(resource = "task", permission = PermissionType.READ)
     public List<Task> getTasksAssignedTo(UUID userId) {
         return taskRepository.findByAssignedToIdAndDeletedFalse(userId);
     }
@@ -210,6 +216,7 @@ public class TaskService extends BaseService<Task> {
      * Get tasks by status
      */
     @Transactional(readOnly = true)
+    @RequirePermission(resource = "task", permission = PermissionType.READ)
     public List<Task> getTasksByStatus(TaskStatus status) {
         return taskRepository.findByStatusAndDeletedFalse(status);
     }

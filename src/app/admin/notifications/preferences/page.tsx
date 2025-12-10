@@ -193,7 +193,7 @@ export default function NotificationPreferencesPage() {
         {/* Header */}
         <div className="mb-6">
           <Button
-            variant="ghost"
+            variant="noShadow"
             onClick={() => router.back()}
             className="mb-4 hover:bg-gray-100"
           >
@@ -216,14 +216,14 @@ export default function NotificationPreferencesPage() {
 
             <div className="flex gap-2">
               <Button
-                variant="outline"
+                variant="neutral"
                 onClick={handleDisableAll}
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >
                 Disable All
               </Button>
               <Button
-                variant="outline"
+                variant="neutral"
                 onClick={handleEnableAll}
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >

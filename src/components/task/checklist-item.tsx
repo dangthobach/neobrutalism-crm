@@ -113,7 +113,7 @@ export function ChecklistItem({
           />
           <Button
             size="sm"
-            variant="ghost"
+            variant="noShadow"
             onClick={handleCancelEdit}
             className="h-8 w-8 border-2 border-black p-0"
           >
@@ -142,7 +142,7 @@ export function ChecklistItem({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="ghost"
+                variant="noShadow"
                 size="sm"
                 className="h-8 w-8 border-2 border-black p-0 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
               >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,38 +17,105 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Role, User, RoleStatus } from '@/types/permission';
-import { X, UserPlus } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Role, RoleStatus } from '@/lib/api/roles';
+import { User } from '@/lib/api/users';
+import { useUpdateRole } from '@/hooks/useRoles';
+import { useRevokeRoleFromUser } from '@/hooks/useUserRoles';
+import { X, UserPlus, Loader2, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface RoleGeneralTabProps {
   role: Role;
   usersWithRole: User[];
+  userRoleAssignments: Array<{ id: string; userId: string; roleId: string }>;
   onChangeDetected: () => void;
 }
 
 export default function RoleGeneralTab({
   role,
   usersWithRole,
+  userRoleAssignments,
   onChangeDetected,
 }: RoleGeneralTabProps) {
   const [roleName, setRoleName] = useState(role.name);
   const [description, setDescription] = useState(role.description || '');
   const [status, setStatus] = useState(role.status);
-  const [dataScopes, setDataScopes] = useState<string[]>(['WH_NORTH', 'WH_SOUTH']);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [userToRemove, setUserToRemove] = useState<{ userId: string; userRoleId: string } | null>(null);
+
+  // Update mutation
+  const updateRoleMutation = useUpdateRole();
+  const revokeRoleMutation = useRevokeRoleFromUser();
+
+  // Reset form when role changes
+  useEffect(() => {
+    setRoleName(role.name);
+    setDescription(role.description || '');
+    setStatus(role.status);
+    setHasChanges(false);
+  }, [role]);
 
   const handleChange = () => {
+    setHasChanges(true);
     onChangeDetected();
   };
 
-  const handleRemoveScope = (scope: string) => {
-    setDataScopes(dataScopes.filter((s) => s !== scope));
-    handleChange();
+  const handleSaveChanges = async () => {
+    try {
+      await updateRoleMutation.mutateAsync({
+        id: role.id,
+        data: {
+          code: role.code,
+          name: roleName,
+          description,
+          organizationId: role.organizationId,
+          isSystem: role.isSystem,
+          priority: role.priority,
+        },
+      });
+      setHasChanges(false);
+      toast.success('Role updated successfully');
+    } catch (error) {
+      toast.error('Failed to update role');
+    }
   };
 
   const handleRemoveUser = (userId: string) => {
-    // TODO: Implement user removal
-    console.log('Remove user:', userId);
-    handleChange();
+    // Find the user-role assignment ID
+    const assignment = userRoleAssignments.find(
+      (ur) => ur.userId === userId && ur.roleId === role.id
+    );
+    if (assignment) {
+      setUserToRemove({ userId, userRoleId: assignment.id });
+    }
+  };
+
+  const confirmRemoveUser = async () => {
+    if (!userToRemove) return;
+
+    try {
+      await revokeRoleMutation.mutateAsync(userToRemove.userRoleId);
+      toast.success('User removed from role successfully');
+      setUserToRemove(null);
+    } catch (error) {
+      toast.error('Failed to remove user from role');
+    }
+  };
+
+  const getRemovedUserName = () => {
+    if (!userToRemove) return '';
+    const user = usersWithRole.find((u) => u.id === userToRemove.userId);
+    return user ? `${user.firstName} ${user.lastName}` : 'this user';
   };
 
   return (
@@ -56,7 +123,28 @@ export default function RoleGeneralTab({
       {/* Role Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Role Information</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Role Information</CardTitle>
+            {hasChanges && (
+              <Button
+                onClick={handleSaveChanges}
+                disabled={updateRoleMutation.isPending}
+                size="sm"
+              >
+                {updateRoleMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Role Code (read-only) */}
@@ -104,7 +192,7 @@ export default function RoleGeneralTab({
             />
           </div>
 
-          {/* Priority */}
+          {/* Priority (read-only) */}
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
             <Input
@@ -116,32 +204,6 @@ export default function RoleGeneralTab({
             />
             <p className="text-xs text-muted-foreground">
               Higher priority roles take precedence in conflict resolution
-            </p>
-          </div>
-
-          {/* Data Scope */}
-          <div className="space-y-2">
-            <Label>Data Scope</Label>
-            <div className="flex flex-wrap gap-2">
-              {dataScopes.map((scope) => (
-                <Badge key={scope} variant="neutral" className="pr-1">
-                  {scope}
-                  <Button
-                    variant="noShadow"
-                    size="sm"
-                    className="h-auto p-1 ml-1"
-                    onClick={() => handleRemoveScope(scope)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ))}
-              <Button variant="neutral" size="sm">
-                + Add Scope
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Define data visibility boundaries (e.g., warehouse regions, branches)
             </p>
           </div>
 
@@ -169,6 +231,34 @@ export default function RoleGeneralTab({
                 </Label>
               </div>
             </RadioGroup>
+          </div>
+
+          {/* Metadata */}
+          <div className="space-y-2 pt-4 border-t">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-medium text-muted-foreground">Created At:</span>
+                <p>{new Date(role.createdAt).toLocaleString()}</p>
+              </div>
+              {role.createdBy && (
+                <div>
+                  <span className="font-medium text-muted-foreground">Created By:</span>
+                  <p>{role.createdBy}</p>
+                </div>
+              )}
+              {role.updatedAt && (
+                <div>
+                  <span className="font-medium text-muted-foreground">Updated At:</span>
+                  <p>{new Date(role.updatedAt).toLocaleString()}</p>
+                </div>
+              )}
+              {role.updatedBy && (
+                <div>
+                  <span className="font-medium text-muted-foreground">Updated By:</span>
+                  <p>{role.updatedBy}</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {role.isSystem && (
@@ -232,6 +322,7 @@ export default function RoleGeneralTab({
                         variant="noShadow"
                         size="sm"
                         onClick={() => handleRemoveUser(user.id)}
+                        disabled={revokeRoleMutation.isPending}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -247,6 +338,35 @@ export default function RoleGeneralTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Remove User Confirmation Dialog */}
+      <AlertDialog open={!!userToRemove} onOpenChange={(open) => !open && setUserToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove User from Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {getRemovedUserName()} from the role "{role.name}"?
+              This will revoke all permissions associated with this role for the user.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoveUser}
+              disabled={revokeRoleMutation.isPending}
+            >
+              {revokeRoleMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                'Remove'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

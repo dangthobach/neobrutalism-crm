@@ -43,6 +43,12 @@ public enum ErrorCode {
     ROLE_NOT_FOUND("ROLE_NOT_FOUND", "Role not found"),
     ROLE_ALREADY_EXISTS("ROLE_ALREADY_EXISTS", "Role already exists"),
 
+    // Role hierarchy errors
+    ROLE_HIERARCHY_ALREADY_EXISTS("ROLE_HIERARCHY_ALREADY_EXISTS", "Role hierarchy relationship already exists"),
+    ROLE_HIERARCHY_NOT_FOUND("ROLE_HIERARCHY_NOT_FOUND", "Role hierarchy relationship not found"),
+    ROLE_HIERARCHY_CIRCULAR_DEPENDENCY("ROLE_HIERARCHY_CIRCULAR_DEPENDENCY", "Circular dependency detected in role hierarchy"),
+    ROLE_HIERARCHY_MAX_DEPTH_EXCEEDED("ROLE_HIERARCHY_MAX_DEPTH_EXCEEDED", "Maximum hierarchy depth exceeded"),
+
     // State transition errors
     INVALID_STATE_TRANSITION("INVALID_STATE_TRANSITION", "Invalid state transition"),
 

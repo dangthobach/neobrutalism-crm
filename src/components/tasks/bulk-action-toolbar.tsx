@@ -25,8 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED'
+import { TaskStatus } from '@/types/task'
 
 interface BulkActionToolbarProps {
   selectedCount: number
@@ -34,7 +33,7 @@ interface BulkActionToolbarProps {
   onBulkAssign: (userId: string) => void
   onBulkStatusChange: (status: TaskStatus) => void
   onBulkDelete: () => void
-  users?: Array<{ id: string; fullName: string }>
+  users?: Array<{ id: string; fullName?: string }>
   isLoading?: boolean
 }
 
@@ -99,7 +98,7 @@ export function BulkActionToolbar({
                 <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id} className="font-medium">
-                      {user.fullName}
+                      {user.fullName || user.id}
                     </SelectItem>
                   ))}
                 </SelectContent>

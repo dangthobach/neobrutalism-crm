@@ -70,8 +70,7 @@ export default function TasksPage() {
   // Load users for assignee dropdown
   const { data: usersData, isLoading: isLoadingUsers } = useUsers({
     page: 1,
-    limit: 100,
-    status: 'ACTIVE'
+    size: 100
   })
 
   // Fetch tasks with all filters
@@ -212,11 +211,11 @@ export default function TasksPage() {
     }, 1000)
   }, [selectedTaskIds, bulkDelete])
 
-  const handleBulkChangeStatus = useCallback((newStatus: TaskStatus) => {
+  const handleBulkChangeStatus = useCallback((status: TaskStatus) => {
     if (selectedTaskIds.size === 0) return
     bulkStatusChange({
       taskIds: Array.from(selectedTaskIds),
-      status: newStatus
+      status
     })
     // Clear selection after initiating status change
     setTimeout(() => setSelectedTaskIds(new Set()), 1000)

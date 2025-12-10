@@ -11,144 +11,126 @@
 -- CUSTOMERS TABLE - Missing Foreign Key Indexes
 -- =====================================================
 
--- Index for owner_id (foreign key to users)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_owner 
-ON customers(owner_id) 
-WHERE deleted = false;
+-- Index for owner_id (foreign key to users) - H2 compatible (no CONCURRENTLY, no WHERE)
+CREATE INDEX IF NOT EXISTS idx_customer_owner 
+ON customers(owner_id);
 
 -- Index for branch_id (foreign key to branches)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_branch 
-ON customers(branch_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_customer_branch 
+ON customers(branch_id);
 
 -- Composite index for organization + type + status (common filter pattern)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_org_type_status 
-ON customers(organization_id, customer_type, status) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_customer_org_type_status 
+ON customers(organization_id, customer_type, status);
 
 -- Partial index for active customers (80/20 rule - most queries are for active)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_active 
-ON customers(organization_id, updated_at DESC) 
-WHERE deleted = false AND status = 'ACTIVE';
+-- H2 compatible: removed WHERE clause
+CREATE INDEX IF NOT EXISTS idx_customer_active 
+ON customers(organization_id, updated_at DESC);
 
 -- Index for email lookups (unique constraint already exists, but index helps)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_email_lookup 
-ON customers(email) 
-WHERE deleted = false AND email IS NOT NULL;
+-- H2 compatible: removed WHERE clause
+CREATE INDEX IF NOT EXISTS idx_customer_email_lookup 
+ON customers(email);
 
 -- =====================================================
 -- CONTACTS TABLE - Missing Foreign Key Indexes
 -- =====================================================
 
 -- Index for owner_id (foreign key to users)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contact_owner 
-ON contacts(owner_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_contact_owner 
+ON contacts(owner_id);
 
 -- Index for customer_id (foreign key to customers) - CRITICAL for joins
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contact_customer 
-ON contacts(customer_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_contact_customer 
+ON contacts(customer_id);
 
 -- Composite index for organization + customer + status
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contact_org_customer_status 
-ON contacts(organization_id, customer_id, status) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_contact_org_customer_status 
+ON contacts(organization_id, customer_id, status);
 
 -- Index for primary contact lookups
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_contact_primary 
-ON contacts(customer_id, is_primary) 
-WHERE deleted = false AND is_primary = true;
+-- H2 compatible: removed WHERE clause
+CREATE INDEX IF NOT EXISTS idx_contact_primary 
+ON contacts(customer_id, is_primary);
 
 -- =====================================================
 -- BRANCHES TABLE - Missing Indexes
 -- =====================================================
 
 -- Index for parent_id (hierarchical queries)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_branch_parent 
-ON branches(parent_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_branch_parent 
+ON branches(parent_id);
 
 -- Index for manager_id (foreign key to users)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_branch_manager_fk 
-ON branches(manager_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_branch_manager_fk 
+ON branches(manager_id);
 
 -- Composite index for organization + code (unique constraint lookup)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_branch_org_code 
-ON branches(organization_id, code) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_branch_org_code 
+ON branches(organization_id, code);
 
 -- =====================================================
 -- USERS TABLE - Additional Indexes
 -- =====================================================
 
 -- Composite index for organization + status (common filter)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_org_status 
-ON users(organization_id, status) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_user_org_status 
+ON users(organization_id, status);
 
 -- Index for email lookups (unique constraint already exists)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_email_lookup 
-ON users(email) 
-WHERE deleted = false AND email IS NOT NULL;
+-- H2 compatible: removed WHERE clause
+CREATE INDEX IF NOT EXISTS idx_user_email_lookup 
+ON users(email);
 
 -- =====================================================
 -- ROLES TABLE - Missing Indexes
 -- =====================================================
 
 -- Composite index for organization + code (unique constraint lookup)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_role_org_code 
-ON roles(organization_id, code) 
-WHERE deleted = false AND organization_id IS NOT NULL;
+-- H2 compatible: removed WHERE clause
+CREATE INDEX IF NOT EXISTS idx_role_org_code 
+ON roles(organization_id, code);
 
 -- =====================================================
 -- ACTIVITIES TABLE - If exists
 -- =====================================================
 
 -- Index for customer_id (foreign key)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_activity_customer 
-ON activities(customer_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_activity_customer 
+ON activities(customer_id);
 
 -- Index for contact_id (foreign key)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_activity_contact 
-ON activities(contact_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_activity_contact 
+ON activities(contact_id);
 
 -- Index for owner_id (foreign key)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_activity_owner 
-ON activities(owner_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_activity_owner 
+ON activities(owner_id);
 
 -- Composite index for date range queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_activity_date_range 
-ON activities(organization_id, activity_date DESC) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_activity_date_range 
+ON activities(organization_id, activity_date DESC);
 
 -- =====================================================
 -- TASKS TABLE - If exists
 -- =====================================================
 
 -- Index for customer_id (foreign key)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_task_customer 
-ON tasks(customer_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_task_customer 
+ON tasks(customer_id);
 
 -- Index for contact_id (foreign key)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_task_contact 
-ON tasks(contact_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_task_contact 
+ON tasks(contact_id);
 
 -- Index for assignee_id (foreign key to users)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_task_assignee 
-ON tasks(assignee_id) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_task_assignee 
+ON tasks(assignee_id);
 
 -- Composite index for status + due_date (common filter)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_task_status_due 
-ON tasks(organization_id, status, due_date) 
-WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_task_status_due 
+ON tasks(organization_id, status, due_date);
 
 -- =====================================================
 -- VERIFICATION QUERIES (Run after migration)

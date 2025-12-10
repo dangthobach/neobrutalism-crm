@@ -19,5 +19,6 @@ export * from './role-menus'
 export * from './user-roles'
 export * from './user-groups'
 export * from './group-roles'
+export * from './commands'
 // Avoid re-exporting types that collide with client types
 export { organizationsAPI } from './organizations'

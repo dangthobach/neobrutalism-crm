@@ -74,7 +74,7 @@ export function AddComment({
           {isReply && onCancel && (
             <Button
               size="sm"
-              variant="outline"
+              variant="neutral"
               onClick={onCancel}
               disabled={isSubmitting}
               className="border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"

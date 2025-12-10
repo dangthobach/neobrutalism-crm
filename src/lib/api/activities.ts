@@ -18,7 +18,7 @@ export const activityApi = {
    */
   getAll: async (params?: ActivitySearchParams): Promise<PageResponse<Activity>> => {
     const response = await apiClient.get<PageResponse<Activity>>('/activities', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -26,7 +26,7 @@ export const activityApi = {
    */
   getById: async (id: string): Promise<Activity> => {
     const response = await apiClient.get<Activity>(`/activities/${id}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -34,7 +34,7 @@ export const activityApi = {
    */
   create: async (data: CreateActivityRequest): Promise<Activity> => {
     const response = await apiClient.post<Activity>('/activities', data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -42,7 +42,7 @@ export const activityApi = {
    */
   update: async (id: string, data: UpdateActivityRequest): Promise<Activity> => {
     const response = await apiClient.put<Activity>(`/activities/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -57,7 +57,7 @@ export const activityApi = {
    */
   getByCustomer: async (customerId: string, params?: ActivitySearchParams): Promise<PageResponse<Activity>> => {
     const response = await apiClient.get<PageResponse<Activity>>(`/activities/customer/${customerId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -65,7 +65,7 @@ export const activityApi = {
    */
   getByContact: async (contactId: string, params?: ActivitySearchParams): Promise<PageResponse<Activity>> => {
     const response = await apiClient.get<PageResponse<Activity>>(`/activities/contact/${contactId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -73,7 +73,7 @@ export const activityApi = {
    */
   getByAssignee: async (userId: string, params?: ActivitySearchParams): Promise<PageResponse<Activity>> => {
     const response = await apiClient.get<PageResponse<Activity>>(`/activities/assigned/${userId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -81,7 +81,7 @@ export const activityApi = {
    */
   getToday: async (params?: ActivitySearchParams): Promise<Activity[]> => {
     const response = await apiClient.get<Activity[]>('/activities/today', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -89,7 +89,7 @@ export const activityApi = {
    */
   getThisWeek: async (params?: ActivitySearchParams): Promise<Activity[]> => {
     const response = await apiClient.get<Activity[]>('/activities/this-week', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -97,7 +97,7 @@ export const activityApi = {
    */
   getUpcoming: async (params?: ActivitySearchParams): Promise<Activity[]> => {
     const response = await apiClient.get<Activity[]>('/activities/upcoming', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -105,7 +105,7 @@ export const activityApi = {
    */
   getOverdue: async (params?: ActivitySearchParams): Promise<Activity[]> => {
     const response = await apiClient.get<Activity[]>('/activities/overdue', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -116,7 +116,7 @@ export const activityApi = {
       ? `/activities/${id}/complete?outcome=${encodeURIComponent(outcome)}`
       : `/activities/${id}/complete`
     const response = await apiClient.post<Activity>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -127,7 +127,7 @@ export const activityApi = {
       ? `/activities/${id}/cancel?reason=${encodeURIComponent(reason)}`
       : `/activities/${id}/cancel`
     const response = await apiClient.post<Activity>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -135,7 +135,7 @@ export const activityApi = {
    */
   reschedule: async (id: string, newDate: string): Promise<Activity> => {
     const response = await apiClient.post<Activity>(`/activities/${id}/reschedule`, { scheduledAt: newDate })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -143,7 +143,7 @@ export const activityApi = {
    */
   getStats: async (): Promise<ActivityStats> => {
     const response = await apiClient.get<ActivityStats>('/activities/stats')
-    return response.data!
+    return response as any
   },
 
   /**
@@ -151,6 +151,6 @@ export const activityApi = {
    */
   search: async (keyword: string): Promise<Activity[]> => {
     const response = await apiClient.get<Activity[]>('/activities/search', { keyword })
-    return response.data!
+    return response as any
   },
 }

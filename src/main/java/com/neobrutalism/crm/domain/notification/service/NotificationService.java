@@ -4,9 +4,12 @@ import com.neobrutalism.crm.common.exception.BusinessException;
 import com.neobrutalism.crm.common.exception.ErrorCode;
 import com.neobrutalism.crm.common.websocket.WebSocketService;
 import com.neobrutalism.crm.domain.notification.model.Notification;
+import com.neobrutalism.crm.domain.notification.model.NotificationPreference;
+import com.neobrutalism.crm.domain.notification.model.NotificationQueue;
 import com.neobrutalism.crm.domain.notification.model.NotificationStatus;
 import com.neobrutalism.crm.domain.notification.model.NotificationType;
 import com.neobrutalism.crm.domain.notification.repository.NotificationRepository;
+import com.neobrutalism.crm.domain.notification.repository.NotificationQueueRepository;
 import com.neobrutalism.crm.domain.user.model.User;
 import com.neobrutalism.crm.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -39,9 +45,12 @@ public class NotificationService {
     private final EmailNotificationService emailNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final WebSocketService webSocketService;
+    private final NotificationPreferenceService notificationPreferenceService;
+    private final QuietHoursService quietHoursService;
+    private final NotificationQueueRepository notificationQueueRepository;
 
     /**
-     * Create and send notification
+     * Create and send notification (with quiet hours support)
      */
     @Transactional
     public Notification createNotification(
@@ -56,6 +65,36 @@ public class NotificationService {
     ) {
         log.info("Creating notification for user: {} - {}", recipientId, title);
 
+        // Get user's organization ID (from authenticated context or user lookup)
+        UUID organizationId = getOrganizationIdForUser(recipientId);
+
+        // Check user preferences for quiet hours and digest mode
+        NotificationPreference preference = notificationPreferenceService.getPreference(recipientId, organizationId, type);
+
+        // If digest mode is enabled, don't send individual notifications
+        if (preference != null && Boolean.TRUE.equals(preference.getDigestModeEnabled())) {
+            log.info("Digest mode enabled for user {}, notification will be included in daily digest", recipientId);
+            // Still create notification record for digest
+            Notification notification = new Notification();
+            notification.setRecipientId(recipientId);
+            notification.setTitle(title);
+            notification.setMessage(message);
+            notification.setNotificationType(type);
+            notification.setPriority(priority != null ? priority : 0);
+            notification.setActionUrl(actionUrl);
+            notification.setEntityType(entityType);
+            notification.setEntityId(entityId);
+            notification.setStatus(NotificationStatus.PENDING);
+            return notificationRepository.save(notification);
+        }
+
+        // Check if within quiet hours
+        if (preference != null && quietHoursService.isWithinQuietHours(preference)) {
+            log.info("User {} is in quiet hours, queueing notification for later", recipientId);
+            return queueNotification(recipientId, title, message, type, priority, actionUrl, entityType, entityId, preference);
+        }
+
+        // Send notification immediately
         Notification notification = new Notification();
         notification.setRecipientId(recipientId);
         notification.setTitle(title);
@@ -73,6 +112,149 @@ public class NotificationService {
         sendNotificationAsync(saved);
 
         return saved;
+    }
+
+    /**
+     * Queue notification for later delivery (during quiet hours)
+     */
+    @Transactional
+    protected Notification queueNotification(
+            UUID recipientId,
+            String title,
+            String message,
+            NotificationType type,
+            Integer priority,
+            String actionUrl,
+            String entityType,
+            UUID entityId,
+            NotificationPreference preference
+    ) {
+        // Calculate when to send (end of quiet hours)
+        LocalTime endTime = quietHoursService.calculateQuietHoursEnd(preference);
+        Instant scheduledAt;
+
+        if (endTime != null) {
+            // Schedule for end of quiet hours
+            LocalDate today = LocalDate.now();
+            scheduledAt = endTime.atDate(today).atZone(ZoneId.systemDefault()).toInstant();
+
+            // If scheduled time is in the past, schedule for tomorrow
+            if (scheduledAt.isBefore(Instant.now())) {
+                scheduledAt = endTime.atDate(today.plusDays(1)).atZone(ZoneId.systemDefault()).toInstant();
+            }
+        } else {
+            // Fallback: schedule for 1 hour from now
+            scheduledAt = Instant.now().plus(1, ChronoUnit.HOURS);
+        }
+
+        NotificationQueue queuedNotification = NotificationQueue.builder()
+                .recipientId(recipientId)
+                .title(title)
+                .message(message)
+                .notificationType(type)
+                .priority(priority != null ? priority : 0)
+                .actionUrl(actionUrl)
+                .entityType(entityType)
+                .entityId(entityId)
+                .scheduledAt(scheduledAt)
+                .status(NotificationQueue.QueueStatus.QUEUED)
+                .build();
+
+        notificationQueueRepository.save(queuedNotification);
+
+        log.info("Notification queued for user {} to be sent at {}", recipientId, scheduledAt);
+
+        // Create notification record (not sent yet)
+        Notification notification = new Notification();
+        notification.setRecipientId(recipientId);
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setNotificationType(type);
+        notification.setPriority(priority != null ? priority : 0);
+        notification.setActionUrl(actionUrl);
+        notification.setEntityType(entityType);
+        notification.setEntityId(entityId);
+        notification.setStatus(NotificationStatus.PENDING);
+
+        return notificationRepository.save(notification);
+    }
+
+    /**
+     * Process queued notifications (runs every 5 minutes)
+     */
+    @Scheduled(cron = "0 */5 * * * *")
+    @Transactional
+    public void processQueuedNotifications() {
+        log.info("Processing queued notifications");
+
+        List<NotificationQueue> queuedNotifications = notificationQueueRepository
+                .findQueuedNotificationsReadyToSend(Instant.now());
+
+        if (queuedNotifications.isEmpty()) {
+            log.debug("No queued notifications to process");
+            return;
+        }
+
+        log.info("Found {} queued notifications to send", queuedNotifications.size());
+
+        for (NotificationQueue queued : queuedNotifications) {
+            try {
+                queued.markAsSending();
+                notificationQueueRepository.save(queued);
+
+                // Create and send the actual notification
+                Notification notification = new Notification();
+                notification.setRecipientId(queued.getRecipientId());
+                notification.setTitle(queued.getTitle());
+                notification.setMessage(queued.getMessage());
+                notification.setNotificationType(queued.getNotificationType());
+                notification.setPriority(queued.getPriority());
+                notification.setActionUrl(queued.getActionUrl());
+                notification.setEntityType(queued.getEntityType());
+                notification.setEntityId(queued.getEntityId());
+                notification.setStatus(NotificationStatus.PENDING);
+
+                Notification saved = notificationRepository.save(notification);
+                sendNotificationAsync(saved);
+
+                // Mark queue entry as sent
+                queued.markAsSent();
+                notificationQueueRepository.save(queued);
+
+                log.info("Successfully sent queued notification {} to user {}", queued.getId(), queued.getRecipientId());
+
+            } catch (Exception e) {
+                log.error("Failed to send queued notification {}", queued.getId(), e);
+                queued.markAsFailed(e.getMessage());
+                notificationQueueRepository.save(queued);
+            }
+        }
+
+        log.info("Finished processing queued notifications");
+    }
+
+    /**
+     * Cleanup old queued notifications (runs daily at 3 AM)
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void cleanupOldQueuedNotifications() {
+        log.info("Cleaning up old queued notifications");
+
+        // Delete sent notifications older than 7 days
+        Instant sevenDaysAgo = Instant.now().minus(7, ChronoUnit.DAYS);
+        int deleted = notificationQueueRepository.deleteOldSentNotifications(sevenDaysAgo);
+
+        log.info("Cleaned up {} old queued notifications", deleted);
+    }
+
+    /**
+     * Get organization ID for a user
+     */
+    private UUID getOrganizationIdForUser(UUID userId) {
+        return userRepository.findByIdAndDeletedFalse(userId)
+                .map(User::getOrganizationId)
+                .orElse(null);
     }
 
     /**

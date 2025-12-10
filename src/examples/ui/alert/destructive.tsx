@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AlertDestructiveDemo() {
   return (
-    <Alert variant="destructive">
+    <Alert variant="default">
       <AlertCircleIcon />
       <AlertTitle>Something went wrong!</AlertTitle>
       <AlertDescription>

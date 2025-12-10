@@ -16,6 +16,7 @@ import { TaskStatusBadge } from '@/components/task/task-status-badge'
 import { TaskPriorityBadge } from '@/components/task/task-priority-badge'
 import { Checklist } from '@/components/tasks/checklist'
 import { CommentList } from '@/components/tasks/comment-list'
+import { ActivityTimeline } from '@/components/task/activity-timeline'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -31,6 +32,14 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
 
   const { data: task, isLoading, error } = useTask(taskId)
   const deleteMutation = useDeleteTask()
+
+  // Calculate if task is overdue
+  const isOverdue = task?.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED'
+
+  // Calculate progress from checklist items
+  const progressPercentage = task?.checklistItems && task.checklistItems.length > 0
+    ? Math.round((task.checklistItems.filter(item => item.isCompleted).length / task.checklistItems.length) * 100)
+    : undefined
 
   const handleEdit = () => {
     toast.info('Edit functionality coming in next iteration')
@@ -116,7 +125,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
             {/* Actions */}
             <div className="flex gap-2 ml-4">
               <Button
-                variant="outline"
+                variant="neutral"
                 onClick={handleEdit}
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
               >
@@ -127,7 +136,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant="neutral"
                     size="icon"
                     className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
                   >
@@ -194,9 +203,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                       {task.dueDate && (
                         <div className="p-3 bg-gray-50 rounded border-2 border-black">
                           <p className="text-sm text-gray-600 mb-1">Due Date</p>
-                          <p className={`font-bold ${task.isOverdue ? 'text-red-600' : ''}`}>
+                          <p className={`font-bold ${isOverdue ? 'text-red-600' : ''}`}>
                             {format(new Date(task.dueDate), 'MMM dd, yyyy')}
-                            {task.isOverdue && ' ⚠️'}
+                            {isOverdue && ' ⚠️'}
                           </p>
                         </div>
                       )}
@@ -232,8 +241,8 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                 <TabsContent value="comments">
                   <CommentList
                     taskId={taskId}
-                    currentUserId={task.assignedTo?.id}
-                    currentUserName={task.assignedTo?.fullName || 'User'}
+                    currentUserId={task.assignedToId}
+                    currentUserName={task.assignedToName || 'User'}
                   />
                 </TabsContent>
 
@@ -242,11 +251,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                 </TabsContent>
 
                 <TabsContent value="activity">
-                  <div className="text-center py-16 border-2 border-dashed border-gray-300 rounded-lg">
-                    <div className="text-6xl mb-4">📝</div>
-                    <p className="text-lg font-bold text-gray-700">Activity Timeline Coming Soon</p>
-                    <p className="text-sm text-gray-500 mt-2">Day 7-8: Show all task changes and updates</p>
-                  </div>
+                  <ActivityTimeline taskId={taskId} />
                 </TabsContent>
 
                 <TabsContent value="attachments">
@@ -272,14 +277,13 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                 {/* Assignee */}
                 <div className="mb-5 pb-5 border-b-2 border-gray-200">
                   <p className="text-sm font-bold text-gray-600 mb-2">Assigned to</p>
-                  {task.assignedTo ? (
+                  {task.assignedToName ? (
                     <div className="flex items-center gap-2">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-black text-lg border-2 border-black">
-                        {task.assignedTo.fullName?.charAt(0) || 'U'}
+                        {task.assignedToName?.charAt(0) || 'U'}
                       </div>
                       <div>
-                        <p className="font-bold">{task.assignedTo.fullName}</p>
-                        <p className="text-xs text-gray-500">{task.assignedTo.email}</p>
+                        <p className="font-bold">{task.assignedToName}</p>
                       </div>
                     </div>
                   ) : (
@@ -300,13 +304,13 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   </p>
                   {task.dueDate ? (
                     <div>
-                      <p className={`font-bold text-lg ${task.isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
+                      <p className={`font-bold text-lg ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
                         {format(new Date(task.dueDate), 'MMM dd, yyyy')}
                       </p>
                       <p className="text-sm text-gray-500">
                         {format(new Date(task.dueDate), 'HH:mm')}
                       </p>
-                      {task.isOverdue && (
+                      {isOverdue && (
                         <p className="text-xs text-red-600 font-bold mt-1">⚠️ Overdue</p>
                       )}
                     </div>
@@ -348,17 +352,17 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                 )}
 
                 {/* Progress */}
-                {task.progressPercentage !== undefined && (
+                {progressPercentage !== undefined && (
                   <div className="mb-5 pb-5 border-b-2 border-gray-200">
                     <p className="text-sm font-bold text-gray-600 mb-2">Progress</p>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-2xl font-black">{task.progressPercentage}%</span>
+                        <span className="text-2xl font-black">{progressPercentage}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3 border-2 border-black overflow-hidden">
                         <div
                           className="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-300"
-                          style={{ width: `${task.progressPercentage}%` }}
+                          style={{ width: `${progressPercentage}%` }}
                         ></div>
                       </div>
                     </div>

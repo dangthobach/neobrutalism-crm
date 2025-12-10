@@ -2,7 +2,7 @@
 -- Create audit logs table for comprehensive system auditing
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     
     -- Multi-tenancy
     tenant_id UUID NOT NULL,
@@ -19,13 +19,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     -- Description
     description VARCHAR(500),
     
-    -- Change tracking (JSONB for flexible storage)
-    changes JSONB,           -- Field-level changes: {"field": {"old": value, "new": value}}
-    old_values JSONB,        -- Full entity snapshot before change
-    new_values JSONB,        -- Full entity snapshot after change
+    -- Change tracking (CLOB for H2 compatibility, JSONB for PostgreSQL)
+    changes CLOB,           -- Field-level changes: {"field": {"old": value, "new": value}}
+    old_values CLOB,        -- Full entity snapshot before change
+    new_values CLOB,        -- Full entity snapshot after change
     
     -- Request context
-    request_params JSONB,    -- Method parameters
+    request_params CLOB,    -- Method parameters
     ip_address VARCHAR(50),
     user_agent TEXT,
     method_name VARCHAR(200),
@@ -58,27 +58,17 @@ CREATE INDEX idx_audit_tenant_action ON audit_logs(tenant_id, action);
 CREATE INDEX idx_audit_date ON audit_logs(created_at DESC);
 CREATE INDEX idx_audit_tenant_date ON audit_logs(tenant_id, created_at DESC);
 
--- Failed operation tracking
-CREATE INDEX idx_audit_failed ON audit_logs(success, tenant_id, created_at) WHERE success = FALSE;
+-- Failed operation tracking (H2 compatible - no WHERE clause)
+CREATE INDEX idx_audit_failed ON audit_logs(success, tenant_id, created_at);
 
 -- Entity type queries
 CREATE INDEX idx_audit_entity_type ON audit_logs(entity_type, created_at DESC);
 
--- GIN index for JSONB search (optional - for advanced queries)
-CREATE INDEX idx_audit_changes_gin ON audit_logs USING GIN (changes);
-CREATE INDEX idx_audit_new_values_gin ON audit_logs USING GIN (new_values);
+-- GIN indexes not supported in H2 - removed for compatibility
+-- For PostgreSQL, these can be added separately if needed
 
--- Comments
-COMMENT ON TABLE audit_logs IS 'Comprehensive audit log for all system operations';
-COMMENT ON COLUMN audit_logs.tenant_id IS 'Tenant ID for multi-tenancy isolation';
-COMMENT ON COLUMN audit_logs.entity_type IS 'Entity type (e.g., Customer, Contract, User)';
-COMMENT ON COLUMN audit_logs.entity_id IS 'ID of the entity that was modified';
-COMMENT ON COLUMN audit_logs.action IS 'Action performed (CREATE, UPDATE, DELETE, etc.)';
-COMMENT ON COLUMN audit_logs.changes IS 'Field-level changes in JSON format';
-COMMENT ON COLUMN audit_logs.old_values IS 'Full entity state before change (optional)';
-COMMENT ON COLUMN audit_logs.new_values IS 'Full entity state after change (optional)';
-COMMENT ON COLUMN audit_logs.execution_time_ms IS 'Method execution time in milliseconds';
-COMMENT ON COLUMN audit_logs.success IS 'Whether the operation was successful';
+-- Comments: H2 doesn't support COMMENT ON statements
+-- See code documentation for column descriptions
 
 -- Partition by month for better performance (optional - for large datasets)
 -- Uncomment if you expect millions of audit logs

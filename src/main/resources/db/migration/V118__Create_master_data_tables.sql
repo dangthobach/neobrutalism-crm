@@ -3,7 +3,7 @@
 
 -- Contracts table (from staging_hsbg_hop_dong)
 CREATE TABLE IF NOT EXISTS contracts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     tenant_id UUID NOT NULL,
     
     -- Core contract identity
@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS contracts (
     vpbank_warehouse_entry_date DATE,
     crown_warehouse_transfer_date DATE,
     area VARCHAR(50),
-    row VARCHAR(50),
-    column VARCHAR(50),
+    "row" VARCHAR(50),
+    "column" VARCHAR(50),
     box_condition VARCHAR(100),
     box_status VARCHAR(100),
     
@@ -66,18 +66,18 @@ CREATE TABLE IF NOT EXISTS contracts (
     is_deleted BOOLEAN DEFAULT FALSE NOT NULL
 );
 
--- Indexes for contracts
-CREATE INDEX idx_contract_number ON contracts(contract_number) WHERE is_deleted = FALSE;
-CREATE UNIQUE INDEX idx_contract_number_tenant ON contracts(contract_number, tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contract_tenant ON contracts(tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contract_customer_cif ON contracts(customer_cif) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contract_due_date ON contracts(due_date) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contract_status ON contracts(pdm_case_status) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contract_box_code ON contracts(box_code) WHERE is_deleted = FALSE;
+-- Indexes for contracts (H2 compatible - no WHERE clauses)
+CREATE INDEX idx_contract_number ON contracts(contract_number);
+CREATE UNIQUE INDEX idx_contract_number_tenant ON contracts(contract_number, tenant_id);
+CREATE INDEX idx_contract_tenant ON contracts(tenant_id);
+CREATE INDEX idx_contract_customer_cif ON contracts(customer_cif);
+CREATE INDEX idx_contract_due_date ON contracts(due_date);
+CREATE INDEX idx_contract_status ON contracts(pdm_case_status);
+CREATE INDEX idx_contract_box_code ON contracts(box_code);
 
 -- Document Volumes table (from staging_hsbg_tap)
 CREATE TABLE IF NOT EXISTS document_volumes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     tenant_id UUID NOT NULL,
     
     -- Core volume identity
@@ -113,8 +113,8 @@ CREATE TABLE IF NOT EXISTS document_volumes (
     vpbank_warehouse_entry_date DATE,
     crown_warehouse_transfer_date DATE,
     area VARCHAR(50),
-    row VARCHAR(50),
-    column VARCHAR(50),
+    "row" VARCHAR(50),
+    "column" VARCHAR(50),
     box_condition VARCHAR(100),
     box_status VARCHAR(100),
     
@@ -133,16 +133,15 @@ CREATE TABLE IF NOT EXISTS document_volumes (
     is_deleted BOOLEAN DEFAULT FALSE NOT NULL
 );
 
--- Indexes for document_volumes
-CREATE INDEX idx_volume_name ON document_volumes(volume_name) WHERE is_deleted = FALSE;
-CREATE INDEX idx_volume_tenant ON document_volumes(tenant_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_volume_box_code ON document_volumes(box_code) WHERE is_deleted = FALSE;
-CREATE INDEX idx_volume_customer_cif ON document_volumes(customer_cif) WHERE is_deleted = FALSE;
-CREATE INDEX idx_volume_unique_check ON document_volumes(volume_name, box_code, tenant_id) WHERE is_deleted = FALSE;
+-- Indexes for document_volumes (H2 compatible - no WHERE clauses)
+CREATE INDEX idx_volume_name ON document_volumes(volume_name);
+CREATE INDEX idx_volume_tenant ON document_volumes(tenant_id);
+CREATE INDEX idx_volume_box_code ON document_volumes(box_code);
+CREATE INDEX idx_volume_customer_cif ON document_volumes(customer_cif);
+CREATE INDEX idx_volume_unique_check ON document_volumes(volume_name, box_code, tenant_id);
 
--- Comment on tables
-COMMENT ON TABLE contracts IS 'Master data table for contracts migrated from HSBG_theo_hop_dong sheets';
-COMMENT ON TABLE document_volumes IS 'Master data table for document volumes migrated from HSBG_theo_tap sheets';
+-- Comments: H2 doesn't support COMMENT ON statements
+-- See code documentation for table descriptions
 
 -- Note: customers table already exists from V2__customer_contact_schema.sql
 -- CIF records will be transformed to existing customers table

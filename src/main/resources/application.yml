@@ -1,9 +1,18 @@
 spring:
   application:
     name: neobrutalism-crm
-  
+
   profiles:
     active: dev  # Default to dev profile (H2)
+
+  # ✅ FIX: Configure multipart file upload to write directly to disk (prevent memory leak)
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB           # Maximum file size per file
+      max-request-size: 100MB        # Maximum request size
+      file-size-threshold: 0         # ✅ CRITICAL: Write ALL files to disk immediately, never buffer in memory
+      location: ${java.io.tmpdir}    # Temporary directory for multipart files
 
   datasource:
     hikari:
@@ -60,6 +69,21 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 60000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        shutdown-timeout: 100ms
 
   jackson:
     serialization:

@@ -68,7 +68,7 @@ export default function MenuTabsPage() {
         accessorKey: "menuId",
         header: "Menu",
         cell: ({ row }) => (
-          <Badge variant="outline">
+          <Badge variant="neutral">
             {getMenuName(row.original.menuId)}
           </Badge>
         )
@@ -82,7 +82,7 @@ export default function MenuTabsPage() {
           </div>
         ),
         cell: ({ row }) => (
-          <Badge variant="secondary">{row.original.displayOrder}</Badge>
+          <Badge variant="neutral">{row.original.displayOrder}</Badge>
         )
       },
       {
@@ -99,12 +99,12 @@ export default function MenuTabsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <PermissionGuard action="EDIT">
+            <PermissionGuard routeOrCode="/menu-tabs" permission="canEdit">
               <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
                 Edit
               </Button>
             </PermissionGuard>
-            <PermissionGuard action="DELETE">
+            <PermissionGuard routeOrCode="/menu-tabs" permission="canDelete">
               <Button
                 variant="noShadow"
                 size="sm"
@@ -200,9 +200,6 @@ export default function MenuTabsPage() {
         <DataTable
           columns={columns}
           data={menuTabs}
-          searchColumn="name"
-          searchPlaceholder="Search tabs..."
-          isLoading={isLoading}
         />
       </div>
 

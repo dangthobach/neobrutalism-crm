@@ -3,8 +3,10 @@ package com.neobrutalism.crm.domain.user.repository;
 import com.neobrutalism.crm.common.repository.StatefulRepository;
 import com.neobrutalism.crm.domain.user.model.User;
 import com.neobrutalism.crm.domain.user.model.UserStatus;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,4 +70,26 @@ public interface UserRepository extends StatefulRepository<User, UserStatus> {
      * Find user by email (not deleted)
      */
     Optional<User> findByEmailAndDeletedFalse(String email);
+
+    /**
+     * Find all admin user IDs for notifications
+     * Uses native query to join through user_roles and roles tables
+     */
+    @Query(value = "SELECT DISTINCT u.id FROM users u " +
+           "INNER JOIN user_roles ur ON ur.user_id = u.id " +
+           "INNER JOIN roles r ON r.id = ur.role_id " +
+           "WHERE r.code = 'ADMIN' AND u.deleted = false AND ur.is_active = true",
+           nativeQuery = true)
+    List<UUID> findAdminUserIds();
+
+    /**
+     * Find all security team user IDs (ADMIN + SECURITY_OFFICER roles)
+     * Uses native query to join through user_roles and roles tables
+     */
+    @Query(value = "SELECT DISTINCT u.id FROM users u " +
+           "INNER JOIN user_roles ur ON ur.user_id = u.id " +
+           "INNER JOIN roles r ON r.id = ur.role_id " +
+           "WHERE r.code IN ('ADMIN', 'SECURITY_OFFICER') AND u.deleted = false AND ur.is_active = true",
+           nativeQuery = true)
+    List<UUID> findSecurityTeamUserIds();
 }

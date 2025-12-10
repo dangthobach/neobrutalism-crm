@@ -52,6 +52,17 @@ export interface MenuQueryParams {
   sortDirection?: 'ASC' | 'DESC'
 }
 
+export interface CreateMenuRequest {
+  code: string
+  name: string
+  icon?: string
+  parentId?: string
+  route?: string
+  displayOrder: number
+  isVisible: boolean
+  requiresAuth: boolean
+}
+
 export class MenuApi {
   /**
    * Get all menus with pagination

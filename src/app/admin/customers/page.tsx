@@ -193,7 +193,7 @@ export default function CustomersPage() {
             </h2>
             <div className="flex gap-2">
               <Button
-                variant="outline"
+                variant="neutral"
                 size="sm"
                 onClick={() => setAdvancedSearchOpen(true)}
                 disabled={isLoading}

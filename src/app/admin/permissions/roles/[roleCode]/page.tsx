@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, X } from 'lucide-react';
-import { mockRoles, mockUsers, mockUserRoles } from '@/data/mock-permissions';
-import { RoleStatus } from '@/types/permission';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft, Save, X, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { roleApi, Role, RoleStatus } from '@/lib/api/roles';
+import { userRoleApi } from '@/lib/api/user-roles';
+import { userApi, User } from '@/lib/api/users';
 import RoleGeneralTab from './tabs/general-tab';
 import RoleMenuAccessTab from './tabs/menu-access-tab';
 import RolePermissionMatrixTab from './tabs/permission-matrix-tab';
@@ -21,28 +24,55 @@ export default function RoleDetailPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Find role
-  const role = useMemo(
-    () => mockRoles.find((r) => r.code === roleCode),
-    [roleCode]
-  );
+  // Fetch role by code
+  const { data: role, isLoading: roleLoading, error: roleError } = useQuery({
+    queryKey: ['roles', 'code', roleCode],
+    queryFn: () => roleApi.getRoleByCode(roleCode),
+    retry: 1,
+  });
 
-  // Get users with this role
-  const usersWithRole = useMemo(() => {
-    const userIds: string[] = [];
-    mockUserRoles.forEach((roles, userId) => {
-      if (roles.includes(roleCode)) {
-        userIds.push(userId);
-      }
-    });
-    return mockUsers.filter((u) => userIds.includes(u.id));
-  }, [roleCode]);
+  // Fetch user-role assignments for this role
+  const { data: userRoleAssignments = [], isLoading: assignmentsLoading } = useQuery({
+    queryKey: ['user-roles', 'role', role?.id],
+    queryFn: () => userRoleApi.getUsersByRole(role!.id),
+    enabled: !!role?.id,
+  });
 
-  if (!role) {
+  // Fetch users with this role
+  const { data: usersWithRole = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['users', 'by-role', role?.id],
+    queryFn: async () => {
+      const userIds = userRoleAssignments.map((ur) => ur.userId);
+      if (userIds.length === 0) return [];
+
+      // Fetch all users and filter by IDs
+      const allUsers = await userApi.getUsers({ size: 1000 });
+      return allUsers.content.filter((u) => userIds.includes(u.id));
+    },
+    enabled: !!role?.id && userRoleAssignments.length > 0,
+  });
+
+  // Loading state
+  if (roleLoading) {
+    return (
+      <div className="container mx-auto py-6 space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-[600px] w-full" />
+      </div>
+    );
+  }
+
+  // Error state
+  if (roleError || !role) {
     return (
       <div className="container mx-auto py-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Role not found</h1>
+          <h1 className="text-2xl font-bold mb-4">
+            {roleError ? 'Error loading role' : 'Role not found'}
+          </h1>
+          <p className="text-muted-foreground mb-4">
+            {roleError ? 'Failed to load role details' : `Role with code "${roleCode}" does not exist`}
+          </p>
           <Button onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Go Back
@@ -128,6 +158,7 @@ export default function RoleDetailPage() {
           <RoleGeneralTab
             role={role}
             usersWithRole={usersWithRole}
+            userRoleAssignments={userRoleAssignments}
             onChangeDetected={() => setHasChanges(true)}
           />
         </TabsContent>

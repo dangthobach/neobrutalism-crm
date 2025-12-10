@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS push_notification_tokens (
 
 -- Indexes for push tokens
 CREATE INDEX IF NOT EXISTS idx_push_token_user ON push_notification_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_push_token_user_active ON push_notification_tokens(user_id, is_active) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_push_token_user_active ON push_notification_tokens(user_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_push_token_org ON push_notification_tokens(organization_id);
-CREATE INDEX IF NOT EXISTS idx_push_token_expires ON push_notification_tokens(expires_at) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_push_token_expires ON push_notification_tokens(expires_at);
 
 -- =====================================================
 -- 2. Email Delivery Tracking Table
@@ -61,8 +61,8 @@ CREATE TABLE IF NOT EXISTS email_delivery_logs (
     subject VARCHAR(500) NOT NULL,
     template_name VARCHAR(100),
     
-    -- Delivery status
-    status VARCHAR(50) NOT NULL CHECK (status IN (
+    -- Delivery status (H2 compatible: DEFAULT before CHECK)
+    status VARCHAR(50) NOT NULL DEFAULT 'QUEUED' CHECK (status IN (
         'QUEUED',
         'SENDING',
         'SENT',
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS email_delivery_logs (
         'BOUNCED',
         'FAILED',
         'SPAM'
-    )) DEFAULT 'QUEUED',
+    )),
     
     -- Tracking information
     sent_at TIMESTAMP WITHOUT TIME ZONE,
@@ -90,8 +90,8 @@ CREATE TABLE IF NOT EXISTS email_delivery_logs (
     provider_message_id VARCHAR(255),
     provider_name VARCHAR(50),
     
-    -- Metadata
-    metadata JSONB,
+    -- Metadata (H2 compatible: CLOB instead of JSONB)
+    metadata CLOB,
     
     -- Audit fields
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -108,10 +108,12 @@ CREATE INDEX IF NOT EXISTS idx_email_log_status ON email_delivery_logs(status);
 CREATE INDEX IF NOT EXISTS idx_email_log_created ON email_delivery_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_email_log_user ON email_delivery_logs(recipient_user_id);
 
--- Composite index for retry logic
+-- Composite index for retry logic (simplified for H2 compatibility)
+-- Note: H2 doesn't support partial indexes with column comparisons or WHERE clauses
 CREATE INDEX IF NOT EXISTS idx_email_log_retry 
-    ON email_delivery_logs(status, retry_count, created_at)
-    WHERE status = 'FAILED' AND retry_count < max_retries;
+    ON email_delivery_logs(status, retry_count, created_at);
+CREATE INDEX IF NOT EXISTS idx_email_log_failed 
+    ON email_delivery_logs(status, created_at);
 
 -- =====================================================
 -- 3. WebSocket Session Management (Optional - for connection tracking)
@@ -139,8 +141,8 @@ CREATE TABLE IF NOT EXISTS websocket_sessions (
     -- Status
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     
-    -- Metadata
-    metadata JSONB,
+    -- Metadata (H2 compatible: CLOB instead of JSONB)
+    metadata CLOB,
     
     -- Indexes for performance
     CONSTRAINT fk_ws_session_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -148,8 +150,8 @@ CREATE TABLE IF NOT EXISTS websocket_sessions (
 
 -- Indexes for WebSocket sessions
 CREATE INDEX IF NOT EXISTS idx_ws_session_user ON websocket_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_ws_session_active ON websocket_sessions(is_active) WHERE is_active = TRUE;
-CREATE INDEX IF NOT EXISTS idx_ws_session_heartbeat ON websocket_sessions(last_heartbeat_at) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_ws_session_active ON websocket_sessions(is_active);
+CREATE INDEX IF NOT EXISTS idx_ws_session_heartbeat ON websocket_sessions(last_heartbeat_at);
 CREATE INDEX IF NOT EXISTS idx_ws_session_org ON websocket_sessions(organization_id);
 
 -- =====================================================
@@ -167,14 +169,14 @@ CREATE TABLE IF NOT EXISTS notification_queue (
     delivery_channel VARCHAR(50) NOT NULL CHECK (delivery_channel IN ('EMAIL', 'PUSH', 'SMS', 'IN_APP')),
     scheduled_for TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     
-    -- Status
-    status VARCHAR(50) NOT NULL CHECK (status IN (
+    -- Status (H2 compatible: DEFAULT before CHECK)
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK (status IN (
         'PENDING',
         'PROCESSING',
         'COMPLETED',
         'FAILED',
         'CANCELLED'
-    )) DEFAULT 'PENDING',
+    )),
     
     -- Processing
     processed_at TIMESTAMP WITHOUT TIME ZONE,
@@ -184,8 +186,8 @@ CREATE TABLE IF NOT EXISTS notification_queue (
     -- Error handling
     last_error TEXT,
     
-    -- Metadata
-    metadata JSONB,
+    -- Metadata (H2 compatible: CLOB instead of JSONB)
+    metadata CLOB,
     
     -- Audit fields
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -197,32 +199,23 @@ CREATE TABLE IF NOT EXISTS notification_queue (
 );
 
 -- Indexes for notification queue
-CREATE INDEX IF NOT EXISTS idx_queue_scheduled ON notification_queue(scheduled_for, status) 
-    WHERE status = 'PENDING';
+CREATE INDEX IF NOT EXISTS idx_queue_scheduled ON notification_queue(scheduled_for, status);
 CREATE INDEX IF NOT EXISTS idx_queue_user ON notification_queue(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_queue_notification ON notification_queue(notification_id);
 CREATE INDEX IF NOT EXISTS idx_queue_channel ON notification_queue(delivery_channel, status);
 
--- Composite index for queue processing
+-- Composite index for queue processing (simplified for H2 compatibility)
+-- Note: H2 doesn't support partial indexes with WHERE clauses
 CREATE INDEX IF NOT EXISTS idx_queue_processing 
-    ON notification_queue(status, scheduled_for, attempts)
-    WHERE status IN ('PENDING', 'FAILED') AND attempts < max_attempts;
+    ON notification_queue(status, scheduled_for, attempts);
+CREATE INDEX IF NOT EXISTS idx_queue_pending_failed 
+    ON notification_queue(status, scheduled_for);
 
 -- =====================================================
 -- Comments for Documentation
 -- =====================================================
-
-COMMENT ON TABLE push_notification_tokens IS 
-    'Storage for push notification tokens (FCM, APNs) for real-time mobile/web push notifications';
-
-COMMENT ON TABLE email_delivery_logs IS 
-    'Tracks email delivery status with open/click tracking for monitoring email campaign effectiveness';
-
-COMMENT ON TABLE websocket_sessions IS 
-    'Manages active WebSocket connections for real-time notifications. Used for connection health monitoring.';
-
-COMMENT ON TABLE notification_queue IS 
-    'Queue for delayed/scheduled notification delivery and digest mode. Enables retry logic and rate limiting.';
+-- Note: COMMENT ON statements are PostgreSQL-specific
+-- For H2 compatibility, comments are in code documentation
 
 -- =====================================================
 -- Cleanup Job Hints (to be implemented in application)

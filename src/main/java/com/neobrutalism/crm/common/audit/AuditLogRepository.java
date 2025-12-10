@@ -12,109 +12,94 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Repository for audit logs
+ * Repository for application audit logs
+ * Separate from event-sourcing audit logs in common.event package
  */
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
 
     /**
-     * Find audit logs by tenant ID
-     */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId ORDER BY a.createdAt DESC")
-    Page<AuditLog> findByTenantId(@Param("tenantId") UUID tenantId, Pageable pageable);
-
-    /**
-     * Find audit logs by entity type and ID
-     */
-    @Query("SELECT a FROM AuditLog a WHERE a.entityType = :entityType AND a.entityId = :entityId ORDER BY a.createdAt DESC")
-    List<AuditLog> findByEntityTypeAndEntityId(
-        @Param("entityType") String entityType, 
-        @Param("entityId") UUID entityId
-    );
-
-    /**
      * Find audit logs by tenant and entity
      */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.entityType = :entityType AND a.entityId = :entityId ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM ApplicationAuditLog a WHERE a.tenantId = :tenantId " +
+           "AND a.entityType = :entityType AND a.entityId = :entityId " +
+           "ORDER BY a.createdAt DESC")
     List<AuditLog> findByTenantAndEntity(
-        @Param("tenantId") UUID tenantId,
-        @Param("entityType") String entityType, 
-        @Param("entityId") UUID entityId
-    );
+            @Param("tenantId") UUID tenantId,
+            @Param("entityType") String entityType,
+            @Param("entityId") UUID entityId);
 
     /**
-     * Find audit logs by user ID
+     * Find all audit logs for a tenant
      */
-    @Query("SELECT a FROM AuditLog a WHERE a.userId = :userId ORDER BY a.createdAt DESC")
-    Page<AuditLog> findByUserId(@Param("userId") UUID userId, Pageable pageable);
+    Page<AuditLog> findByTenantId(UUID tenantId, Pageable pageable);
 
     /**
-     * Find audit logs by action
+     * Find audit logs by user
      */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.action = :action ORDER BY a.createdAt DESC")
+    Page<AuditLog> findByUserId(UUID userId, Pageable pageable);
+
+    /**
+     * Find audit logs by tenant and action
+     */
     Page<AuditLog> findByTenantIdAndAction(
-        @Param("tenantId") UUID tenantId,
-        @Param("action") AuditAction action, 
-        Pageable pageable
-    );
+            UUID tenantId,
+            AuditAction action,
+            Pageable pageable);
 
     /**
-     * Find audit logs by date range
+     * Find audit logs in date range for tenant
      */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.createdAt BETWEEN :startDate AND :endDate ORDER BY a.createdAt DESC")
     Page<AuditLog> findByTenantIdAndCreatedAtBetween(
-        @Param("tenantId") UUID tenantId,
-        @Param("startDate") Instant startDate,
-        @Param("endDate") Instant endDate,
-        Pageable pageable
-    );
+            UUID tenantId,
+            Instant startDate,
+            Instant endDate,
+            Pageable pageable);
 
     /**
-     * Find failed operations
+     * Find failed operations (where success = false)
      */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.success = false ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM ApplicationAuditLog a WHERE a.tenantId = :tenantId AND a.success = false " +
+           "ORDER BY a.createdAt DESC")
     Page<AuditLog> findFailedOperations(@Param("tenantId") UUID tenantId, Pageable pageable);
 
     /**
-     * Count audit logs by tenant
+     * Find recent activities for tenant
      */
-    @Query("SELECT COUNT(a) FROM AuditLog a WHERE a.tenantId = :tenantId")
-    long countByTenantId(@Param("tenantId") UUID tenantId);
+    @Query("SELECT a FROM ApplicationAuditLog a WHERE a.tenantId = :tenantId " +
+           "ORDER BY a.createdAt DESC")
+    Page<AuditLog> findRecentActivities(@Param("tenantId") UUID tenantId, Pageable pageable);
 
     /**
-     * Count audit logs by entity
+     * Count audit logs by tenant and entity
      */
-    @Query("SELECT COUNT(a) FROM AuditLog a WHERE a.tenantId = :tenantId AND a.entityType = :entityType AND a.entityId = :entityId")
+    @Query("SELECT COUNT(a) FROM ApplicationAuditLog a WHERE a.tenantId = :tenantId " +
+           "AND a.entityType = :entityType AND a.entityId = :entityId")
     long countByTenantAndEntity(
-        @Param("tenantId") UUID tenantId,
-        @Param("entityType") String entityType,
-        @Param("entityId") UUID entityId
-    );
+            @Param("tenantId") UUID tenantId,
+            @Param("entityType") String entityType,
+            @Param("entityId") UUID entityId);
 
     /**
-     * Find recent activities for dashboard
+     * Find user activities since a specific time
      */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.success = true ORDER BY a.createdAt DESC")
-    List<AuditLog> findRecentActivities(@Param("tenantId") UUID tenantId, Pageable pageable);
-
-    /**
-     * Search audit logs by entity type and action
-     */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.entityType = :entityType AND a.action = :action ORDER BY a.createdAt DESC")
-    Page<AuditLog> findByTenantEntityAndAction(
-        @Param("tenantId") UUID tenantId,
-        @Param("entityType") String entityType,
-        @Param("action") AuditAction action,
-        Pageable pageable
-    );
-
-    /**
-     * Find user activities
-     */
-    @Query("SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.userId = :userId AND a.createdAt >= :since ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM ApplicationAuditLog a WHERE a.tenantId = :tenantId " +
+           "AND a.userId = :userId AND a.createdAt >= :since " +
+           "ORDER BY a.createdAt DESC")
     List<AuditLog> findUserActivities(
-        @Param("tenantId") UUID tenantId,
-        @Param("userId") UUID userId,
-        @Param("since") Instant since
-    );
+            @Param("tenantId") UUID tenantId,
+            @Param("userId") UUID userId,
+            @Param("since") Instant since);
+
+    /**
+     * Find audit logs by tenant, entity type, and action
+     */
+    @Query("SELECT a FROM ApplicationAuditLog a WHERE a.tenantId = :tenantId " +
+           "AND a.entityType = :entityType AND a.action = :action " +
+           "ORDER BY a.createdAt DESC")
+    Page<AuditLog> findByTenantEntityAndAction(
+            @Param("tenantId") UUID tenantId,
+            @Param("entityType") String entityType,
+            @Param("action") AuditAction action,
+            Pageable pageable);
 }

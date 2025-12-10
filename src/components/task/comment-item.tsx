@@ -96,7 +96,7 @@ export function CommentItem({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="ghost"
+                variant="noShadow"
                 size="sm"
                 className="h-8 w-8 border-2 border-black p-0 hover:bg-gray-100"
               >
@@ -138,7 +138,7 @@ export function CommentItem({
           <div className="flex justify-end gap-2">
             <Button
               size="sm"
-              variant="outline"
+              variant="neutral"
               onClick={handleCancelEdit}
               className="border-2 border-black font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
             >

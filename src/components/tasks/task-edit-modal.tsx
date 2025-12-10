@@ -528,7 +528,7 @@ export function TaskEditModal({
                   />
                   <Button
                     type="button"
-                    variant="success"
+                    variant="default"
                     onClick={handleAddTag}
                     className="shrink-0"
                   >
@@ -568,7 +568,7 @@ export function TaskEditModal({
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" disabled={isLoading}>
+              <Button type="submit" variant="default" disabled={isLoading}>
                 {isLoading ? "Saving..." : isEditing ? "Update Task" : "Create Task"}
               </Button>
             </div>

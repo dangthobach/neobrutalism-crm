@@ -23,7 +23,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -49,11 +49,15 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomUserDetailsService customUserDetailsService;
-    private final CasbinAuthorizationFilter casbinAuthorizationFilter;
+    private final Environment environment;
 
     // Optional: Rate limiting filter (only available when rate-limit.enabled=true)
     @Autowired(required = false)
     private RateLimitFilter rateLimitFilter;
+
+    // Optional: Casbin authorization filter (only available when casbin.enabled=true)
+    @Autowired(required = false)
+    private CasbinAuthorizationFilter casbinAuthorizationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -66,19 +70,31 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    auth
                         // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
 
-                        // Public GET endpoints
-                        .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
+                        // WebSocket endpoints (SockJS handshake needs to be public)
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/app/**").permitAll()
+                        .requestMatchers("/topic/**").permitAll()
+                        .requestMatchers("/queue/**").permitAll()
 
-                        // All other requests require authentication
-                        .anyRequest().authenticated()
-                )
+                        // Public GET endpoints
+                        .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll();
+
+                    // Dev-only: Allow organizations API without authentication
+                    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+                        auth.requestMatchers("/api/organizations/**").permitAll();
+                    }
+
+                    // All other requests require authentication
+                    auth.anyRequest().authenticated();
+                })
                 .headers(headers -> {
                     headers.contentSecurityPolicy(csp -> csp
                             .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://eu.i.posthog.com https://eu-assets.i.posthog.com; frame-ancestors 'self'; form-action 'self'; base-uri 'self';")
@@ -102,28 +118,17 @@ public class SecurityConfig {
 
         // JWT authentication filter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
-        // Casbin authorization filter (dynamic role-based authorization)
-        http.addFilterAfter(casbinAuthorizationFilter, JwtAuthenticationFilter.class);
+
+        // Casbin authorization filter (dynamic role-based authorization) - only if enabled
+        if (casbinAuthorizationFilter != null) {
+            http.addFilterAfter(casbinAuthorizationFilter, JwtAuthenticationFilter.class);
+        }
 
         // Allow H2 console iframe (already set via headers config)
 
         return http.build();
     }
 
-    /**
-     * Development-only security overrides
-     * ⚠️ Only active in 'dev' profile - NEVER in production!
-     */
-    @Bean
-    @Profile("dev")
-    public SecurityFilterChain devSecurityOverrides(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth
-            // Allow organizations API in dev only
-            .requestMatchers("/api/organizations/**").permitAll()
-        );
-        return http.build();
-    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

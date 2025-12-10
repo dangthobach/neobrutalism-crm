@@ -14,6 +14,15 @@ import {
 import { ApiError } from '@/lib/api/client'
 import { toast } from 'sonner'
 
+// Re-export types for convenience
+export type {
+  MenuScreen,
+  MenuScreenQueryParams,
+  CreateMenuScreenRequest,
+  UpdateMenuScreenRequest,
+  ScreenApiAssignment
+}
+
 const MENU_SCREENS_QUERY_KEY = 'menu-screens'
 const SCREEN_API_ENDPOINTS_QUERY_KEY = 'screen-api-endpoints'
 

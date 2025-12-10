@@ -1,0 +1,72 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Asia/Ho_Chi_Minh",
+  "schedule": [
+    "before 3am on Monday"
+  ],
+  "labels": [
+    "dependencies",
+    "automated"
+  ],
+  "assignees": ["@team-lead"],
+  "reviewers": ["@team-lead"],
+
+  "packageRules": [
+    {
+      "description": "Group all non-major updates together",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "description": "Auto-merge patch updates for stable packages",
+      "matchUpdateTypes": ["patch"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Separate major updates for careful review",
+      "matchUpdateTypes": ["major"],
+      "groupName": "major dependencies",
+      "groupSlug": "major"
+    },
+    {
+      "description": "Security updates - immediate priority",
+      "matchDatasources": ["npm", "maven"],
+      "matchUpdateTypes": ["patch"],
+      "vulnerabilityAlerts": {
+        "labels": ["security", "high-priority"],
+        "assignees": ["@security-team"]
+      }
+    }
+  ],
+
+  "npm": {
+    "fileMatch": ["^package\\.json$"],
+    "rangeStrategy": "bump"
+  },
+
+  "maven": {
+    "fileMatch": ["^pom\\.xml$"]
+  },
+
+  "ignoreDeps": [
+    "java"
+  ],
+
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 3am on Monday"]
+  },
+
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+
+  "commitMessagePrefix": "chore(deps):",
+  "semanticCommits": "enabled"
+}

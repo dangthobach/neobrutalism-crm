@@ -402,7 +402,7 @@ export default function ContactsPage() {
           {hasActiveFilters && (
             <>
               <Button
-                variant="outline"
+                variant="neutral"
                 size="sm"
                 onClick={() => setAdvancedSearchOpen(true)}
                 disabled={isLoading}

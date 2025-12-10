@@ -105,7 +105,7 @@ export function ChecklistItem({
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="neutral"
             onClick={handleCancel}
             className="h-8 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
           >
@@ -130,7 +130,7 @@ export function ChecklistItem({
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             size="sm"
-            variant="ghost"
+            variant="noShadow"
             onClick={() => setIsEditing(true)}
             className="h-8 w-8 p-0 hover:bg-gray-100"
             title="Edit"
@@ -139,7 +139,7 @@ export function ChecklistItem({
           </Button>
           <Button
             size="sm"
-            variant="ghost"
+            variant="noShadow"
             onClick={() => {
               if (confirm('Delete this checklist item?')) {
                 onDelete(item.id)

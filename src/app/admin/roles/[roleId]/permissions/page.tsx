@@ -96,7 +96,11 @@ export default function RolePermissionsPage() {
 
     const sortChildren = (items: (Menu & { children: Menu[] })[]) => {
       items.sort((a, b) => a.displayOrder - b.displayOrder)
-      items.forEach(item => sortChildren(item.children))
+      items.forEach(item => {
+        if (item.children && item.children.length > 0) {
+          sortChildren(item.children as (Menu & { children: Menu[] })[])
+        }
+      })
     }
     sortChildren(roots)
 
@@ -178,7 +182,7 @@ export default function RolePermissionsPage() {
     refetch()
   }
 
-  function renderMenuRow(menu: Menu & { children: Menu[] }, depth: number = 0) {
+  function renderMenuRow(menu: Menu & { children: Menu[] }, depth: number = 0): React.ReactNode {
     const hasChildren = menu.children.length > 0
     const isExpanded = expandedIds.has(menu.id)
     const indent = depth * 24
@@ -257,7 +261,7 @@ export default function RolePermissionsPage() {
             />
           </TableCell>
         </TableRow>
-        {isExpanded && menu.children.map(child => renderMenuRow(child, depth + 1))}
+        {isExpanded && menu.children.map(child => renderMenuRow(child as Menu & { children: Menu[] }, depth + 1))}
       </>
     )
   }

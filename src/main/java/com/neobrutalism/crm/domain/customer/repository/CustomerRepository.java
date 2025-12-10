@@ -1,6 +1,7 @@
 package com.neobrutalism.crm.domain.customer.repository;
 
 import com.neobrutalism.crm.common.repository.StatefulRepository;
+import com.neobrutalism.crm.common.security.DataScopeHelper;
 import com.neobrutalism.crm.domain.customer.model.Customer;
 import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
@@ -236,4 +237,113 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
      */
     @Query("SELECT c FROM Customer c WHERE c.status = :status AND c.deleted = false")
     Page<Customer> findByStatusOptimized(@Param("status") CustomerStatus status, Pageable pageable);
+
+    // ========================================
+    // ✅ PHASE 2: DATA SCOPE ENFORCEMENT
+    // ========================================
+
+    /**
+     * Find all customers with data scope filtering
+     * Applies row-level security based on user's data scope (ALL_BRANCHES, CURRENT_BRANCH, SELF_ONLY)
+     */
+    default List<Customer> findAllWithScope() {
+        return findAll(DataScopeHelper.applyDataScope());
+    }
+
+    /**
+     * Find all customers with data scope filtering and pagination
+     * Applies row-level security based on user's data scope (ALL_BRANCHES, CURRENT_BRANCH, SELF_ONLY)
+     */
+    default Page<Customer> findAllWithScope(Pageable pageable) {
+        return findAll(DataScopeHelper.applyDataScope(), pageable);
+    }
+
+    /**
+     * Find customers by organization with data scope filtering
+     */
+    default List<Customer> findByOrganizationIdWithScope(UUID organizationId) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            DataScopeHelper.byOrganization(organizationId)
+        ));
+    }
+
+    /**
+     * Find customers by organization with data scope filtering and pagination
+     */
+    default Page<Customer> findByOrganizationIdWithScope(UUID organizationId, Pageable pageable) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            DataScopeHelper.byOrganization(organizationId)
+        ), pageable);
+    }
+
+    /**
+     * Find customers by status with data scope filtering
+     */
+    default List<Customer> findByStatusWithScope(CustomerStatus status) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("status"), status)
+        ));
+    }
+
+    /**
+     * Find customers by status with data scope filtering and pagination
+     */
+    default Page<Customer> findByStatusWithScope(CustomerStatus status, Pageable pageable) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("status"), status)
+        ), pageable);
+    }
+
+    /**
+     * Find VIP customers with data scope filtering
+     */
+    default List<Customer> findVipCustomersWithScope() {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.isTrue(root.get("isVip"))
+        ));
+    }
+
+    /**
+     * Find customers by type with data scope filtering
+     */
+    default List<Customer> findByCustomerTypeWithScope(CustomerType type) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("customerType"), type)
+        ));
+    }
+
+    /**
+     * Find customers by owner with data scope filtering
+     * Useful for account managers viewing their own customers
+     */
+    default List<Customer> findByOwnerIdWithScope(UUID ownerId) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("ownerId"), ownerId)
+        ));
+    }
+
+    /**
+     * Find customers by branch with data scope filtering
+     */
+    default List<Customer> findByBranchIdWithScope(UUID branchId) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("branchId"), branchId)
+        ));
+    }
+
+    /**
+     * Count customers with data scope filtering
+     */
+    default long countWithScope() {
+        return count(DataScopeHelper.applyDataScope());
+    }
+
+    /**
+     * Count VIP customers with data scope filtering
+     */
+    default long countVipCustomersWithScope() {
+        return count(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.isTrue(root.get("isVip"))
+        ));
+    }
 }

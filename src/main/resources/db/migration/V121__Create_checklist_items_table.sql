@@ -1,13 +1,13 @@
 -- Create checklist_items table for task checklist functionality
 CREATE TABLE IF NOT EXISTS checklist_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT RANDOM_UUID(),
     task_id UUID NOT NULL,
     title VARCHAR(500) NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
     position INTEGER NOT NULL DEFAULT 0,
     deleted BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(255),
     updated_by VARCHAR(255),
     version BIGINT DEFAULT 0,
@@ -23,25 +23,22 @@ CREATE TABLE IF NOT EXISTS checklist_items (
     CONSTRAINT chk_checklist_item_position CHECK (position >= 0)
 );
 
--- Indexes for performance
+-- Indexes for performance (H2 compatible - no WHERE clauses)
 CREATE INDEX IF NOT EXISTS idx_checklist_items_task_id 
-    ON checklist_items(task_id) WHERE deleted = FALSE;
+    ON checklist_items(task_id);
 
 CREATE INDEX IF NOT EXISTS idx_checklist_items_task_position 
-    ON checklist_items(task_id, position) WHERE deleted = FALSE;
+    ON checklist_items(task_id, position);
 
 CREATE INDEX IF NOT EXISTS idx_checklist_items_organization_id 
-    ON checklist_items(organization_id) WHERE deleted = FALSE;
+    ON checklist_items(organization_id);
 
 CREATE INDEX IF NOT EXISTS idx_checklist_items_completed 
-    ON checklist_items(task_id, completed) WHERE deleted = FALSE;
+    ON checklist_items(task_id, completed);
 
 -- Unique constraint to prevent duplicate positions within a task
 CREATE UNIQUE INDEX IF NOT EXISTS idx_checklist_items_task_position_unique 
-    ON checklist_items(task_id, position) WHERE deleted = FALSE;
+    ON checklist_items(task_id, position);
 
--- Comment for documentation
-COMMENT ON TABLE checklist_items IS 'Stores checklist items for tasks with position-based ordering for drag-and-drop';
-COMMENT ON COLUMN checklist_items.position IS 'Integer position for ordering items (supports drag-and-drop reordering)';
-COMMENT ON COLUMN checklist_items.completed IS 'Boolean flag indicating if checklist item is completed';
-COMMENT ON COLUMN checklist_items.deleted IS 'Soft delete flag to preserve checklist history';
+-- Comments: H2 doesn't support COMMENT ON statements
+-- See code documentation for table/column descriptions

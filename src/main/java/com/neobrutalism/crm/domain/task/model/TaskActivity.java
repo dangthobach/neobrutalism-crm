@@ -48,6 +48,16 @@ public class TaskActivity extends AuditableEntity {
     @Convert(converter = MetadataConverter.class)
     private Map<String, Object> metadata = new HashMap<>();
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private java.time.Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = java.time.Instant.now();
+        }
+    }
+
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 

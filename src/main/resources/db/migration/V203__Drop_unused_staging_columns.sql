@@ -21,7 +21,5 @@ ALTER TABLE staging_hsbg_tap
     DROP COLUMN IF EXISTS validation_errors,
     DROP COLUMN IF EXISTS normalized_data;
 
--- Add comment explaining the change
-COMMENT ON TABLE staging_hsbg_hop_dong IS 'Staging table for HSBG_theo_hop_dong. All errors logged to excel_migration_errors table.';
-COMMENT ON TABLE staging_hsbg_cif IS 'Staging table for HSBG_theo_CIF. All errors logged to excel_migration_errors table.';
-COMMENT ON TABLE staging_hsbg_tap IS 'Staging table for HSBG_theo_tap. All errors logged to excel_migration_errors table.';
+-- Comments: H2 doesn't support COMMENT ON TABLE statements
+-- All errors are logged to excel_migration_errors table (single source of truth)

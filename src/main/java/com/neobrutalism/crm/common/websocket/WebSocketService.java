@@ -84,6 +84,18 @@ public class WebSocketService {
     }
 
     /**
+     * Send message to a topic
+     */
+    public void sendToTopic(String topic, Map<String, Object> payload) {
+        try {
+            messagingTemplate.convertAndSend(topic, payload);
+            log.debug("Message sent to topic: {}", topic);
+        } catch (Exception e) {
+            log.error("Failed to send message to topic: {}", topic, e);
+        }
+    }
+
+    /**
      * Send unread count update to user
      */
     public void sendUnreadCountUpdate(UUID userId, Long unreadCount) {

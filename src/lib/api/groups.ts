@@ -41,10 +41,10 @@ export class GroupApi {
    */
   async getGroups(params?: GroupQueryParams): Promise<PageResponse<Group>> {
     const response = await apiClient.get<PageResponse<Group>>('/groups', params)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -52,10 +52,10 @@ export class GroupApi {
    */
   async getGroupById(id: string): Promise<Group> {
     const response = await apiClient.get<Group>(`/groups/${id}`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -63,10 +63,10 @@ export class GroupApi {
    */
   async getGroupByCode(code: string): Promise<Group> {
     const response = await apiClient.get<Group>(`/groups/code/${code}`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -74,10 +74,10 @@ export class GroupApi {
    */
   async getGroupsByOrganization(organizationId: string): Promise<Group[]> {
     const response = await apiClient.get<Group[]>(`/groups/organization/${organizationId}`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -85,10 +85,10 @@ export class GroupApi {
    */
   async getChildGroups(parentId: string): Promise<Group[]> {
     const response = await apiClient.get<Group[]>(`/groups/parent/${parentId}`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -96,10 +96,10 @@ export class GroupApi {
    */
   async getRootGroups(): Promise<Group[]> {
     const response = await apiClient.get<Group[]>('/groups/root')
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -107,10 +107,10 @@ export class GroupApi {
    */
   async getGroupsByStatus(status: GroupStatus): Promise<Group[]> {
     const response = await apiClient.get<Group[]>(`/groups/status/${status}`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -118,10 +118,10 @@ export class GroupApi {
    */
   async createGroup(group: Partial<Group>): Promise<Group> {
     const response = await apiClient.post<Group>('/groups', group)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -129,10 +129,10 @@ export class GroupApi {
    */
   async updateGroup(id: string, group: Partial<Group>): Promise<Group> {
     const response = await apiClient.put<Group>(`/groups/${id}`, group)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -147,10 +147,10 @@ export class GroupApi {
    */
   async activateGroup(id: string): Promise<Group> {
     const response = await apiClient.post<Group>(`/groups/${id}/activate`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -158,10 +158,10 @@ export class GroupApi {
    */
   async suspendGroup(id: string): Promise<Group> {
     const response = await apiClient.post<Group>(`/groups/${id}/suspend`)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**

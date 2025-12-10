@@ -6,7 +6,7 @@ import { Bell, CheckCircle, AlertCircle, Info, Calendar, Users, FileText, Settin
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useMarkNotificationAsRead, useArchiveNotification, useDeleteNotification } from '@/hooks/useNotifications'
+import { useMarkAsRead, useArchiveNotification, useDeleteNotification } from '@/hooks/useNotifications'
 import { toast } from 'sonner'
 import type { Notification } from '@/types/notification'
 
@@ -16,7 +16,7 @@ interface NotificationItemProps {
 }
 
 const NotificationItemComponent = ({ notification, onRefetch }: NotificationItemProps) => {
-  const markAsReadMutation = useMarkNotificationAsRead()
+  const markAsReadMutation = useMarkAsRead()
   const archiveMutation = useArchiveNotification()
   const deleteMutation = useDeleteNotification()
 
@@ -178,7 +178,7 @@ const NotificationItemComponent = ({ notification, onRefetch }: NotificationItem
             {isUnread && (
               <Button
                 size="sm"
-                variant="outline"
+                variant="neutral"
                 onClick={handleMarkAsRead}
                 disabled={isLoading}
                 className="border-2 border-black text-xs h-7 px-2"
@@ -189,7 +189,7 @@ const NotificationItemComponent = ({ notification, onRefetch }: NotificationItem
             )}
             <Button
               size="sm"
-              variant="outline"
+              variant="neutral"
               onClick={handleArchive}
               disabled={isLoading}
               className="border-2 border-black text-xs h-7 px-2"
@@ -199,7 +199,7 @@ const NotificationItemComponent = ({ notification, onRefetch }: NotificationItem
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="neutral"
               onClick={handleDelete}
               disabled={isLoading}
               className="border-2 border-black text-red-600 hover:bg-red-50 text-xs h-7 px-2"

@@ -110,6 +110,12 @@ public class RedisCacheConfig {
         // Role permissions - 1 hour
         cacheConfigurations.put("rolePermissions", defaultConfig.entryTtl(Duration.ofHours(1)));
 
+        // Permission matrix - 1 hour (rarely changes, invalidated on permission updates)
+        cacheConfigurations.put("permissionMatrix", defaultConfig.entryTtl(Duration.ofHours(1)));
+
+        // User permissions - 30 minutes (invalidated on role assignment changes)
+        cacheConfigurations.put("userPermissions", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+
         // User by username/email - 15 minutes (for authentication)
         cacheConfigurations.put("userByUsername", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("userByEmail", defaultConfig.entryTtl(Duration.ofMinutes(15)));
@@ -133,6 +139,9 @@ public class RedisCacheConfig {
 
         // Unread count - 1 minute (displayed in UI header)
         cacheConfigurations.put("notification-unread-count", defaultConfig.entryTtl(Duration.ofMinutes(1)));
+
+        // Migration progress - 5 seconds TTL (real-time updates via WebSocket)
+        cacheConfigurations.put("migration-progress", defaultConfig.entryTtl(Duration.ofSeconds(5)));
 
         return RedisCacheManager.builder(connectionFactory)
             .cacheDefaults(defaultConfig)

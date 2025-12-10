@@ -17,7 +17,7 @@ import java.util.UUID;
  * Entity for storing audit logs
  * Records all create, update, delete operations with full context
  */
-@Entity
+@Entity(name = "ApplicationAuditLog")
 @Table(name = "audit_logs", 
     indexes = {
         @Index(name = "idx_audit_tenant", columnList = "tenant_id"),

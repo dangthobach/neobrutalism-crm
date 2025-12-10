@@ -10,7 +10,8 @@ export enum UserStatus {
 
 export enum RoleStatus {
   ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE'
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED'
 }
 
 export enum GroupStatus {
@@ -58,9 +59,9 @@ export interface Role {
   priority: number;
   status: RoleStatus;
   createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-  updatedBy: string;
+  updatedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
   deleted: boolean;
 }
 

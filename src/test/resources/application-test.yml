@@ -1,0 +1,127 @@
+spring:
+  # H2 In-Memory Database for Testing
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  # H2 Console (useful for debugging tests)
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Auto-create schema for tests
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        cache:
+          use_second_level_cache: false  # Disable cache in tests
+          use_query_cache: false
+
+  # Flyway - Disable for tests (using ddl-auto instead)
+  flyway:
+    enabled: false
+
+  # Redis - Use embedded or mock for tests
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # Email - Disable for tests
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+# Notification settings for tests
+notification:
+  email:
+    from: test@crm.local
+    from-name: Test CRM
+    enabled: false  # Disable email notifications in tests
+
+# JWT Configuration for tests
+jwt:
+  secret: test-secret-key-min-256-bits-for-testing-purposes-only-do-not-use-in-production
+  access-token-validity: 3600000
+  refresh-token-validity: 604800000
+
+# Rate Limiting - Disable for tests
+rate-limit:
+  enabled: false
+
+# MinIO - Disable for tests
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  default-bucket: test-bucket
+
+# Actuator - Disable for tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  metrics:
+    export:
+      prometheus:
+        enabled: false
+
+# Logging for tests
+logging:
+  level:
+    root: WARN
+    com.neobrutalism.crm: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
+    org.springframework.security: WARN
+
+# App configuration for tests
+app:
+  audit:
+    enabled: false  # Disable audit in tests
+  event-sourcing:
+    enabled: false  # Disable event sourcing in tests
+  tenant:
+    default-tenant-id: test-tenant
+    enabled: true
+    strict-mode: false
+
+# Events - Disable outbox pattern for tests
+events:
+  use-outbox: false
+
+# Outbox - Disable for tests
+outbox:
+  publisher:
+    interval: 60000
+  cleanup:
+    cron: "-"  # Disable cron

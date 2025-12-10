@@ -11,6 +11,7 @@ import { QueryProvider } from "@/components/providers/query-provider"
 import { AuthProvider } from "@/contexts/auth-context"
 import { WebSocketProvider } from "@/providers/websocket-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { CommandPalette } from "@/components/command-palette"
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -75,6 +76,7 @@ export default function RootLayout({
                 {children}
                 <SetStylingPref />
                 <ScrollToTop />
+                <CommandPalette />
                 <Toaster />
               </ThemeProvider>
             </WebSocketProvider>

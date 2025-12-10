@@ -22,8 +22,8 @@ interface CurrentUser {
  * Get current authenticated user info from backend
  */
 export async function getCurrentUser(): Promise<CurrentUser> {
-  const response = await apiClient.get('/auth/me')
-  return response.data
+  const response = await apiClient.get<CurrentUser>('/auth/me')
+  return response as CurrentUser
 }
 
 /**
@@ -35,7 +35,7 @@ export function useCurrentUser() {
     queryKey: ['current-user'],
     queryFn: getCurrentUser,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 1,
     refetchOnWindowFocus: false,
   })

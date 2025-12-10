@@ -12,27 +12,27 @@ import type {
 export const seriesApi = {
   getAll: async (): Promise<PageResponse<ContentSeries>> => {
     const response = await apiClient.get<PageResponse<ContentSeries>>('/content-series')
-    return response.data!
+    return response as any
   },
 
   getById: async (id: string): Promise<ContentSeries> => {
     const response = await apiClient.get<ContentSeries>(`/content-series/${id}`)
-    return response.data!
+    return response as any
   },
 
   getBySlug: async (slug: string): Promise<ContentSeries> => {
     const response = await apiClient.get<ContentSeries>(`/content-series/slug/${slug}`)
-    return response.data!
+    return response as any
   },
 
   create: async (data: CreateSeriesRequest): Promise<ContentSeries> => {
     const response = await apiClient.post<ContentSeries>('/content-series', data)
-    return response.data!
+    return response as any
   },
 
   update: async (id: string, data: UpdateSeriesRequest): Promise<ContentSeries> => {
     const response = await apiClient.put<ContentSeries>(`/content-series/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   delete: async (id: string): Promise<void> => {
@@ -41,11 +41,11 @@ export const seriesApi = {
 
   getActive: async (): Promise<ContentSeries[]> => {
     const response = await apiClient.get<ContentSeries[]>('/content-series/active')
-    return response.data!
+    return response as any
   },
 
   getFeatured: async (): Promise<ContentSeries[]> => {
     const response = await apiClient.get<ContentSeries[]>('/content-series/featured')
-    return response.data!
+    return response as any
   },
 }

@@ -1,130 +1,132 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Role, PermissionMatrix } from '@/types/permission';
-import {
-  getPermissionMatrixForRole,
-  mockRolePermissions,
-  mockRoles,
-} from '@/data/mock-permissions';
-import { Download, Copy, AlertCircle } from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Role } from '@/lib/api/roles';
+import { useQuery } from '@tanstack/react-query';
+import { menuApi, Menu } from '@/lib/api/menus';
+import { useMenuPermissionsByRole } from '@/hooks/useRoleMenus';
+import { Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface RolePermissionMatrixTabProps {
   role: Role;
   onChangeDetected: () => void;
 }
 
+interface MenuPermissions {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canExport: boolean;
+  canImport: boolean;
+}
+
+interface MenuWithPermissions extends Menu {
+  permissions?: MenuPermissions;
+}
+
 export default function RolePermissionMatrixTab({
   role,
   onChangeDetected,
 }: RolePermissionMatrixTabProps) {
-  const [cloneFromRole, setCloneFromRole] = useState<string>('');
+  // Fetch all menus
+  const { data: allMenus = [], isLoading: menusLoading } = useQuery({
+    queryKey: ['menus', 'visible'],
+    queryFn: () => menuApi.getVisibleMenus(),
+  });
 
-  // Get permission matrix
-  const permissionMatrix = useMemo(
-    () => getPermissionMatrixForRole(role.code),
-    [role.code]
-  );
+  // Fetch role's current menu permissions
+  const { data: roleMenuPerms = [], isLoading: permsLoading } = useMenuPermissionsByRole(role.id);
 
-  // State for granted permissions
-  const [grantedPermissions, setGrantedPermissions] = useState<Set<string>>(
-    new Set(mockRolePermissions.get(role.code) || [])
-  );
+  // Group menus by tag/parent
+  const groupedMenus = useMemo(() => {
+    const groups = new Map<string, MenuWithPermissions[]>();
 
-  const handlePermissionToggle = (actionCode: string, checked: boolean) => {
-    const newGranted = new Set(grantedPermissions);
-    if (checked) {
-      newGranted.add(actionCode);
-    } else {
-      newGranted.delete(actionCode);
-    }
-    setGrantedPermissions(newGranted);
-    onChangeDetected();
-  };
-
-  const handleSelectAllForFeature = (featureId: string, checked: boolean) => {
-    const feature = permissionMatrix.find((f) => f.featureId === featureId);
-    if (!feature) return;
-
-    const newGranted = new Set(grantedPermissions);
-    feature.actions.forEach((action) => {
-      if (checked) {
-        newGranted.add(action.permission.actionCode);
-      } else {
-        newGranted.delete(action.permission.actionCode);
-      }
+    // Create permission map
+    const permsMap = new Map<string, MenuPermissions>();
+    roleMenuPerms.forEach((rp) => {
+      permsMap.set(rp.menuId, {
+        canView: rp.canView,
+        canCreate: rp.canCreate,
+        canEdit: rp.canEdit,
+        canDelete: rp.canDelete,
+        canExport: rp.canExport,
+        canImport: rp.canImport,
+      });
     });
-    setGrantedPermissions(newGranted);
-    onChangeDetected();
-  };
 
-  const handleCloneFromRole = () => {
-    if (!cloneFromRole) return;
+    // Group menus
+    allMenus.forEach((menu) => {
+      // Determine group name (use parent menu or tag)
+      const groupName = menu.parentId
+        ? allMenus.find(m => m.id === menu.parentId)?.name || 'Other'
+        : menu.name;
 
-    const sourcePermissions = mockRolePermissions.get(cloneFromRole);
-    if (sourcePermissions) {
-      setGrantedPermissions(new Set(sourcePermissions));
-      onChangeDetected();
-    }
-  };
+      if (!groups.has(groupName)) {
+        groups.set(groupName, []);
+      }
+
+      groups.get(groupName)!.push({
+        ...menu,
+        permissions: permsMap.get(menu.id),
+      });
+    });
+
+    return Array.from(groups.entries()).map(([groupName, menus]) => ({
+      groupName,
+      menus: menus.sort((a, b) => a.displayOrder - b.displayOrder),
+    }));
+  }, [allMenus, roleMenuPerms]);
 
   const handleExportExcel = () => {
     // TODO: Implement Excel export
-    console.log('Exporting to Excel...');
+    toast.info('Excel export coming soon');
   };
 
-  const getRiskColor = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'LOW':
-        return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200';
-      case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200';
-      case 'HIGH':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200';
-      case 'CRITICAL':
-        return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-200';
-    }
-  };
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalMenus = allMenus.length;
+    const menusWithView = roleMenuPerms.filter(p => p.canView).length;
+    const menusWithCreate = roleMenuPerms.filter(p => p.canCreate).length;
+    const menusWithEdit = roleMenuPerms.filter(p => p.canEdit).length;
+    const menusWithDelete = roleMenuPerms.filter(p => p.canDelete).length;
+    const menusWithExport = roleMenuPerms.filter(p => p.canExport).length;
+    const menusWithImport = roleMenuPerms.filter(p => p.canImport).length;
 
-  // Check for auto-enable warnings
-  const getWarnings = (featureId: string) => {
-    const warnings: string[] = [];
-    const feature = permissionMatrix.find((f) => f.featureId === featureId);
-    if (!feature) return warnings;
+    return {
+      totalMenus,
+      menusWithView,
+      menusWithCreate,
+      menusWithEdit,
+      menusWithDelete,
+      menusWithExport,
+      menusWithImport,
+      totalPermissions: menusWithView + menusWithCreate + menusWithEdit + menusWithDelete + menusWithExport + menusWithImport,
+    };
+  }, [allMenus, roleMenuPerms]);
 
-    feature.actions.forEach((action) => {
-      if (
-        grantedPermissions.has(action.permission.actionCode) &&
-        action.permission.requires
-      ) {
-        action.permission.requires.forEach((requiredCode) => {
-          if (!grantedPermissions.has(requiredCode)) {
-            warnings.push(
-              `${action.permission.actionCode} requires ${requiredCode}`
-            );
-          }
-        });
-      }
-    });
-
-    return warnings;
-  };
+  if (menusLoading || permsLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-[100px] w-full" />
+        <Skeleton className="h-[600px] w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -132,33 +134,11 @@ export default function RolePermissionMatrixTab({
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Clone from Role:</span>
-                <Select value={cloneFromRole} onValueChange={setCloneFromRole}>
-                  <SelectTrigger className="w-[250px]">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockRoles
-                      .filter((r) => r.code !== role.code)
-                      .map((r) => (
-                        <SelectItem key={r.id} value={r.code}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="neutral"
-                  size="sm"
-                  onClick={handleCloneFromRole}
-                  disabled={!cloneFromRole}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Clone
-                </Button>
-              </div>
+            <div>
+              <h3 className="text-lg font-semibold">Permission Matrix</h3>
+              <p className="text-sm text-muted-foreground">
+                View all menu permissions for {role.name} in a matrix format
+              </p>
             </div>
 
             <Button variant="neutral" size="sm" onClick={handleExportExcel}>
@@ -170,162 +150,165 @@ export default function RolePermissionMatrixTab({
       </Card>
 
       {/* Permission Matrix */}
-      <ScrollArea className="h-[700px]">
+      <ScrollArea className="h-[600px]">
         <div className="space-y-6 pr-4">
-          {permissionMatrix.map((feature) => {
-            const warnings = getWarnings(feature.featureId);
-            const allSelected = feature.actions.every((action) =>
-              grantedPermissions.has(action.permission.actionCode)
-            );
-            const someSelected = feature.actions.some((action) =>
-              grantedPermissions.has(action.permission.actionCode)
-            );
+          {groupedMenus.map((group) => {
+            const menusWithPerms = group.menus.filter(m => m.permissions?.canView);
 
             return (
-              <Card key={feature.featureId}>
+              <Card key={group.groupName}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={(checked) =>
-                          handleSelectAllForFeature(
-                            feature.featureId,
-                            checked as boolean
-                          )
-                        }
-                      />
-                      <div>
-                        <CardTitle className="text-lg">
-                          {feature.featureName}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                          {feature.featureId}
-                        </p>
-                      </div>
-                    </div>
+                    <CardTitle className="text-lg">{group.groupName}</CardTitle>
                     <Badge variant="neutral">
-                      {
-                        feature.actions.filter((a) =>
-                          grantedPermissions.has(a.permission.actionCode)
-                        ).length
-                      }{' '}
-                      / {feature.actions.length}
+                      {menusWithPerms.length} / {group.menus.length} menus
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Warnings */}
-                  {warnings.length > 0 && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        <ul className="list-disc list-inside space-y-1">
-                          {warnings.map((warning, idx) => (
-                            <li key={idx} className="text-sm">
-                              {warning}
-                            </li>
-                          ))}
-                        </ul>
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[250px]">Menu / Screen</TableHead>
+                          <TableHead className="text-center w-[80px]">View</TableHead>
+                          <TableHead className="text-center w-[80px]">Create</TableHead>
+                          <TableHead className="text-center w-[80px]">Edit</TableHead>
+                          <TableHead className="text-center w-[80px]">Delete</TableHead>
+                          <TableHead className="text-center w-[80px]">Export</TableHead>
+                          <TableHead className="text-center w-[80px]">Import</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.menus.map((menu) => {
+                          const perms = menu.permissions;
+                          const hasAnyPermission = perms?.canView;
 
-                  {/* Permissions Table */}
-                  <div className="space-y-2">
-                    {feature.actions.map((action) => {
-                      const isGranted = grantedPermissions.has(
-                        action.permission.actionCode
-                      );
-
-                      return (
-                        <div
-                          key={action.permission.id}
-                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                            isGranted
-                              ? 'bg-primary/5 border-primary/20'
-                              : 'hover:bg-muted'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            <Checkbox
-                              checked={isGranted}
-                              onCheckedChange={(checked) =>
-                                handlePermissionToggle(
-                                  action.permission.actionCode,
-                                  checked as boolean
-                                )
-                              }
-                              id={action.permission.id}
-                            />
-                            <label
-                              htmlFor={action.permission.id}
-                              className="flex-1 cursor-pointer"
+                          return (
+                            <TableRow
+                              key={menu.id}
+                              className={hasAnyPermission ? 'bg-primary/5' : ''}
                             >
-                              <div className="font-medium">
-                                {action.permission.actionCode}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {action.permission.description ||
-                                  action.permission.actionLabel}
-                              </div>
-                              {action.permission.requires &&
-                                action.permission.requires.length > 0 && (
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    Requires:{' '}
-                                    {action.permission.requires.join(', ')}
+                              <TableCell>
+                                <div>
+                                  <div className="font-medium">{menu.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {menu.route || menu.code}
                                   </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {perms?.canView ? (
+                                  <Badge variant="default" className="text-xs">✓</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
                                 )}
-                            </label>
-                          </div>
-
-                          {action.permission.riskLevel && (
-                            <Badge
-                              className={getRiskColor(
-                                action.permission.riskLevel
-                              )}
-                              variant="neutral"
-                            >
-                              {action.permission.riskLevel}
-                            </Badge>
-                          )}
-                        </div>
-                      );
-                    })}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {perms?.canCreate ? (
+                                  <Badge variant="default" className="text-xs">✓</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {perms?.canEdit ? (
+                                  <Badge variant="default" className="text-xs">✓</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {perms?.canDelete ? (
+                                  <Badge variant="default" className="text-xs">✓</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {perms?.canExport ? (
+                                  <Badge variant="default" className="text-xs">✓</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {perms?.canImport ? (
+                                  <Badge variant="default" className="text-xs">✓</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>
             );
           })}
+
+          {groupedMenus.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              No menus found
+            </div>
+          )}
         </div>
       </ScrollArea>
 
       {/* Summary */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between text-sm">
-            <div>
-              <span className="font-medium">Total Permissions:</span>{' '}
-              {permissionMatrix.reduce(
-                (acc, feature) => acc + feature.actions.length,
-                0
-              )}
+        <CardHeader>
+          <CardTitle className="text-base">Permission Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="space-y-1">
+              <div className="text-muted-foreground">Total Menus</div>
+              <div className="text-2xl font-bold">{stats.totalMenus}</div>
             </div>
-            <div>
-              <span className="font-medium">Granted:</span>{' '}
-              {grantedPermissions.size}
+            <div className="space-y-1">
+              <div className="text-muted-foreground">Menus with View</div>
+              <div className="text-2xl font-bold">{stats.menusWithView}</div>
             </div>
-            <div>
-              <span className="font-medium">High Risk:</span>{' '}
-              {Array.from(grantedPermissions).filter((code) => {
-                const perm = permissionMatrix
-                  .flatMap((f) => f.actions)
-                  .find((a) => a.permission.actionCode === code);
-                return (
-                  perm?.permission.riskLevel === 'HIGH' ||
-                  perm?.permission.riskLevel === 'CRITICAL'
-                );
-              }).length}
+            <div className="space-y-1">
+              <div className="text-muted-foreground">Total Permissions</div>
+              <div className="text-2xl font-bold">{stats.totalPermissions}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-muted-foreground">Coverage</div>
+              <div className="text-2xl font-bold">
+                {stats.totalMenus > 0
+                  ? Math.round((stats.menusWithView / stats.totalMenus) * 100)
+                  : 0}%
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t">
+            <div className="grid grid-cols-5 gap-4 text-xs">
+              <div>
+                <div className="text-muted-foreground mb-1">Create</div>
+                <Badge variant="neutral">{stats.menusWithCreate}</Badge>
+              </div>
+              <div>
+                <div className="text-muted-foreground mb-1">Edit</div>
+                <Badge variant="neutral">{stats.menusWithEdit}</Badge>
+              </div>
+              <div>
+                <div className="text-muted-foreground mb-1">Delete</div>
+                <Badge variant="neutral">{stats.menusWithDelete}</Badge>
+              </div>
+              <div>
+                <div className="text-muted-foreground mb-1">Export</div>
+                <Badge variant="neutral">{stats.menusWithExport}</Badge>
+              </div>
+              <div>
+                <div className="text-muted-foreground mb-1">Import</div>
+                <Badge variant="neutral">{stats.menusWithImport}</Badge>
+              </div>
             </div>
           </div>
         </CardContent>

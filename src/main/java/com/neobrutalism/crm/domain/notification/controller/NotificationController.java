@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final com.neobrutalism.crm.domain.notification.service.DigestService digestService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -55,6 +56,28 @@ public class NotificationController {
         );
 
         return ApiResponse.success("Notification created successfully", NotificationResponse.from(notification));
+    }
+
+    @GetMapping
+    @Operation(summary = "Get notifications (paginated)", description = "Get paginated notifications for current user")
+    public ApiResponse<Page<NotificationResponse>> getNotifications(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Notification> notificationPage = notificationService.findByRecipient(userPrincipal.getId(), pageable);
+        Page<NotificationResponse> responsePage = notificationPage.map(NotificationResponse::from);
+        return ApiResponse.success(responsePage);
+    }
+
+    @GetMapping("/unread-count")
+    @Operation(summary = "Get unread count", description = "Get count of unread notifications for current user")
+    public ApiResponse<Long> getUnreadCountShort(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        Long count = notificationService.countUnreadNotifications(userPrincipal.getId());
+        return ApiResponse.success(count);
     }
 
     @GetMapping("/{id}")
@@ -202,5 +225,13 @@ public class NotificationController {
                 .map(NotificationResponse::from)
                 .collect(Collectors.toList());
         return ApiResponse.success(responses);
+    }
+
+    @PostMapping("/digest/send-now")
+    @Operation(summary = "Send digest now", description = "Manually trigger digest email for current user (for testing)")
+    public ApiResponse<String> sendDigestNow(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Manual digest trigger requested by user: {}", userPrincipal.getId());
+        digestService.sendDigestNow(userPrincipal.getId());
+        return ApiResponse.success("Digest email sent", "Check your inbox");
     }
 }

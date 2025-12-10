@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -20,27 +21,65 @@ import {
 } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import {
-  mockUsers,
-  mockRoles,
-  mockGroups,
-  getUserWithRoles,
-} from '@/data/mock-permissions';
 import { UserStatus } from '@/types/permission';
-import { Search, UserPlus, X } from 'lucide-react';
+import { Search, UserPlus, X, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { userApi } from '@/lib/api/users';
+import { roleApi } from '@/lib/api/roles';
+import { userRoleApi } from '@/lib/api/user-roles';
+import { menuApi } from '@/lib/api/menus';
+import { useGroups } from '@/hooks/useGroups';
 
 export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTeam, setFilterTeam] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(
-    mockUsers[0]?.id || null
-  );
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  // Fetch all users
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['users', 'all'],
+    queryFn: () => userApi.getUsers({ size: 1000 }),
+  });
+
+  // Fetch all roles
+  const { data: rolesData, isLoading: rolesLoading } = useQuery({
+    queryKey: ['roles', 'all'],
+    queryFn: () => roleApi.getRoles({ size: 100 }),
+  });
+
+  // Fetch groups
+  const { data: groupsData, isLoading: groupsLoading } = useGroups();
+
+  // Fetch selected user's roles
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ['user-roles', 'user', selectedUserId],
+    queryFn: () => userRoleApi.getRolesByUser(selectedUserId!),
+    enabled: !!selectedUserId,
+  });
+
+  // Fetch selected user's menus with permissions
+  const { data: userMenus = [] } = useQuery({
+    queryKey: ['user-menus', selectedUserId],
+    queryFn: () => menuApi.getUserMenus(selectedUserId!),
+    enabled: !!selectedUserId,
+  });
+
+  const users = usersData?.content || [];
+  const roles = rolesData?.content || [];
+  const groups = groupsData?.content || [];
+
+  // Set initial selected user
+  useMemo(() => {
+    if (!selectedUserId && users.length > 0) {
+      setSelectedUserId(users[0].id);
+    }
+  }, [users, selectedUserId]);
 
   // Filter users
   const filteredUsers = useMemo(() => {
-    return mockUsers.filter((user) => {
+    return users.filter((user) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -57,17 +96,22 @@ export default function UserManagementPage() {
         return false;
       }
 
-      // Team filter (would need user-group data)
-      // Role filter (would need user-role data)
+      // TODO: Team filter (would need user-group data)
+      // TODO: Role filter (would need user-role data)
 
       return true;
     });
-  }, [searchQuery, filterTeam, filterRole, filterStatus]);
+  }, [users, searchQuery, filterStatus]);
 
-  // Get selected user with roles
-  const selectedUserWithRoles = selectedUserId
-    ? getUserWithRoles(selectedUserId)
-    : null;
+  // Get selected user
+  const selectedUser = users.find((u) => u.id === selectedUserId);
+
+  // Get selected user's roles with details
+  const selectedUserRoles = useMemo(() => {
+    return userRoles
+      .map((ur) => roles.find((r) => r.id === ur.roleId))
+      .filter((r): r is NonNullable<typeof r> => r !== undefined);
+  }, [userRoles, roles]);
 
   // Status badge color
   const getStatusColor = (status: UserStatus) => {
@@ -87,6 +131,20 @@ export default function UserManagementPage() {
     }
   };
 
+  // Loading state
+  if (usersLoading || rolesLoading || groupsLoading) {
+    return (
+      <div className="container mx-auto py-6 space-y-4">
+        <Skeleton className="h-20 w-full" />
+        <div className="grid grid-cols-12 gap-4">
+          <Skeleton className="col-span-3 h-[700px]" />
+          <Skeleton className="col-span-5 h-[700px]" />
+          <Skeleton className="col-span-4 h-[700px]" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -102,7 +160,7 @@ export default function UserManagementPage() {
           <CardHeader>
             <CardTitle>Users</CardTitle>
             <CardDescription>
-              Search and filter users
+              Search and filter users ({filteredUsers.length})
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -125,7 +183,7 @@ export default function UserManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Teams</SelectItem>
-                  {mockGroups.map((group) => (
+                  {groups.map((group) => (
                     <SelectItem key={group.id} value={group.code}>
                       {group.name}
                     </SelectItem>
@@ -139,7 +197,7 @@ export default function UserManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  {mockRoles.map((role) => (
+                  {roles.map((role) => (
                     <SelectItem key={role.id} value={role.code}>
                       {role.name}
                     </SelectItem>
@@ -206,42 +264,39 @@ export default function UserManagementPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {selectedUserWithRoles ? (
+            {selectedUser ? (
               <div className="space-y-6">
                 {/* User Profile */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold">
-                        {selectedUserWithRoles.firstName}{' '}
-                        {selectedUserWithRoles.lastName}
+                        {selectedUser.firstName} {selectedUser.lastName}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        @{selectedUserWithRoles.username}
+                        @{selectedUser.username}
                       </p>
                     </div>
-                    <Badge className={getStatusColor(selectedUserWithRoles.status)}>
-                      {selectedUserWithRoles.status}
+                    <Badge className={getStatusColor(selectedUser.status)}>
+                      {selectedUser.status}
                     </Badge>
                   </div>
 
                   <div className="space-y-2 text-sm">
                     <div>
                       <span className="font-medium">Email:</span>{' '}
-                      {selectedUserWithRoles.email}
+                      {selectedUser.email}
                     </div>
-                    {selectedUserWithRoles.phone && (
+                    {selectedUser.phone && (
                       <div>
                         <span className="font-medium">Phone:</span>{' '}
-                        {selectedUserWithRoles.phone}
+                        {selectedUser.phone}
                       </div>
                     )}
-                    {selectedUserWithRoles.lastLoginAt && (
+                    {selectedUser.lastLoginAt && (
                       <div>
                         <span className="font-medium">Last Login:</span>{' '}
-                        {new Date(
-                          selectedUserWithRoles.lastLoginAt
-                        ).toLocaleString()}
+                        {new Date(selectedUser.lastLoginAt).toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -249,21 +304,13 @@ export default function UserManagementPage() {
 
                 <Separator />
 
-                {/* Teams/Groups */}
+                {/* Teams/Groups - TODO: Fetch user groups */}
                 <div>
                   <h4 className="font-semibold mb-3">Teams / Groups</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedUserWithRoles.groups.length > 0 ? (
-                      selectedUserWithRoles.groups.map((group) => (
-                        <Badge key={group.id} variant="neutral">
-                          {group.name}
-                        </Badge>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No teams assigned
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      No teams assigned
+                    </p>
                   </div>
                 </div>
 
@@ -272,15 +319,15 @@ export default function UserManagementPage() {
                 {/* Roles */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold">Roles</h4>
+                    <h4 className="font-semibold">Roles ({selectedUserRoles.length})</h4>
                     <Button size="sm" variant="neutral">
                       <UserPlus className="h-4 w-4 mr-1" />
                       Assign Role
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {selectedUserWithRoles.roles.length > 0 ? (
-                      selectedUserWithRoles.roles.map((role) => (
+                    {selectedUserRoles.length > 0 ? (
+                      selectedUserRoles.map((role) => (
                         <div
                           key={role.id}
                           className="flex items-center justify-between p-2 border rounded-lg"
@@ -303,29 +350,6 @@ export default function UserManagementPage() {
                     )}
                   </div>
                 </div>
-
-                <Separator />
-
-                {/* Failed Login Attempts */}
-                {selectedUserWithRoles.failedLoginAttempts > 0 && (
-                  <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                      Failed Login Attempts:{' '}
-                      {selectedUserWithRoles.failedLoginAttempts}
-                    </p>
-                  </div>
-                )}
-
-                {selectedUserWithRoles.lockedUntil && (
-                  <div className="bg-red-50 dark:bg-red-950 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                      Account locked until:{' '}
-                      {new Date(
-                        selectedUserWithRoles.lockedUntil
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
@@ -344,30 +368,39 @@ export default function UserManagementPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {selectedUserWithRoles ? (
+            {selectedUser ? (
               <div className="space-y-6">
                 {/* Menus Visible */}
                 <div>
-                  <h4 className="font-semibold mb-3">Menus Visible</h4>
-                  <ScrollArea className="h-[200px]">
+                  <h4 className="font-semibold mb-3">Menus Visible ({userMenus.length})</h4>
+                  <ScrollArea className="h-[250px]">
                     <div className="space-y-2">
-                      {selectedUserWithRoles.effectiveMenus.map((menu) => (
+                      {userMenus.map((menu) => (
                         <div
                           key={menu.id}
-                          className="flex items-center p-2 border rounded-lg"
+                          className="p-2 border rounded-lg"
                         >
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">
-                              {menu.name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {menu.route}
-                            </div>
+                          <div className="text-sm font-medium">
+                            {menu.name}
                           </div>
+                          <div className="text-xs text-muted-foreground">
+                            {menu.route}
+                          </div>
+                          {menu.permissions && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {Object.entries(menu.permissions)
+                                .filter(([, value]) => value)
+                                .map(([key]) => (
+                                  <Badge key={key} variant="neutral" className="text-xs">
+                                    {key.replace('can', '')}
+                                  </Badge>
+                                ))}
+                            </div>
+                          )}
                         </div>
                       ))}
-                      {selectedUserWithRoles.effectiveMenus.length === 0 && (
-                        <p className="text-sm text-muted-foreground">
+                      {userMenus.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
                           No menus accessible
                         </p>
                       )}
@@ -377,63 +410,27 @@ export default function UserManagementPage() {
 
                 <Separator />
 
-                {/* Permissions / Actions */}
+                {/* Role Summary */}
                 <div>
-                  <h4 className="font-semibold mb-3">Permissions / Actions</h4>
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-2">
-                      {selectedUserWithRoles.effectivePermissions.map(
-                        (permission) => {
-                          const getRiskColor = (riskLevel: string) => {
-                            switch (riskLevel) {
-                              case 'LOW':
-                                return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200';
-                              case 'MEDIUM':
-                                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200';
-                              case 'HIGH':
-                                return 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200';
-                              case 'CRITICAL':
-                                return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200';
-                              default:
-                                return 'bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-200';
-                            }
-                          };
-
-                          return (
-                            <div
-                              key={permission.id}
-                              className="flex items-center justify-between p-2 border rounded-lg"
-                            >
-                              <div className="flex-1">
-                                <div className="text-sm font-medium">
-                                  {permission.actionCode}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {permission.description}
-                                </div>
-                              </div>
-                              {permission.riskLevel && (
-                                <Badge
-                                  className={getRiskColor(
-                                    permission.riskLevel
-                                  )}
-                                  variant="neutral"
-                                >
-                                  {permission.riskLevel}
-                                </Badge>
-                              )}
-                            </div>
-                          );
-                        }
-                      )}
-                      {selectedUserWithRoles.effectivePermissions.length ===
-                        0 && (
-                        <p className="text-sm text-muted-foreground">
-                          No permissions granted
-                        </p>
-                      )}
-                    </div>
-                  </ScrollArea>
+                  <h4 className="font-semibold mb-3">Assigned Roles</h4>
+                  <div className="space-y-2">
+                    {selectedUserRoles.map((role) => (
+                      <div
+                        key={role.id}
+                        className="p-2 border rounded-lg"
+                      >
+                        <div className="text-sm font-medium">{role.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {role.code} • Priority: {role.priority}
+                        </div>
+                      </div>
+                    ))}
+                    {selectedUserRoles.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No roles assigned
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
