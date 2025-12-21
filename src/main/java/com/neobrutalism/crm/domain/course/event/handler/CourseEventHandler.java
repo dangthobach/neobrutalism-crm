@@ -5,6 +5,8 @@ import com.neobrutalism.crm.domain.course.event.*;
 import com.neobrutalism.crm.domain.course.repository.EnrollmentRepository;
 import com.neobrutalism.crm.domain.notification.model.NotificationType;
 import com.neobrutalism.crm.domain.notification.service.NotificationService;
+import com.neobrutalism.crm.domain.user.repository.UserRepository;
+import com.neobrutalism.crm.domain.user.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Event handler for course-related domain events
@@ -28,6 +31,7 @@ public class CourseEventHandler {
     private final EmailService emailService;
     private final NotificationService notificationService;
     private final EnrollmentRepository enrollmentRepository;
+    private final UserRepository userRepository;
 
     /**
      * Handle student enrolled event
@@ -418,13 +422,18 @@ public class CourseEventHandler {
             templateData.put("achievementCode", event.getAchievementCode());
             templateData.put("points", event.getPoints());
 
-            emailService.sendTemplateEmail(
-                // Note: AchievementEarnedEvent doesn't have userEmail, need to fetch from User
-                null, // TODO: Fetch user email from UserRepository
-                "Special Achievement Unlocked!",
-                "achievement-earned",
-                templateData
-            );
+            // ✅ FIXED: Fetch user email from UserRepository
+            Optional<User> userOpt = userRepository.findById(event.getUserId());
+            if (userOpt.isPresent() && userOpt.get().getEmail() != null) {
+                emailService.sendTemplateEmail(
+                    userOpt.get().getEmail(),
+                    "Special Achievement Unlocked!",
+                    "achievement-earned",
+                    templateData
+                );
+            } else {
+                log.warn("Could not send achievement email - user not found or email missing: {}", event.getUserId());
+            }
 
             log.debug("Sent achievement email for user: {}", event.getUserId());
         } catch (Exception e) {

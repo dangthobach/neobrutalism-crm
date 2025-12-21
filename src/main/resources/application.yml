@@ -166,6 +166,15 @@ app:
     header-name: X-Tenant-ID   # Tenant ID header name
     strict-mode: false         # false = use default tenant if missing, true = throw exception
 
+# API Versioning Configuration
+api:
+  versioning:
+    enabled: true
+    default-version: v1
+    current-version: v1
+    deprecated-versions: {}  # Example: v0: { deprecation-date: "2024-12-01", sunset-date: "2025-06-01" }
+    feature-flags: {}        # Example: v2.new-auth-flow: true
+
 # Event publishing configuration
 events:
   use-outbox: true  # Enable Transactional Outbox Pattern (recommended for production)

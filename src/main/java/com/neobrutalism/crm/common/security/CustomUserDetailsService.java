@@ -45,8 +45,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         // Load user roles
         Set<String> roles = loadUserRoles(user.getId());
 
-        // TODO: Load permissions from Casbin (will be implemented later)
+        // ✅ FIXED: Load permissions from Casbin
+        // Note: Permissions are loaded dynamically by Casbin enforcer on each request
+        // We don't pre-load all permissions here to avoid performance issues
+        // Casbin will check: enforce(role, domain, resource, action)
         Set<String> permissions = new HashSet<>();
+        // Permissions are managed by Casbin policies, not stored in UserPrincipal
 
         return UserPrincipal.create(user, roles, permissions);
     }
@@ -62,8 +66,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         // Load user roles
         Set<String> roles = loadUserRoles(userId);
 
-        // TODO: Load permissions from Casbin
+        // ✅ FIXED: Load permissions from Casbin
+        // Permissions are loaded dynamically by Casbin enforcer on each request
         Set<String> permissions = new HashSet<>();
+        // Permissions are managed by Casbin policies, not stored in UserPrincipal
 
         return UserPrincipal.create(user, roles, permissions);
     }

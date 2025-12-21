@@ -133,7 +133,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+
+        // ✅ SECURITY: Load CORS origins from environment variable for production flexibility
+        String corsOrigins = environment.getProperty("CORS_ALLOWED_ORIGINS",
+            "http://localhost:3000,http://localhost:5173");
+        List<String> allowedOrigins = Arrays.stream(corsOrigins.split(","))
+            .map(String::trim)
+            .toList();
+
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // ✅ FIX: Remove wildcard, specify exact headers needed
         configuration.setAllowedHeaders(Arrays.asList(

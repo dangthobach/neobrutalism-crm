@@ -94,7 +94,7 @@ spring:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:#{T(java.util.Objects).requireNonNull(null, 'JWT_SECRET environment variable is required in production!')}}
   access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600000}
   refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:604800000}
   max-refresh-tokens-per-user: 5

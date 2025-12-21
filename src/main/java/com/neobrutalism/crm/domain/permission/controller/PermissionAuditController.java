@@ -1,6 +1,7 @@
 package com.neobrutalism.crm.domain.permission.controller;
 
 import com.neobrutalism.crm.common.dto.ApiResponse;
+import com.neobrutalism.crm.common.security.UserPrincipal;
 import com.neobrutalism.crm.domain.permission.model.PermissionActionType;
 import com.neobrutalism.crm.domain.permission.model.PermissionAuditLog;
 import com.neobrutalism.crm.domain.permission.service.PermissionAuditService;
@@ -12,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -164,9 +167,17 @@ public class PermissionAuditController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        // Get current user ID from security context
-        // For now, using placeholder - should get from authentication principal
-        UUID currentUserId = UUID.randomUUID(); // TODO: Get from SecurityContextHolder
+        // ✅ FIXED: Get current user ID from SecurityContextHolder
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UUID currentUserId = null;
+
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal userPrincipal) {
+            currentUserId = userPrincipal.getId();
+        }
+
+        if (currentUserId == null) {
+            throw new RuntimeException("Unable to determine current user");
+        }
 
         Pageable pageable = PageRequest.of(page, size);
         Page<PermissionAuditLog> auditLogs = auditService.getRecentActivity(currentUserId, pageable);
