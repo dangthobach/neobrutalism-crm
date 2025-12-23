@@ -17,7 +17,7 @@ export const contactApi = {
    */
   getAll: async (params?: ContactSearchParams): Promise<PageResponse<Contact>> => {
     const response = await apiClient.get<PageResponse<Contact>>('/contacts', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -25,7 +25,7 @@ export const contactApi = {
    */
   getById: async (id: string): Promise<Contact> => {
     const response = await apiClient.get<Contact>(`/contacts/${id}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -33,7 +33,7 @@ export const contactApi = {
    */
   create: async (data: CreateContactRequest): Promise<Contact> => {
     const response = await apiClient.post<Contact>('/contacts', data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -41,7 +41,7 @@ export const contactApi = {
    */
   update: async (id: string, data: UpdateContactRequest): Promise<Contact> => {
     const response = await apiClient.put<Contact>(`/contacts/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -56,7 +56,7 @@ export const contactApi = {
    */
   getByCustomer: async (customerId: string, params?: ContactSearchParams): Promise<PageResponse<Contact>> => {
     const response = await apiClient.get<PageResponse<Contact>>(`/contacts/customer/${customerId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -65,7 +65,7 @@ export const contactApi = {
   getPrimaryByCustomer: async (customerId: string): Promise<Contact | null> => {
     try {
       const response = await apiClient.get<Contact>(`/contacts/customer/${customerId}/primary`)
-      return response.data!
+      return response as any
     } catch (error) {
       return null
     }
@@ -76,7 +76,7 @@ export const contactApi = {
    */
   setPrimary: async (id: string): Promise<Contact> => {
     const response = await apiClient.post<Contact>(`/contacts/${id}/set-primary`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -84,6 +84,6 @@ export const contactApi = {
    */
   search: async (keyword: string): Promise<Contact[]> => {
     const response = await apiClient.get<Contact[]>('/contacts/search', { keyword })
-    return response.data!
+    return response as any
   },
 }

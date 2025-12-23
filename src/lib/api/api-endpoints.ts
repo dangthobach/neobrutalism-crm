@@ -54,77 +54,49 @@ export class ApiEndpointApi {
    * Get all API endpoints with pagination
    */
   async getApiEndpoints(params?: ApiEndpointQueryParams): Promise<PageResponse<ApiEndpoint>> {
-    const response = await apiClient.get<PageResponse<ApiEndpoint>>('/api-endpoints', params)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<PageResponse<ApiEndpoint>>('/api-endpoints', params)
   }
 
   /**
    * Get API endpoint by ID
    */
   async getApiEndpointById(id: string): Promise<ApiEndpoint> {
-    const response = await apiClient.get<ApiEndpoint>(`/api-endpoints/${id}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<ApiEndpoint>(`/api-endpoints/${id}`)
   }
 
   /**
    * Get API endpoints by HTTP method
    */
   async getApiEndpointsByMethod(method: HttpMethod): Promise<ApiEndpoint[]> {
-    const response = await apiClient.get<ApiEndpoint[]>('/api-endpoints/by-method', { method })
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<ApiEndpoint[]>('/api-endpoints/by-method', { method })
   }
 
   /**
    * Get API endpoints by tag
    */
   async getApiEndpointsByTag(tag: string): Promise<ApiEndpoint[]> {
-    const response = await apiClient.get<ApiEndpoint[]>('/api-endpoints/by-tag', { tag })
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<ApiEndpoint[]>('/api-endpoints/by-tag', { tag })
   }
 
   /**
    * Get public API endpoints
    */
   async getPublicApiEndpoints(): Promise<ApiEndpoint[]> {
-    const response = await apiClient.get<ApiEndpoint[]>('/api-endpoints/public')
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<ApiEndpoint[]>('/api-endpoints/public')
   }
 
   /**
    * Create new API endpoint
    */
   async createApiEndpoint(request: CreateApiEndpointRequest): Promise<ApiEndpoint> {
-    const response = await apiClient.post<ApiEndpoint>('/api-endpoints', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<ApiEndpoint>('/api-endpoints', request)
   }
 
   /**
    * Update API endpoint
    */
   async updateApiEndpoint(id: string, request: UpdateApiEndpointRequest): Promise<ApiEndpoint> {
-    const response = await apiClient.put<ApiEndpoint>(`/api-endpoints/${id}`, request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<ApiEndpoint>(`/api-endpoints/${id}`, request)
   }
 
   /**
@@ -139,18 +111,14 @@ export class ApiEndpointApi {
    */
   async checkMethodPath(method: HttpMethod, path: string): Promise<boolean> {
     const response = await apiClient.get<boolean>('/api-endpoints/check', { method, path })
-    return response.data ?? false
+    return response ?? false
   }
 
   /**
    * Get API endpoint by method and path
    */
   async getApiEndpointByMethodAndPath(method: HttpMethod, path: string): Promise<ApiEndpoint> {
-    const response = await apiClient.get<ApiEndpoint>('/api-endpoints/find', { method, path })
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<ApiEndpoint>('/api-endpoints/find', { method, path })
   }
 }
 

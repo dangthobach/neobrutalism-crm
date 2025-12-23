@@ -59,6 +59,18 @@ application-local.yml
 application-dev.yml
 application-*.properties
 
+# JWT Private Keys (SECURITY: NEVER commit private keys!)
+**/jwt-keys/
+**/jwt-keys/**
+private_key.pem
+public_key.pem
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+
 # ===================================
 # FRONTEND (Next.js / Node.js)
 # ===================================

@@ -5,8 +5,8 @@
 -- Date: 2025-11-01
 -- =====================================================
 
--- Create customers table
-CREATE TABLE customers (
+-- Create customers table (idempotent - V2 may have already created this)
+CREATE TABLE IF NOT EXISTS customers (
     id UUID PRIMARY KEY,
     code VARCHAR(50) NOT NULL,
     company_name VARCHAR(255) NOT NULL,
@@ -63,8 +63,8 @@ CREATE TABLE customers (
     CONSTRAINT customers_code_org_unique UNIQUE (code, organization_id)
 );
 
--- Create contacts table
-CREATE TABLE contacts (
+-- Create contacts table (idempotent - V2 may have already created this)
+CREATE TABLE IF NOT EXISTS contacts (
     id UUID PRIMARY KEY,
     customer_id UUID,
     first_name VARCHAR(100) NOT NULL,
@@ -126,40 +126,97 @@ CREATE TABLE contacts (
     CONSTRAINT contacts_customer_fk FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 );
 
+-- Fix customers table if it already exists from V2 (add missing columns)
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50) NOT NULL DEFAULT 'default';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS status_changed_by VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS status_reason VARCHAR(500);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS acquisition_date DATE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS next_followup_date DATE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS lead_source VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS tags VARCHAR(500);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS rating INTEGER;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_vip BOOLEAN DEFAULT FALSE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS state VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20);
+
+-- Fix contacts table if it already exists from V2 (add missing columns)
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50) NOT NULL DEFAULT 'default';
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS status_changed_by VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS status_reason VARCHAR(500);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS middle_name VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS contact_role VARCHAR(30);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS secondary_email VARCHAR(255);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS work_phone VARCHAR(50);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mobile_phone VARCHAR(50);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS home_phone VARCHAR(50);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS fax VARCHAR(50);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(255);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS twitter_handle VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_address VARCHAR(500);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS state VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS birth_date DATE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS preferred_contact_method VARCHAR(20);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS preferred_contact_time VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS assistant_name VARCHAR(100);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS assistant_phone VARCHAR(50);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS reports_to_id UUID;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT FALSE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS email_opt_out BOOLEAN DEFAULT FALSE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_contact_date DATE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS tags VARCHAR(500);
+
 -- Create indexes for customers table
-CREATE INDEX idx_customers_code ON customers(code);
-CREATE INDEX idx_customers_email ON customers(email);
-CREATE INDEX idx_customers_company_name ON customers(company_name);
-CREATE INDEX idx_customers_status ON customers(status);
-CREATE INDEX idx_customers_type ON customers(customer_type);
-CREATE INDEX idx_customers_tenant_id ON customers(tenant_id);
-CREATE INDEX idx_customers_owner_id ON customers(owner_id);
-CREATE INDEX idx_customers_branch_id ON customers(branch_id);
-CREATE INDEX idx_customers_organization_id ON customers(organization_id);
-CREATE INDEX idx_customers_deleted_id ON customers(deleted, id);
-CREATE INDEX idx_customers_acquisition_date ON customers(acquisition_date);
-CREATE INDEX idx_customers_next_followup_date ON customers(next_followup_date);
-CREATE INDEX idx_customers_last_contact_date ON customers(last_contact_date);
-CREATE INDEX idx_customers_lead_source ON customers(lead_source);
-CREATE INDEX idx_customers_industry ON customers(industry);
-CREATE INDEX idx_customers_is_vip ON customers(is_vip);
+CREATE INDEX IF NOT EXISTS idx_customers_code ON customers(code);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_company_name ON customers(company_name);
+CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status);
+CREATE INDEX IF NOT EXISTS idx_customers_type ON customers(customer_type);
+CREATE INDEX IF NOT EXISTS idx_customers_tenant_id ON customers(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_customers_owner_id ON customers(owner_id);
+CREATE INDEX IF NOT EXISTS idx_customers_branch_id ON customers(branch_id);
+CREATE INDEX IF NOT EXISTS idx_customers_organization_id ON customers(organization_id);
+CREATE INDEX IF NOT EXISTS idx_customers_deleted_id ON customers(deleted, id);
+CREATE INDEX IF NOT EXISTS idx_customers_acquisition_date ON customers(acquisition_date);
+CREATE INDEX IF NOT EXISTS idx_customers_next_followup_date ON customers(next_followup_date);
+CREATE INDEX IF NOT EXISTS idx_customers_last_contact_date ON customers(last_contact_date);
+CREATE INDEX IF NOT EXISTS idx_customers_lead_source ON customers(lead_source);
+CREATE INDEX IF NOT EXISTS idx_customers_industry ON customers(industry);
+CREATE INDEX IF NOT EXISTS idx_customers_is_vip ON customers(is_vip);
 
 -- Create indexes for contacts table
-CREATE INDEX idx_contacts_email ON contacts(email);
-CREATE INDEX idx_contacts_customer_id ON contacts(customer_id);
-CREATE INDEX idx_contacts_status ON contacts(status);
-CREATE INDEX idx_contacts_tenant_id ON contacts(tenant_id);
-CREATE INDEX idx_contacts_owner_id ON contacts(owner_id);
-CREATE INDEX idx_contacts_organization_id ON contacts(organization_id);
-CREATE INDEX idx_contacts_deleted_id ON contacts(deleted, id);
-CREATE INDEX idx_contacts_first_name ON contacts(first_name);
-CREATE INDEX idx_contacts_last_name ON contacts(last_name);
-CREATE INDEX idx_contacts_full_name ON contacts(full_name);
-CREATE INDEX idx_contacts_contact_role ON contacts(contact_role);
-CREATE INDEX idx_contacts_is_primary ON contacts(is_primary);
-CREATE INDEX idx_contacts_reports_to_id ON contacts(reports_to_id);
-CREATE INDEX idx_contacts_last_contact_date ON contacts(last_contact_date);
-CREATE INDEX idx_contacts_email_opt_out ON contacts(email_opt_out);
+CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email);
+CREATE INDEX IF NOT EXISTS idx_contacts_customer_id ON contacts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
+CREATE INDEX IF NOT EXISTS idx_contacts_tenant_id ON contacts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_owner_id ON contacts(owner_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_organization_id ON contacts(organization_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_deleted_id ON contacts(deleted, id);
+CREATE INDEX IF NOT EXISTS idx_contacts_first_name ON contacts(first_name);
+CREATE INDEX IF NOT EXISTS idx_contacts_last_name ON contacts(last_name);
+CREATE INDEX IF NOT EXISTS idx_contacts_full_name ON contacts(full_name);
+CREATE INDEX IF NOT EXISTS idx_contacts_contact_role ON contacts(contact_role);
+CREATE INDEX IF NOT EXISTS idx_contacts_is_primary ON contacts(is_primary);
+CREATE INDEX IF NOT EXISTS idx_contacts_reports_to_id ON contacts(reports_to_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_last_contact_date ON contacts(last_contact_date);
+CREATE INDEX IF NOT EXISTS idx_contacts_email_opt_out ON contacts(email_opt_out);
 
 -- Add comments for documentation
 COMMENT ON TABLE customers IS 'Customer/Company records for CRM';

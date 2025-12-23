@@ -13,6 +13,14 @@ import {
 import { ApiError } from '@/lib/api/client'
 import { toast } from 'sonner'
 
+// Re-export types for convenience
+export type {
+  MenuTab,
+  MenuTabQueryParams,
+  CreateMenuTabRequest,
+  UpdateMenuTabRequest
+}
+
 const MENU_TABS_QUERY_KEY = 'menu-tabs'
 
 /**

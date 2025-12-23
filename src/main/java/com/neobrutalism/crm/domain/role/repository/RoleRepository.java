@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface RoleRepository extends StatefulRepository<Role, RoleStatus> {
     Optional<Role> findByCode(String code);
+    Optional<Role> findByCodeAndDeletedFalse(String code);
     List<Role> findByOrganizationId(UUID organizationId);
     List<Role> findByIsSystemTrue();
     boolean existsByCode(String code);

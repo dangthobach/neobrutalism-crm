@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final com.neobrutalism.crm.domain.notification.service.DigestService digestService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -55,6 +56,28 @@ public class NotificationController {
         );
 
         return ApiResponse.success("Notification created successfully", NotificationResponse.from(notification));
+    }
+
+    @GetMapping
+    @Operation(summary = "Get notifications (paginated)", description = "Get paginated notifications for current user")
+    public ApiResponse<Page<NotificationResponse>> getNotifications(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Notification> notificationPage = notificationService.findByRecipient(userPrincipal.getId(), pageable);
+        Page<NotificationResponse> responsePage = notificationPage.map(NotificationResponse::from);
+        return ApiResponse.success(responsePage);
+    }
+
+    @GetMapping("/unread-count")
+    @Operation(summary = "Get unread count", description = "Get count of unread notifications for current user")
+    public ApiResponse<Long> getUnreadCountShort(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        Long count = notificationService.countUnreadNotifications(userPrincipal.getId());
+        return ApiResponse.success(count);
     }
 
     @GetMapping("/{id}")
@@ -150,6 +173,34 @@ public class NotificationController {
         return ApiResponse.success("All notifications marked as read", count);
     }
 
+    @PutMapping("/{id}/unread")
+    @Operation(summary = "Mark as unread", description = "Mark notification as unread")
+    public ApiResponse<NotificationResponse> markAsUnread(@PathVariable UUID id) {
+        Notification notification = notificationService.markAsUnread(id);
+        return ApiResponse.success("Notification marked as unread", NotificationResponse.from(notification));
+    }
+
+    @PostMapping("/bulk/read")
+    @Operation(summary = "Bulk mark as read", description = "Mark multiple notifications as read")
+    public ApiResponse<Integer> bulkMarkAsRead(@RequestBody List<UUID> notificationIds) {
+        int count = notificationService.bulkMarkAsRead(notificationIds);
+        return ApiResponse.success("Notifications marked as read", count);
+    }
+
+    @PostMapping("/bulk/unread")
+    @Operation(summary = "Bulk mark as unread", description = "Mark multiple notifications as unread")
+    public ApiResponse<Integer> bulkMarkAsUnread(@RequestBody List<UUID> notificationIds) {
+        int count = notificationService.bulkMarkAsUnread(notificationIds);
+        return ApiResponse.success("Notifications marked as unread", count);
+    }
+
+    @DeleteMapping("/bulk")
+    @Operation(summary = "Bulk delete", description = "Delete multiple notifications")
+    public ApiResponse<Integer> bulkDelete(@RequestBody List<UUID> notificationIds) {
+        int count = notificationService.bulkDelete(notificationIds);
+        return ApiResponse.success("Notifications deleted", count);
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete notification", description = "Delete notification (soft delete)")
     public ApiResponse<Void> deleteNotification(@PathVariable UUID id) {
@@ -174,5 +225,13 @@ public class NotificationController {
                 .map(NotificationResponse::from)
                 .collect(Collectors.toList());
         return ApiResponse.success(responses);
+    }
+
+    @PostMapping("/digest/send-now")
+    @Operation(summary = "Send digest now", description = "Manually trigger digest email for current user (for testing)")
+    public ApiResponse<String> sendDigestNow(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        log.info("Manual digest trigger requested by user: {}", userPrincipal.getId());
+        digestService.sendDigestNow(userPrincipal.getId());
+        return ApiResponse.success("Digest email sent", "Check your inbox");
     }
 }

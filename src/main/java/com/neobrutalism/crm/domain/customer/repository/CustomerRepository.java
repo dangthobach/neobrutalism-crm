@@ -1,9 +1,13 @@
 package com.neobrutalism.crm.domain.customer.repository;
 
 import com.neobrutalism.crm.common.repository.StatefulRepository;
+import com.neobrutalism.crm.common.security.DataScopeHelper;
 import com.neobrutalism.crm.domain.customer.model.Customer;
 import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -120,4 +124,226 @@ public interface CustomerRepository extends StatefulRepository<Customer, Custome
      */
     @Query("SELECT c FROM Customer c WHERE c.lastContactDate < :date AND c.status IN :statuses AND c.deleted = false ORDER BY c.lastContactDate")
     List<Customer> findWithNoRecentContact(@Param("date") LocalDate date, @Param("statuses") List<CustomerStatus> statuses);
+
+    /**
+     * Count all customers by tenant ID
+     */
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.tenantId = :tenantId AND c.deleted = false")
+    long countByTenantId(@Param("tenantId") String tenantId);
+
+    /**
+     * Count VIP customers by tenant ID
+     */
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.isVip = :isVip AND c.tenantId = :tenantId AND c.deleted = false")
+    long countByIsVipAndTenantId(@Param("isVip") boolean isVip, @Param("tenantId") String tenantId);
+
+    // ========================================
+    // ✅ PHASE 1: OPTIMIZED QUERIES WITH DTO PROJECTION
+    // ========================================
+
+    /**
+     * Find customers by organization with full details (prevents N+1)
+     * Uses DTO projection to fetch organization, owner, and branch data in single query
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.industry, c.email, c.phone, c.isVip, " +
+           "c.annualRevenue, c.acquisitionDate, c.lastContactDate, " +
+           "c.organizationId, o.name, " +
+           "c.ownerId, CONCAT(owner.firstName, ' ', owner.lastName), " +
+           "c.branchId, branch.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "LEFT JOIN User owner ON c.ownerId = owner.id " +
+           "LEFT JOIN Branch branch ON c.branchId = branch.id " +
+           "WHERE c.organizationId = :orgId AND c.deleted = false " +
+           "ORDER BY c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findByOrganizationWithDetails(@Param("orgId") UUID orgId);
+
+    /**
+     * Find customers by status with details (optimized for filtering)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.email, c.phone, c.isVip, " +
+           "c.organizationId, o.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "WHERE c.status = :status AND c.tenantId = :tenantId AND c.deleted = false " +
+           "ORDER BY c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findByStatusWithDetails(
+        @Param("status") CustomerStatus status, 
+        @Param("tenantId") String tenantId
+    );
+
+    /**
+     * Find customers by type with details (optimized for filtering)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.email, c.phone, c.isVip, " +
+           "c.organizationId, o.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "WHERE c.customerType = :type AND c.tenantId = :tenantId AND c.deleted = false " +
+           "ORDER BY c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findByTypeWithDetails(
+        @Param("type") CustomerType type, 
+        @Param("tenantId") String tenantId
+    );
+
+    /**
+     * Find VIP customers with details (optimized for reporting)
+     */
+    @Query("SELECT new com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO(" +
+           "c.id, c.code, c.companyName, c.customerType, c.status, " +
+           "c.industry, c.email, c.phone, c.isVip, " +
+           "c.annualRevenue, c.acquisitionDate, c.lastContactDate, " +
+           "c.organizationId, o.name, " +
+           "c.ownerId, CONCAT(owner.firstName, ' ', owner.lastName), " +
+           "c.branchId, branch.name, " +
+           "c.tenantId, c.deleted) " +
+           "FROM Customer c " +
+           "LEFT JOIN Organization o ON c.organizationId = o.id " +
+           "LEFT JOIN User owner ON c.ownerId = owner.id " +
+           "LEFT JOIN Branch branch ON c.branchId = branch.id " +
+           "WHERE c.isVip = true AND c.tenantId = :tenantId AND c.deleted = false " +
+           "ORDER BY c.annualRevenue DESC, c.companyName")
+    List<com.neobrutalism.crm.domain.customer.dto.CustomerWithDetailsDTO> findVipCustomersWithDetails(@Param("tenantId") String tenantId);
+
+    // ========================================
+    // ✅ N+1 QUERY FIXES: Optimized pagination queries
+    // ========================================
+
+    /**
+     * Find all active customers with pagination (optimized - no N+1)
+     * Uses EntityGraph to ensure efficient loading
+     */
+    @EntityGraph(attributePaths = {}) // No relationships to fetch, but prepared for future
+    @Query("SELECT c FROM Customer c WHERE c.deleted = false")
+    Page<Customer> findAllActiveOptimized(Pageable pageable);
+
+    /**
+     * Find customers by organization with pagination (optimized)
+     */
+    @Query("SELECT c FROM Customer c WHERE c.organizationId = :organizationId AND c.deleted = false")
+    Page<Customer> findByOrganizationIdOptimized(@Param("organizationId") UUID organizationId, Pageable pageable);
+
+    /**
+     * Find customers by status with pagination (optimized)
+     */
+    @Query("SELECT c FROM Customer c WHERE c.status = :status AND c.deleted = false")
+    Page<Customer> findByStatusOptimized(@Param("status") CustomerStatus status, Pageable pageable);
+
+    // ========================================
+    // ✅ PHASE 2: DATA SCOPE ENFORCEMENT
+    // ========================================
+
+    /**
+     * Find all customers with data scope filtering
+     * Applies row-level security based on user's data scope (ALL_BRANCHES, CURRENT_BRANCH, SELF_ONLY)
+     */
+    default List<Customer> findAllWithScope() {
+        return findAll(DataScopeHelper.applyDataScope());
+    }
+
+    /**
+     * Find all customers with data scope filtering and pagination
+     * Applies row-level security based on user's data scope (ALL_BRANCHES, CURRENT_BRANCH, SELF_ONLY)
+     */
+    default Page<Customer> findAllWithScope(Pageable pageable) {
+        return findAll(DataScopeHelper.applyDataScope(), pageable);
+    }
+
+    /**
+     * Find customers by organization with data scope filtering
+     */
+    default List<Customer> findByOrganizationIdWithScope(UUID organizationId) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            DataScopeHelper.byOrganization(organizationId)
+        ));
+    }
+
+    /**
+     * Find customers by organization with data scope filtering and pagination
+     */
+    default Page<Customer> findByOrganizationIdWithScope(UUID organizationId, Pageable pageable) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            DataScopeHelper.byOrganization(organizationId)
+        ), pageable);
+    }
+
+    /**
+     * Find customers by status with data scope filtering
+     */
+    default List<Customer> findByStatusWithScope(CustomerStatus status) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("status"), status)
+        ));
+    }
+
+    /**
+     * Find customers by status with data scope filtering and pagination
+     */
+    default Page<Customer> findByStatusWithScope(CustomerStatus status, Pageable pageable) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("status"), status)
+        ), pageable);
+    }
+
+    /**
+     * Find VIP customers with data scope filtering
+     */
+    default List<Customer> findVipCustomersWithScope() {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.isTrue(root.get("isVip"))
+        ));
+    }
+
+    /**
+     * Find customers by type with data scope filtering
+     */
+    default List<Customer> findByCustomerTypeWithScope(CustomerType type) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("customerType"), type)
+        ));
+    }
+
+    /**
+     * Find customers by owner with data scope filtering
+     * Useful for account managers viewing their own customers
+     */
+    default List<Customer> findByOwnerIdWithScope(UUID ownerId) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("ownerId"), ownerId)
+        ));
+    }
+
+    /**
+     * Find customers by branch with data scope filtering
+     */
+    default List<Customer> findByBranchIdWithScope(UUID branchId) {
+        return findAll(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.equal(root.get("branchId"), branchId)
+        ));
+    }
+
+    /**
+     * Count customers with data scope filtering
+     */
+    default long countWithScope() {
+        return count(DataScopeHelper.applyDataScope());
+    }
+
+    /**
+     * Count VIP customers with data scope filtering
+     */
+    default long countVipCustomersWithScope() {
+        return count(DataScopeHelper.applyScopeWith(
+            (root, query, cb) -> cb.isTrue(root.get("isVip"))
+        ));
+    }
 }

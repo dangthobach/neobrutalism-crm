@@ -24,6 +24,7 @@ import { useTabsByMenu } from "@/hooks/useMenuTabs"
 import { useApiEndpoints } from "@/hooks/useApiEndpoints"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table-reusable"
+import { PermissionGuard } from "@/components/auth/permission-guard"
 
 export default function MenuScreensPage() {
   const [open, setOpen] = useState(false)
@@ -78,7 +79,7 @@ export default function MenuScreensPage() {
         accessorKey: "menuId",
         header: "Menu",
         cell: ({ row }) => row.original.menuId ? (
-          <Badge variant="outline">{getMenuName(row.original.menuId)}</Badge>
+          <Badge variant="neutral">{getMenuName(row.original.menuId)}</Badge>
         ) : <span className="text-muted-foreground">-</span>
       },
       {
@@ -112,28 +113,34 @@ export default function MenuScreensPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => openApiDialog(row.original)}
-            >
-              APIs
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => onEdit(row.original)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => onDelete(row.original.id)}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
+            <PermissionGuard routeOrCode="/menu-screens" permission="canEdit">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => openApiDialog(row.original)}
+              >
+                APIs
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard routeOrCode="/menu-screens" permission="canEdit">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => onEdit(row.original)}
+              >
+                Edit
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard routeOrCode="/menu-screens" permission="canDelete">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => onDelete(row.original.id)}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </PermissionGuard>
           </div>
         ),
       },
@@ -254,9 +261,6 @@ export default function MenuScreensPage() {
         <DataTable
           columns={columns}
           data={menuScreens}
-          searchColumn="name"
-          searchPlaceholder="Search screens..."
-          isLoading={isLoading}
         />
       </div>
 
@@ -421,7 +425,7 @@ export default function MenuScreensPage() {
                       </Badge>
                       <code className="text-sm">{api.path}</code>
                       {api.tag && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="neutral" className="text-xs">
                           {api.tag}
                         </Badge>
                       )}

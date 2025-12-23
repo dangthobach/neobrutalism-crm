@@ -1,0 +1,318 @@
+{
+  "realm": "crm",
+  "displayName": "Neobrutalism CRM",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultSignatureAlgorithm": "RS256",
+  "offlineSessionMaxLifespanEnabled": false,
+  "offlineSessionMaxLifespan": 5184000,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "refreshTokenMaxReuse": 0,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "clients": [
+    {
+      "clientId": "crm-frontend",
+      "name": "CRM Frontend Application",
+      "description": "Next.js frontend SPA with PKCE flow",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "webOrigins": [
+        "http://localhost:3000",
+        "https://crm.example.com"
+      ],
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://crm.example.com/*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*##https://crm.example.com/*",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenantId",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "iam-service",
+      "name": "IAM Service",
+      "description": "Backend IAM service for authentication and authorization",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "iam-service-secret-change-in-production",
+      "attributes": {
+        "client.secret.creation.time": "1640000000"
+      },
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenantId",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "gateway",
+      "name": "API Gateway",
+      "description": "API Gateway service",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "gateway-secret-change-in-production"
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "SUPER_ADMIN",
+        "description": "Super administrator with full system access",
+        "composite": false
+      },
+      {
+        "name": "TENANT_ADMIN",
+        "description": "Tenant administrator with full access to their organization",
+        "composite": false
+      },
+      {
+        "name": "USER",
+        "description": "Regular user with read-only access",
+        "composite": false
+      },
+      {
+        "name": "CONTENT_MANAGER",
+        "description": "Content manager with CMS access",
+        "composite": false
+      },
+      {
+        "name": "INSTRUCTOR",
+        "description": "Course instructor with LMS access",
+        "composite": false
+      },
+      {
+        "name": "STUDENT",
+        "description": "Student with course enrollment access",
+        "composite": false
+      },
+      {
+        "name": "SALES_REP",
+        "description": "Sales representative with customer access",
+        "composite": false
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "admin@crm.local",
+      "email": "admin@crm.local",
+      "firstName": "System",
+      "lastName": "Administrator",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenantId": ["system"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["SUPER_ADMIN"]
+    },
+    {
+      "username": "tenant1-admin@crm.local",
+      "email": "tenant1-admin@crm.local",
+      "firstName": "Tenant1",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenantId": ["tenant1"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["TENANT_ADMIN"]
+    },
+    {
+      "username": "user1@tenant1.com",
+      "email": "user1@tenant1.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenantId": ["tenant1"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["USER"]
+    },
+    {
+      "username": "instructor1@tenant1.com",
+      "email": "instructor1@tenant1.com",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenantId": ["tenant1"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "instructor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["INSTRUCTOR"]
+    },
+    {
+      "username": "student1@tenant1.com",
+      "email": "student1@tenant1.com",
+      "firstName": "Bob",
+      "lastName": "Johnson",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "tenantId": ["tenant1"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "student123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["STUDENT"]
+    }
+  ],
+  "scopeMappings": [],
+  "clientScopeMappings": {},
+  "groups": [
+    {
+      "name": "tenant1",
+      "path": "/tenant1",
+      "attributes": {
+        "tenantId": ["tenant1"]
+      }
+    }
+  ],
+  "defaultRoles": ["USER"],
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 30
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 50
+    }
+  ],
+  "browserFlow": "browser",
+  "registrationFlow": "registration",
+  "directGrantFlow": "direct grant",
+  "resetCredentialsFlow": "reset credentials",
+  "clientAuthenticationFlow": "clients",
+  "dockerAuthenticationFlow": "docker auth",
+  "attributes": {
+    "frontendUrl": "",
+    "userManagedAccessAllowed": true,
+    "displayName": "Neobrutalism CRM",
+    "displayNameHtml": "<div class=\"kc-logo-text\"><span>Neobrutalism CRM</span></div>"
+  },
+  "keycloakVersion": "24.0.3"
+}

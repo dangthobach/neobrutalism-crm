@@ -1,0 +1,44 @@
+# Bootstrap Configuration for API Gateway
+# Loaded before application.yml to configure service discovery and config server
+
+spring:
+  application:
+    name: gateway
+
+  # Optional: Consul Service Discovery
+  cloud:
+    consul:
+      enabled: ${SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED:false}
+      host: ${SPRING_CLOUD_CONSUL_HOST:localhost}
+      port: ${SPRING_CLOUD_CONSUL_PORT:8500}
+      discovery:
+        enabled: ${SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED:false}
+        health-check-path: /actuator/health
+        health-check-interval: 10s
+        instance-id: ${SPRING_CLOUD_CONSUL_DISCOVERY_INSTANCE_ID:${spring.application.name}:${random.value}}
+        service-name: ${spring.application.name}
+        prefer-ip-address: true
+        register: true
+        deregister: true
+        fail-fast: false
+        tags:
+          - version=1.0.0
+          - layer=edge
+
+    # Optional: Config Server
+    config:
+      enabled: false
+      # Uncomment to enable Spring Cloud Config
+      # uri: http://config-server:8888
+      # fail-fast: true
+      # retry:
+      #   max-attempts: 6
+      #   initial-interval: 1000
+      #   multiplier: 1.1
+      #   max-interval: 2000
+
+# Logging configuration
+logging:
+  level:
+    org.springframework.cloud.consul: INFO
+    com.neobrutalism.crm.gateway: DEBUG

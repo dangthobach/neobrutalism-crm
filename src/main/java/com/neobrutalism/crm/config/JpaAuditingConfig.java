@@ -4,11 +4,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
 /**
  * JPA Auditing configuration
+ * Automatically populates @CreatedBy and @LastModifiedBy fields
  */
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorProvider")
@@ -21,21 +24,25 @@ public class JpaAuditingConfig {
 
     /**
      * Auditor provider implementation
-     * Override to get current user from security context
+     * Gets current authenticated user from Spring Security context
      */
     public static class AuditorAwareImpl implements AuditorAware<String> {
 
         @Override
         public Optional<String> getCurrentAuditor() {
-            // TODO: Integrate with Spring Security to get current user
-            // Example:
-            // Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            // if (authentication == null || !authentication.isAuthenticated()) {
-            //     return Optional.of("system");
-            // }
-            // return Optional.of(authentication.getName());
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            return Optional.of("system");
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return Optional.of("SYSTEM");
+            }
+
+            // Handle anonymous users
+            if ("anonymousUser".equals(authentication.getName())) {
+                return Optional.of("SYSTEM");
+            }
+
+            // Return authenticated username
+            return Optional.of(authentication.getName());
         }
     }
 }

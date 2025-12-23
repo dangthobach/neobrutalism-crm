@@ -1,0 +1,28 @@
+# GitGuardian Configuration
+# https://docs.gitguardian.com/secrets-detection/getting-started/configuring-gitguardian
+
+# Exclude files from scanning
+paths-ignore:
+  - .env.example          # Example environment file with placeholder values
+  - "**/*.example"        # All example files
+  - "**/test/**"          # Test files may contain mock credentials
+  - "**/docs/**/*.md"     # Documentation files with example configs
+  - "**/*_COMPLETE.md"    # Implementation documentation
+  - "**/*_GUIDE.md"       # Configuration guides
+  - "**/WEEK*.md"         # Weekly summaries
+  - "**/docker-compose*.yml"  # Docker compose files with development defaults
+
+# Exclude specific secret types (be cautious with this)
+# matches-ignore:
+#   - name: Generic Password
+#     match: CHANGE_ME_*
+
+# Allow certain patterns that are false positives
+# For .env.example files, placeholders like CHANGE_ME_* are not real secrets
+version: 2
+
+# Minimum occurrence - secrets must appear at least this many times to be reported
+minimum_occurrences: 2
+
+# Verbose output
+verbose: false

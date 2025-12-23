@@ -68,7 +68,7 @@ export default function ApiEndpointsPage() {
         accessorKey: "tag",
         header: "Tag",
         cell: ({ row }) => row.original.tag ? (
-          <Badge variant="outline">{row.original.tag}</Badge>
+          <Badge variant="neutral">{row.original.tag}</Badge>
         ) : <span className="text-muted-foreground">-</span>
       },
       {
@@ -82,7 +82,7 @@ export default function ApiEndpointsPage() {
         accessorKey: "requiresAuth",
         header: "Auth",
         cell: ({ row }) => (
-          <Badge variant={row.original.requiresAuth ? "default" : "secondary"}>
+          <Badge variant={row.original.requiresAuth ? "default" : "neutral"}>
             {row.original.requiresAuth ? "Required" : "Optional"}
           </Badge>
         ),
@@ -91,7 +91,7 @@ export default function ApiEndpointsPage() {
         accessorKey: "isPublic",
         header: "Public",
         cell: ({ row }) => (
-          <Badge variant={row.original.isPublic ? "default" : "secondary"}>
+          <Badge variant={row.original.isPublic ? "default" : "neutral"}>
             {row.original.isPublic ? "Yes" : "No"}
           </Badge>
         ),
@@ -197,9 +197,9 @@ export default function ApiEndpointsPage() {
         <DataTable
           columns={columns}
           data={apiEndpoints}
-          searchColumn="path"
-          searchPlaceholder="Search by path..."
-          isLoading={isLoading}
+          // searchColumn="path"
+          // searchPlaceholder="Search by path..."
+          // isLoading={isLoading}
         />
       </div>
 

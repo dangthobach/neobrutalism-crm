@@ -1,0 +1,222 @@
+{
+  "dashboard": {
+    "title": "API Gateway - Performance Metrics",
+    "tags": ["gateway", "microservices", "performance"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate (req/s)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"gateway\"}[1m])",
+            "legendFormat": "{{uri}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Response Time (P95 & P99)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"gateway\"}[1m]))",
+            "legendFormat": "P95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"gateway\"}[1m]))",
+            "legendFormat": "P99",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.5], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "name": "High P95 Latency",
+          "message": "Gateway P95 latency exceeded 500ms threshold"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"gateway\",status=~\"5..\"}[1m])",
+            "legendFormat": "5xx Errors",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"gateway\",status=~\"4..\"}[1m])",
+            "legendFormat": "4xx Errors",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Errors/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(cache_gets_total{result=\"hit\",cache=\"jwtValidation\"}[1m]) / rate(cache_gets_total{cache=\"jwtValidation\"}[1m]) * 100",
+            "legendFormat": "JWT Cache Hit %",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(cache_gets_total{result=\"hit\",cache=\"permissionCheck\"}[1m]) / rate(cache_gets_total{cache=\"permissionCheck\"}[1m]) * 100",
+            "legendFormat": "Permission Cache Hit %",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Hit Rate %", "max": 100, "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Circuit Breaker State",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "resilience4j_circuitbreaker_state{name=\"iam-service\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name",
+          "colorMode": "value",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "0", "text": "CLOSED"},
+              {"type": "value", "value": "1", "text": "OPEN"},
+              {"type": "value", "value": "2", "text": "HALF_OPEN"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"},
+                {"value": 2, "color": "yellow"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Rate Limiter - Available Permits",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 16, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "rate_limiter_available_permissions",
+            "legendFormat": "Available Permits",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Canary Traffic Distribution",
+        "type": "piechart",
+        "gridPos": {"x": 16, "y": 16, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{job=\"gateway\",route=\"monolith\"}[1m]))",
+            "legendFormat": "Monolith",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{job=\"gateway\",route=\"iam-service\"}[1m]))",
+            "legendFormat": "IAM Service",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "JVM Memory Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"gateway\",area=\"heap\"}",
+            "legendFormat": "Heap Used",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{job=\"gateway\",area=\"heap\"}",
+            "legendFormat": "Heap Max",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Memory"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "GC Pause Time",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum{job=\"gateway\"}[1m])",
+            "legendFormat": "{{action}} - {{cause}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Pause Time"},
+          {"format": "short"}
+        ]
+      }
+    ],
+    "refresh": "5s",
+    "time": {"from": "now-30m", "to": "now"},
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+    },
+    "version": 1
+  },
+  "overwrite": true
+}

@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { roleMenuApi, RoleMenu, RoleMenuRequest } from '@/lib/api/role-menus'
+import { roleMenuApi, RoleMenu, RoleMenuRequest, ValidationResult } from '@/lib/api/role-menus'
 import { ApiError } from '@/lib/api/client'
 import { toast } from 'sonner'
 
@@ -128,6 +128,100 @@ export function useBulkUpdateMenuPermissions() {
     },
     onError: (error: ApiError) => {
       toast.error('Failed to bulk update permissions', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Validate permission settings before saving
+ */
+export function useValidatePermissions() {
+  return useMutation({
+    mutationFn: (data: RoleMenuRequest) => roleMenuApi.validatePermissions(data),
+    onError: (error: ApiError) => {
+      toast.error('Validation failed', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Auto-fix permission dependencies
+ */
+export function useAutoFixPermissions() {
+  return useMutation({
+    mutationFn: (data: RoleMenuRequest) => roleMenuApi.autoFixPermissions(data),
+    onSuccess: (data) => {
+      toast.info('Permissions auto-fixed with dependencies')
+    },
+    onError: (error: ApiError) => {
+      toast.error('Auto-fix failed', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Export role permissions to Excel
+ */
+export function useExportRolePermissions() {
+  return useMutation({
+    mutationFn: async (roleId: string) => {
+      const blob = await roleMenuApi.exportRolePermissions(roleId)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+      roleMenuApi.downloadBlob(blob, `role_permissions_${roleId}_${timestamp}.xlsx`)
+    },
+    onSuccess: () => {
+      toast.success('Permissions exported to Excel successfully')
+    },
+    onError: (error: ApiError) => {
+      toast.error('Failed to export permissions', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Export multiple roles permissions to Excel
+ */
+export function useExportMultipleRolePermissions() {
+  return useMutation({
+    mutationFn: async (roleIds: string[]) => {
+      const blob = await roleMenuApi.exportMultipleRolePermissions(roleIds)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+      roleMenuApi.downloadBlob(blob, `role_permissions_multiple_${timestamp}.xlsx`)
+    },
+    onSuccess: () => {
+      toast.success('Permissions exported to Excel successfully')
+    },
+    onError: (error: ApiError) => {
+      toast.error('Failed to export permissions', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Export all role permissions to Excel
+ */
+export function useExportAllRolePermissions() {
+  return useMutation({
+    mutationFn: async () => {
+      const blob = await roleMenuApi.exportAllRolePermissions()
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+      roleMenuApi.downloadBlob(blob, `all_role_permissions_${timestamp}.xlsx`)
+    },
+    onSuccess: () => {
+      toast.success('All permissions exported to Excel successfully')
+    },
+    onError: (error: ApiError) => {
+      toast.error('Failed to export all permissions', {
         description: error.message,
       })
     },

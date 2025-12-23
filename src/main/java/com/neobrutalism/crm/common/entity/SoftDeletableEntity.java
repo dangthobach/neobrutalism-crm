@@ -1,9 +1,7 @@
 package com.neobrutalism.crm.common.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Index;
 import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 

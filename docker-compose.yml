@@ -101,6 +101,39 @@ services:
       timeout: 20s
       retries: 3
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crm-prometheus
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - crm-network
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: crm-grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - crm-network
+    depends_on:
+      - prometheus
+
+  # MailHog - Email testing tool (catches all outgoing emails)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: crm-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - crm-network
+    environment:
+      MH_STORAGE: memory
+      MH_UI_WEB_PATH: mailhog
+
   # Redis Commander (Web UI for Redis) - Optional debug tool
   # redis-commander:
   #   image: rediscommander/redis-commander:latest

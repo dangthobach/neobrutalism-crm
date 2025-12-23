@@ -17,18 +17,17 @@ export interface LoginResponse {
   refreshToken: string
   tokenType: string
   expiresIn: number
-  user: {
-    id: string
-    username: string
-    email: string
-    firstName: string
-    lastName: string
-    fullName?: string
-    avatar?: string
-    organizationId: string
-    roles: string[]
-    permissions: string[]
-  }
+  expiresAt?: string
+  
+  // User fields (flattened, not nested)
+  userId: string
+  username: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName?: string
+  tenantId?: string
+  roles: string[]
 }
 
 export interface RefreshTokenRequest {
@@ -47,10 +46,10 @@ export class AuthApi {
    */
   async login(request: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>('/auth/login', request)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -58,10 +57,10 @@ export class AuthApi {
    */
   async refreshToken(request: RefreshTokenRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>('/auth/refresh', request)
-    if (!response.data) {
+    if (!response) {
       throw new Error('No data returned from API')
     }
-    return response.data
+    return response
   }
 
   /**
@@ -81,9 +80,9 @@ export class AuthApi {
   /**
    * Get current user info
    */
-  async getCurrentUser(): Promise<string> {
-    const response = await apiClient.get<string>('/auth/me')
-    return response.data || ''
+  async getCurrentUser(): Promise<any> {
+    const response = await apiClient.get<any>('/auth/me')
+    return response || null
   }
 }
 

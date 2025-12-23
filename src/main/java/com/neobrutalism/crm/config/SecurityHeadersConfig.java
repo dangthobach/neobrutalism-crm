@@ -46,9 +46,18 @@ public class SecurityHeadersConfig {
             // XSS Protection (legacy, but still useful)
             httpResponse.setHeader("X-XSS-Protection", "1; mode=block");
 
-            // Force HTTPS (only in production)
-            // Uncomment for production:
-            // httpResponse.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+            // Force HTTPS in production
+            // Controlled by environment variable (enabled by default in prod profile)
+            String hstsEnabled = System.getenv("SECURITY_HSTS_ENABLED");
+            if ("true".equals(hstsEnabled)) {
+                String maxAge = System.getenv("SECURITY_HSTS_MAX_AGE");
+                String includeSubDomains = System.getenv("SECURITY_HSTS_INCLUDE_SUBDOMAINS");
+                String hstsValue = "max-age=" + (maxAge != null ? maxAge : "31536000");
+                if ("true".equals(includeSubDomains)) {
+                    hstsValue += "; includeSubDomains; preload";
+                }
+                httpResponse.setHeader("Strict-Transport-Security", hstsValue);
+            }
 
             // Referrer Policy
             httpResponse.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");

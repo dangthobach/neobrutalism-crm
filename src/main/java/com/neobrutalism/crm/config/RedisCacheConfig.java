@@ -88,6 +88,19 @@ public class RedisCacheConfig {
         // Custom TTL per cache
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
+        // ✅ PHASE 1 WEEK 2-3: Entity caches with optimized TTL
+        // Short-lived caches (5 minutes) - Frequently changing data
+        cacheConfigurations.put("branches", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("customers", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("contacts", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        
+        // Medium-lived caches (10 minutes) - User and group data
+        cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        cacheConfigurations.put("usergroups", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        
+        // Long-lived caches (1 hour) - Rarely changing data
+        cacheConfigurations.put("roles", defaultConfig.entryTtl(Duration.ofHours(1)));
+        
         // Menu tree - 1 hour (rarely changes)
         cacheConfigurations.put("menuTree", defaultConfig.entryTtl(Duration.ofHours(1)));
 
@@ -96,6 +109,12 @@ public class RedisCacheConfig {
 
         // Role permissions - 1 hour
         cacheConfigurations.put("rolePermissions", defaultConfig.entryTtl(Duration.ofHours(1)));
+
+        // Permission matrix - 1 hour (rarely changes, invalidated on permission updates)
+        cacheConfigurations.put("permissionMatrix", defaultConfig.entryTtl(Duration.ofHours(1)));
+
+        // User permissions - 30 minutes (invalidated on role assignment changes)
+        cacheConfigurations.put("userPermissions", defaultConfig.entryTtl(Duration.ofMinutes(30)));
 
         // User by username/email - 15 minutes (for authentication)
         cacheConfigurations.put("userByUsername", defaultConfig.entryTtl(Duration.ofMinutes(15)));
@@ -109,6 +128,20 @@ public class RedisCacheConfig {
 
         // Group members - 30 minutes
         cacheConfigurations.put("groupMembers", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+
+        // ✅ NOTIFICATION MODULE: High-scale caching for 1M users, 50K CCU
+        // Notification preferences - 15 minutes (user checks frequently)
+        cacheConfigurations.put("notification-preferences", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("notification-preference", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+
+        // Notification list - 2 minutes (real-time updates via WebSocket)
+        cacheConfigurations.put("notifications", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+
+        // Unread count - 1 minute (displayed in UI header)
+        cacheConfigurations.put("notification-unread-count", defaultConfig.entryTtl(Duration.ofMinutes(1)));
+
+        // Migration progress - 5 seconds TTL (real-time updates via WebSocket)
+        cacheConfigurations.put("migration-progress", defaultConfig.entryTtl(Duration.ofSeconds(5)));
 
         return RedisCacheManager.builder(connectionFactory)
             .cacheDefaults(defaultConfig)

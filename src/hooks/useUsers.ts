@@ -227,3 +227,89 @@ export function useCheckEmail() {
     mutationFn: (email: string) => userApi.checkEmail(email),
   })
 }
+
+/**
+ * Search users with advanced filters
+ */
+export function useSearchUsers() {
+  return useMutation({
+    mutationFn: (request: import('@/lib/api/users').UserSearchRequest) =>
+      userApi.searchUsers(request),
+  })
+}
+
+/**
+ * Restore deleted user
+ */
+export function useRestoreUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => userApi.restoreUser(id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] })
+      toast.success('User restored', {
+        description: `${data.fullName} has been restored.`,
+      })
+    },
+    onError: (error: ApiError) => {
+      toast.error('Failed to restore user', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Get current user profile
+ */
+export function useCurrentUserProfile() {
+  return useQuery({
+    queryKey: [USERS_QUERY_KEY, 'me'],
+    queryFn: () => userApi.getCurrentUserProfile(),
+  })
+}
+
+/**
+ * Update current user profile
+ */
+export function useUpdateCurrentUserProfile() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (request: import('@/lib/api/users').UserProfileUpdateRequest) =>
+      userApi.updateCurrentUserProfile(request),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY, 'me'] })
+      toast.success('Profile updated', {
+        description: 'Your profile has been updated successfully.',
+      })
+    },
+    onError: (error: ApiError) => {
+      toast.error('Failed to update profile', {
+        description: error.message,
+      })
+    },
+  })
+}
+
+/**
+ * Get current user's menus
+ */
+export function useCurrentUserMenus() {
+  return useQuery({
+    queryKey: [USERS_QUERY_KEY, 'me', 'menus'],
+    queryFn: () => userApi.getCurrentUserMenus(),
+  })
+}
+
+/**
+ * Get user's menus by ID
+ */
+export function useUserMenus(id: string) {
+  return useQuery({
+    queryKey: [USERS_QUERY_KEY, id, 'menus'],
+    queryFn: () => userApi.getUserMenus(id),
+    enabled: !!id,
+  })
+}

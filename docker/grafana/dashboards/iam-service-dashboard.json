@@ -1,0 +1,317 @@
+{
+  "dashboard": {
+    "title": "IAM Service - Authentication & Authorization",
+    "tags": ["iam", "auth", "microservices"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Permission Check Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(permission_check_seconds_count{job=\"iam-service\"}[1m])",
+            "legendFormat": "Total Checks/s",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(permission_check_seconds_count{job=\"iam-service\",cache=\"l1\",result=\"hit\"}[1m])",
+            "legendFormat": "L1 Cache Hits/s",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(permission_check_seconds_count{job=\"iam-service\",cache=\"l2\",result=\"hit\"}[1m])",
+            "legendFormat": "L2 Cache Hits/s",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Checks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Permission Check Latency",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(permission_check_seconds_bucket{job=\"iam-service\"}[1m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(permission_check_seconds_bucket{job=\"iam-service\"}[1m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(permission_check_seconds_bucket{job=\"iam-service\"}[1m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency", "logBase": 10},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.05], "type": "gt"},
+              "query": {"params": ["B", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "name": "High Permission Check Latency",
+          "message": "IAM Service permission check P95 exceeded 50ms threshold"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Multi-tier Cache Performance",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(cache_gets_total{job=\"iam-service\",cache=\"permissions\",result=\"hit\"}[1m]) / rate(cache_gets_total{job=\"iam-service\",cache=\"permissions\"}[1m]) * 100",
+            "legendFormat": "L1 Hit Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(cache_gets_total{job=\"iam-service\",cache=\"permissions-redis\",result=\"hit\"}[1m]) / rate(cache_gets_total{job=\"iam-service\",cache=\"permissions-redis\"}[1m]) * 100",
+            "legendFormat": "L2 Hit Rate %",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Hit Rate %", "max": 100, "min": 0},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Cache Latency by Tier",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(permission_check_seconds_bucket{job=\"iam-service\",cache=\"l1\"}[1m])) * 1000",
+            "legendFormat": "L1 Cache (Caffeine) P95 ms",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(permission_check_seconds_bucket{job=\"iam-service\",cache=\"l2\"}[1m])) * 1000",
+            "legendFormat": "L2 Cache (Redis) P95 ms",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(permission_check_seconds_bucket{job=\"iam-service\",cache=\"l3\"}[1m])) * 1000",
+            "legendFormat": "L3 Database (Casbin) P95 ms",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Latency (ms)", "logBase": 10},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Authentication Rate",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"iam-service\",uri=\"/api/v1/auth/validate\"}[1m])",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value",
+          "colorMode": "background",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Permission Check Rate",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"iam-service\",uri=\"/api/v1/auth/check-permission\"}[1m])",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value",
+          "colorMode": "background",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 500, "color": "yellow"},
+                {"value": 1000, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Cache Size (Entries)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 4},
+        "targets": [
+          {
+            "expr": "cache_size_entries{job=\"iam-service\",cache=\"permissions\"}",
+            "legendFormat": "L1 Permissions Cache",
+            "refId": "A"
+          },
+          {
+            "expr": "cache_size_entries{job=\"iam-service\",cache=\"roles\"}",
+            "legendFormat": "L1 Roles Cache",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Entries"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Casbin Enforcer Performance",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(casbin_enforcer_duration_seconds_sum{job=\"iam-service\"}[1m]) / rate(casbin_enforcer_duration_seconds_count{job=\"iam-service\"}[1m])",
+            "legendFormat": "Avg Enforcement Time",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(casbin_enforcer_duration_seconds_bucket{job=\"iam-service\"}[1m]))",
+            "legendFormat": "P95 Enforcement Time",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "R2DBC Connection Pool",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "r2dbc_pool_acquired_connections{job=\"iam-service\"}",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          },
+          {
+            "expr": "r2dbc_pool_idle_connections{job=\"iam-service\"}",
+            "legendFormat": "Idle Connections",
+            "refId": "B"
+          },
+          {
+            "expr": "r2dbc_pool_pending_connections{job=\"iam-service\"}",
+            "legendFormat": "Pending Connections",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Connections"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Redis Operations",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 28, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(lettuce_command_completion_total{job=\"iam-service\",command=\"get\"}[1m])",
+            "legendFormat": "GET ops/s",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(lettuce_command_completion_total{job=\"iam-service\",command=\"set\"}[1m])",
+            "legendFormat": "SET ops/s",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(lettuce_command_completion_total{job=\"iam-service\",command=\"del\"}[1m])",
+            "legendFormat": "DEL ops/s",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Error Rate by Endpoint",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 28, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"iam-service\",status=~\"5..\"}[1m])",
+            "legendFormat": "{{uri}} - {{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Errors/sec"},
+          {"format": "short"}
+        ]
+      }
+    ],
+    "refresh": "5s",
+    "time": {"from": "now-30m", "to": "now"},
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+    },
+    "version": 1
+  },
+  "overwrite": true
+}

@@ -18,7 +18,7 @@ export const customerApi = {
    */
   getAll: async (params?: CustomerSearchParams): Promise<PageResponse<Customer>> => {
     const response = await apiClient.get<PageResponse<Customer>>('/customers', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -26,7 +26,7 @@ export const customerApi = {
    */
   getById: async (id: string): Promise<Customer> => {
     const response = await apiClient.get<Customer>(`/customers/${id}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -34,7 +34,7 @@ export const customerApi = {
    */
   create: async (data: CreateCustomerRequest): Promise<Customer> => {
     const response = await apiClient.post<Customer>('/customers', data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -42,7 +42,7 @@ export const customerApi = {
    */
   update: async (id: string, data: UpdateCustomerRequest): Promise<Customer> => {
     const response = await apiClient.put<Customer>(`/customers/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -57,7 +57,7 @@ export const customerApi = {
    */
   search: async (keyword: string): Promise<Customer[]> => {
     const response = await apiClient.get<Customer[]>('/customers/search', { keyword })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -65,7 +65,7 @@ export const customerApi = {
    */
   getByOwner: async (ownerId: string, params?: CustomerSearchParams): Promise<PageResponse<Customer>> => {
     const response = await apiClient.get<PageResponse<Customer>>(`/customers/owner/${ownerId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -73,7 +73,7 @@ export const customerApi = {
    */
   getByBranch: async (branchId: string, params?: CustomerSearchParams): Promise<PageResponse<Customer>> => {
     const response = await apiClient.get<PageResponse<Customer>>(`/customers/branch/${branchId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -81,7 +81,7 @@ export const customerApi = {
    */
   getVipCustomers: async (params?: CustomerSearchParams): Promise<PageResponse<Customer>> => {
     const response = await apiClient.get<PageResponse<Customer>>('/customers/vip', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -92,7 +92,7 @@ export const customerApi = {
       ? `/customers/${id}/convert-to-prospect?reason=${encodeURIComponent(reason)}`
       : `/customers/${id}/convert-to-prospect`
     const response = await apiClient.post<Customer>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -103,7 +103,7 @@ export const customerApi = {
       ? `/customers/${id}/convert-to-active?reason=${encodeURIComponent(reason)}`
       : `/customers/${id}/convert-to-active`
     const response = await apiClient.post<Customer>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -114,7 +114,7 @@ export const customerApi = {
       ? `/customers/${id}/deactivate?reason=${encodeURIComponent(reason)}`
       : `/customers/${id}/deactivate`
     const response = await apiClient.post<Customer>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -125,7 +125,7 @@ export const customerApi = {
       ? `/customers/${id}/reactivate?reason=${encodeURIComponent(reason)}`
       : `/customers/${id}/reactivate`
     const response = await apiClient.post<Customer>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -136,7 +136,7 @@ export const customerApi = {
       ? `/customers/${id}/blacklist?reason=${encodeURIComponent(reason)}`
       : `/customers/${id}/blacklist`
     const response = await apiClient.post<Customer>(endpoint)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -144,6 +144,6 @@ export const customerApi = {
    */
   getStats: async (): Promise<CustomerStats> => {
     const response = await apiClient.get<CustomerStats>('/customers/stats')
-    return response.data!
+    return response as any
   },
 }

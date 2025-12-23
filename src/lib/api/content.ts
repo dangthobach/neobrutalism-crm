@@ -18,7 +18,7 @@ export const contentApi = {
    */
   getAll: async (params?: ContentSearchParams): Promise<PageResponse<Content>> => {
     const response = await apiClient.get<PageResponse<Content>>('/content', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -26,7 +26,7 @@ export const contentApi = {
    */
   getById: async (id: string): Promise<Content> => {
     const response = await apiClient.get<Content>(`/content/${id}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -34,7 +34,7 @@ export const contentApi = {
    */
   getBySlug: async (slug: string): Promise<Content> => {
     const response = await apiClient.get<Content>(`/content/slug/${slug}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -42,7 +42,7 @@ export const contentApi = {
    */
   create: async (data: CreateContentRequest): Promise<Content> => {
     const response = await apiClient.post<Content>('/content', data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -50,7 +50,7 @@ export const contentApi = {
    */
   update: async (id: string, data: UpdateContentRequest): Promise<Content> => {
     const response = await apiClient.put<Content>(`/content/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -65,7 +65,7 @@ export const contentApi = {
    */
   search: async (keyword: string): Promise<Content[]> => {
     const response = await apiClient.get<Content[]>('/content/search', { keyword })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -73,7 +73,7 @@ export const contentApi = {
    */
   getByAuthor: async (authorId: string, params?: ContentSearchParams): Promise<PageResponse<Content>> => {
     const response = await apiClient.get<PageResponse<Content>>(`/content/author/${authorId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -81,7 +81,7 @@ export const contentApi = {
    */
   getByCategory: async (categoryId: string, params?: ContentSearchParams): Promise<PageResponse<Content>> => {
     const response = await apiClient.get<PageResponse<Content>>(`/content/category/${categoryId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -89,7 +89,7 @@ export const contentApi = {
    */
   getByTag: async (tagId: string, params?: ContentSearchParams): Promise<PageResponse<Content>> => {
     const response = await apiClient.get<PageResponse<Content>>(`/content/tag/${tagId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -97,7 +97,7 @@ export const contentApi = {
    */
   getBySeries: async (seriesId: string, params?: ContentSearchParams): Promise<PageResponse<Content>> => {
     const response = await apiClient.get<PageResponse<Content>>(`/content/series/${seriesId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -105,7 +105,7 @@ export const contentApi = {
    */
   getPublished: async (params?: ContentSearchParams): Promise<PageResponse<Content>> => {
     const response = await apiClient.get<PageResponse<Content>>('/content/published', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -113,7 +113,7 @@ export const contentApi = {
    */
   getTrending: async (limit?: number): Promise<Content[]> => {
     const response = await apiClient.get<Content[]>('/content/trending', { limit: limit || 10 })
-    return response.data!
+    return response as any
   },
 
   /**
@@ -128,7 +128,7 @@ export const contentApi = {
    */
   publish: async (id: string): Promise<Content> => {
     const response = await apiClient.post<Content>(`/content/${id}/publish`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -136,7 +136,7 @@ export const contentApi = {
    */
   unpublish: async (id: string): Promise<Content> => {
     const response = await apiClient.post<Content>(`/content/${id}/unpublish`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -144,7 +144,7 @@ export const contentApi = {
    */
   archive: async (id: string): Promise<Content> => {
     const response = await apiClient.post<Content>(`/content/${id}/archive`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -152,6 +152,6 @@ export const contentApi = {
    */
   getStats: async (): Promise<ContentStats> => {
     const response = await apiClient.get<ContentStats>('/content/stats')
-    return response.data!
+    return response as any
   },
 }

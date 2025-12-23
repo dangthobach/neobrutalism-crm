@@ -1,0 +1,176 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: iam-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  main:
+    web-application-type: reactive
+
+  # R2DBC Configuration (Reactive Database)
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:iam_db}
+    username: ${DB_USERNAME:iam_user}
+    password: ${DB_PASSWORD:iam_password}
+    pool:
+      initial-size: 20
+      max-size: 100
+      max-idle-time: 30m
+      max-acquire-time: 3s
+      max-create-connection-time: 5s
+
+  # Flyway Configuration (JDBC for migrations)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:iam_db}
+    user: ${DB_USERNAME:iam_user}
+    password: ${DB_PASSWORD:iam_password}
+
+  # Redis Configuration
+  data:
+    redis:
+      cluster:
+        nodes:
+          - ${REDIS_NODE_1:localhost:6379}
+          - ${REDIS_NODE_2:localhost:6380}
+          - ${REDIS_NODE_3:localhost:6381}
+        max-redirects: 3
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 50
+          min-idle: 10
+
+  # Security Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID:iam-service}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/crm}
+            user-info-uri: ${KEYCLOAK_USER_INFO_URI:http://localhost:8180/realms/crm/protocol/openid-connect/userinfo}
+
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/crm}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/crm/protocol/openid-connect/certs}
+
+# Keycloak Admin Client Configuration
+keycloak:
+  server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
+  realm: ${KEYCLOAK_REALM:crm}
+  admin:
+    username: ${KEYCLOAK_ADMIN_USER:admin}
+    password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
+
+# jCasbin Configuration
+casbin:
+  model-path: classpath:casbin/model.conf
+  policy-adapter: database
+  auto-save: true
+  watcher:
+    enabled: true
+    channel: casbin-policy-updates
+
+# Permission Cache Configuration
+permission:
+  cache:
+    l1:
+      max-size: 50000
+      ttl-seconds: 60
+      refresh-after-write-seconds: 30
+    l2:
+      ttl-seconds: 300  # 5 minutes
+    materialized-view:
+      refresh-strategy: incremental
+      refresh-interval-seconds: 60
+
+# Management & Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,refresh,caches
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 10s
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_PROBABILITY:0.1}
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.neobrutalism.crm.iam: DEBUG
+    org.casbin: INFO
+    org.springframework.r2dbc: INFO
+    org.springframework.security: INFO
+    io.r2dbc.postgresql.QUERY: DEBUG
+    io.lettuce: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg - traceId=%X{traceId} spanId=%X{spanId}%n"
+
+# Application-specific Configuration
+app:
+  iam:
+    jwt:
+      access-token-validity-seconds: 300  # 5 minutes
+      refresh-token-validity-seconds: 604800  # 7 days
+    permission:
+      cache-enabled: true
+      sync-to-redis: true
+    rate-limit:
+      enabled: true
+      requests-per-second: 1000
+
+  # JWT Key Management Configuration
+  security:
+    jwt:
+      # Dev mode: Auto-generate and save keys to src/main/resources/jwt-keys/
+      # Keys will be reused across restarts
+      key-generation-enabled: true
+      private-key-path: classpath:jwt-keys/private_key.pem
+      public-key-path: classpath:jwt-keys/public_key.pem
+      issuer: neobrutalism-crm
+      access-token-validity-seconds: 900  # 15 minutes
+
+  # Scheduler Configuration (Non-blocking architecture)
+  scheduler:
+    # Casbin worker pool size (for blocking enforcer calls)
+    casbin-pool-size: 50  # Dev: 50 threads
+    # DB worker pool size (for blocking DB operations)
+    db-pool-size: 20  # Dev: 20 threads

@@ -54,7 +54,18 @@ async function Navbar() {
 
             <Link href="/courses">Courses</Link>
 
-            <Link href="/admin">Admin</Link>
+            <Link href="/stars">Stars</Link>
+
+            <Link href="/templates">Templates</Link>
+
+            <Link href="/showcase">Showcase</Link>
+
+            <Link 
+              href="/admin" 
+              className="px-3 py-1.5 bg-main text-main-foreground border-2 border-black rounded-base font-heading hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+            >
+              Admin
+            </Link>
           </div>
         </div>
 

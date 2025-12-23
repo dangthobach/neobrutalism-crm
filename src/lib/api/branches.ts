@@ -17,7 +17,7 @@ export const branchApi = {
    */
   getAll: async (params?: BranchSearchParams): Promise<PageResponse<Branch>> => {
     const response = await apiClient.get<PageResponse<Branch>>('/branches', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -25,7 +25,7 @@ export const branchApi = {
    */
   getById: async (id: string): Promise<Branch> => {
     const response = await apiClient.get<Branch>(`/branches/${id}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -33,7 +33,7 @@ export const branchApi = {
    */
   getByCode: async (code: string): Promise<Branch> => {
     const response = await apiClient.get<Branch>(`/branches/code/${code}`)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -41,7 +41,7 @@ export const branchApi = {
    */
   create: async (data: CreateBranchRequest): Promise<Branch> => {
     const response = await apiClient.post<Branch>('/branches', data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -49,7 +49,7 @@ export const branchApi = {
    */
   update: async (id: string, data: UpdateBranchRequest): Promise<Branch> => {
     const response = await apiClient.put<Branch>(`/branches/${id}`, data)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -64,7 +64,7 @@ export const branchApi = {
    */
   getByOrganization: async (organizationId: string, params?: BranchSearchParams): Promise<PageResponse<Branch>> => {
     const response = await apiClient.get<PageResponse<Branch>>(`/branches/organization/${organizationId}`, params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -72,7 +72,7 @@ export const branchApi = {
    */
   getActive: async (params?: BranchSearchParams): Promise<PageResponse<Branch>> => {
     const response = await apiClient.get<PageResponse<Branch>>('/branches/active', params)
-    return response.data!
+    return response as any
   },
 
   /**
@@ -80,6 +80,6 @@ export const branchApi = {
    */
   search: async (keyword: string): Promise<Branch[]> => {
     const response = await apiClient.get<Branch[]>('/branches/search', { keyword })
-    return response.data!
+    return response as any
   },
 }

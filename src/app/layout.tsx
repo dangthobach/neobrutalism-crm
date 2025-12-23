@@ -9,7 +9,9 @@ import SetStylingPref from "@/components/app/set-styling-pref"
 import { ThemeProvider } from "@/components/app/theme-provider"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { AuthProvider } from "@/contexts/auth-context"
+import { WebSocketProvider } from "@/providers/websocket-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { CommandPalette } from "@/components/command-palette"
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -64,17 +66,20 @@ export default function RootLayout({
       <body className={dmSans.className}>
         <QueryProvider>
           <AuthProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="light"
-              disableTransitionOnChange
-            >
-              <Navbar />
-              {children}
-              <SetStylingPref />
-              <ScrollToTop />
-              <Toaster />
-            </ThemeProvider>
+            <WebSocketProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="light"
+                disableTransitionOnChange
+              >
+                <Navbar />
+                {children}
+                <SetStylingPref />
+                <ScrollToTop />
+                <CommandPalette />
+                <Toaster />
+              </ThemeProvider>
+            </WebSocketProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

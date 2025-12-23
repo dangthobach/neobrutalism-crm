@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Notification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 32px 24px;
+            background-color: #ffffff;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        .priority-urgent {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+        .priority-high {
+            background-color: #fed7aa;
+            color: #ea580c;
+        }
+        .priority-normal {
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+        .priority-low {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+        .message {
+            font-size: 16px;
+            color: #4b5563;
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+        .action-button {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.25);
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(37, 99, 235, 0.35);
+        }
+        .metadata {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .metadata-item {
+            margin-bottom: 8px;
+        }
+        .footer {
+            padding: 24px;
+            background-color: #f9fafb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer p {
+            margin-bottom: 8px;
+        }
+        .footer a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        @media only screen and (max-width: 600px) {
+            .content {
+                padding: 24px 16px;
+            }
+            .header {
+                padding: 24px 16px;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 th:text="${appName}">Neobrutalism CRM</h1>
+            <p>You have a new notification</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Priority Badge -->
+            <span th:if="${priority != null}" 
+                  th:class="${'priority-badge priority-' + #strings.toLowerCase(priority)}"
+                  th:text="${priority}">
+                NORMAL
+            </span>
+
+            <!-- Title -->
+            <h2 th:text="${title}" style="font-size: 20px; color: #111827; margin-bottom: 16px;">
+                Notification Title
+            </h2>
+
+            <!-- Message -->
+            <div class="message" th:utext="${message}">
+                This is your notification message.
+            </div>
+
+            <!-- Action Button -->
+            <div th:if="${hasAction}" style="margin-top: 24px;">
+                <a th:href="${actionUrl}" class="action-button">
+                    View Details
+                </a>
+            </div>
+
+            <!-- Metadata -->
+            <div class="metadata">
+                <div class="metadata-item" th:if="${entityType != null}">
+                    <strong>Related to:</strong> <span th:text="${entityType}">Entity</span>
+                </div>
+                <div class="metadata-item" th:if="${notificationType != null}">
+                    <strong>Type:</strong> <span th:text="${notificationType}">System</span>
+                </div>
+                <div class="metadata-item">
+                    <strong>Sent:</strong> <span th:text="${#temporals.format(timestamp, 'MMM dd, yyyy HH:mm')}">Jan 01, 2025 10:00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>This is an automated notification from <span th:text="${appName}">Neobrutalism CRM</span></p>
+            <p>
+                <a th:href="${preferencesUrl}">Manage notification preferences</a>
+            </p>
+            <p style="margin-top: 16px;">
+                © <span th:text="${#temporals.year(#temporals.createNow())}">2025</span> <span th:text="${appName}">Neobrutalism CRM</span>. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

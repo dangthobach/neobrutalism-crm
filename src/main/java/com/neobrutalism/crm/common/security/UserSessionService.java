@@ -9,6 +9,7 @@ import com.neobrutalism.crm.domain.userrole.model.UserRole;
 import com.neobrutalism.crm.domain.userrole.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,10 @@ public class UserSessionService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
-    private final PermissionService permissionService;
+    
+    // Optional: Only available when casbin.enabled=true
+    @Autowired(required = false)
+    private PermissionService permissionService;
 
     /**
      * Get user by ID with caching
@@ -78,9 +82,16 @@ public class UserSessionService {
 
     /**
      * Get user permissions from Casbin with caching
+     * Returns empty set if Casbin is not enabled
      */
     @Cacheable(value = CacheConfig.USER_PERMISSIONS_CACHE, key = "#userId + '_' + #tenantId")
     public Set<String> getUserPermissions(UUID userId, String tenantId) {
+        // If Casbin is not enabled, return empty permissions
+        if (permissionService == null) {
+            log.debug("Casbin not enabled, returning empty permissions for user: {} (tenant: {})", userId, tenantId);
+            return new HashSet<>();
+        }
+
         log.debug("Loading user permissions from Casbin: {} (tenant: {})", userId, tenantId);
 
         Set<String> roles = getUserRoles(userId);

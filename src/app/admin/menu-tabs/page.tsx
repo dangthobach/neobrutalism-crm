@@ -20,6 +20,7 @@ import {
 import { useRootMenus } from "@/hooks/useMenus"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table-reusable"
+import { PermissionGuard } from "@/components/auth/permission-guard"
 
 export default function MenuTabsPage() {
   const [open, setOpen] = useState(false)
@@ -67,7 +68,7 @@ export default function MenuTabsPage() {
         accessorKey: "menuId",
         header: "Menu",
         cell: ({ row }) => (
-          <Badge variant="outline">
+          <Badge variant="neutral">
             {getMenuName(row.original.menuId)}
           </Badge>
         )
@@ -81,7 +82,7 @@ export default function MenuTabsPage() {
           </div>
         ),
         cell: ({ row }) => (
-          <Badge variant="secondary">{row.original.displayOrder}</Badge>
+          <Badge variant="neutral">{row.original.displayOrder}</Badge>
         )
       },
       {
@@ -98,17 +99,21 @@ export default function MenuTabsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
-              Edit
-            </Button>
-            <Button
-              variant="noShadow"
-              size="sm"
-              onClick={() => onDelete(row.original.id)}
-              disabled={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
+            <PermissionGuard routeOrCode="/menu-tabs" permission="canEdit">
+              <Button variant="noShadow" size="sm" onClick={() => onEdit(row.original)}>
+                Edit
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard routeOrCode="/menu-tabs" permission="canDelete">
+              <Button
+                variant="noShadow"
+                size="sm"
+                onClick={() => onDelete(row.original.id)}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </PermissionGuard>
           </div>
         ),
       },
@@ -195,9 +200,6 @@ export default function MenuTabsPage() {
         <DataTable
           columns={columns}
           data={menuTabs}
-          searchColumn="name"
-          searchPlaceholder="Search tabs..."
-          isLoading={isLoading}
         />
       </div>
 

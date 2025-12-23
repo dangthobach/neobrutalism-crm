@@ -4,6 +4,7 @@ import com.neobrutalism.crm.common.dto.ApiResponse;
 import com.neobrutalism.crm.common.dto.PageResponse;
 import com.neobrutalism.crm.domain.customer.dto.CustomerRequest;
 import com.neobrutalism.crm.domain.customer.dto.CustomerResponse;
+import com.neobrutalism.crm.domain.customer.dto.CustomerStatsResponse;
 import com.neobrutalism.crm.domain.customer.model.Customer;
 import com.neobrutalism.crm.domain.customer.model.CustomerStatus;
 import com.neobrutalism.crm.domain.customer.model.CustomerType;
@@ -44,13 +45,37 @@ public class CustomerController {
             @RequestParam(defaultValue = "companyName") String sortBy,
             @RequestParam(defaultValue = "ASC") String sortDirection) {
 
+        // Validate and map sortBy field name
+        String validatedSortBy = validateAndMapSortField(sortBy);
+        
         Sort.Direction direction = Sort.Direction.fromString(sortDirection);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, validatedSortBy));
 
         Page<Customer> customerPage = customerService.findAllActive(pageable);
         Page<CustomerResponse> responsePage = customerPage.map(CustomerResponse::from);
 
         return ApiResponse.success(PageResponse.from(responsePage));
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "Get customer statistics", description = "Get comprehensive statistics about customers")
+    public ApiResponse<CustomerStatsResponse> getCustomerStats() {
+        CustomerStatsResponse stats = customerService.getStats();
+        return ApiResponse.success(stats);
+    }
+
+    @GetMapping("/stats/by-status")
+    @Operation(summary = "Get customer count by status", description = "Get the count of customers for each status")
+    public ApiResponse<Long> countByStatus(@RequestParam CustomerStatus status) {
+        long count = customerService.countByStatus(status);
+        return ApiResponse.success(count);
+    }
+
+    @GetMapping("/stats/by-type")
+    @Operation(summary = "Get customer count by type", description = "Get the count of customers for each type")
+    public ApiResponse<Long> countByType(@RequestParam CustomerType type) {
+        long count = customerService.countByType(type);
+        return ApiResponse.success(count);
     }
 
     @GetMapping("/{id}")
@@ -277,18 +302,34 @@ public class CustomerController {
         return ApiResponse.success("Last contact date updated", CustomerResponse.from(customer));
     }
 
-    @GetMapping("/stats/by-status")
-    @Operation(summary = "Get customer count by status", description = "Get the count of customers for each status")
-    public ApiResponse<Long> countByStatus(@RequestParam CustomerStatus status) {
-        long count = customerService.countByStatus(status);
-        return ApiResponse.success(count);
-    }
-
-    @GetMapping("/stats/by-type")
-    @Operation(summary = "Get customer count by type", description = "Get the count of customers for each type")
-    public ApiResponse<Long> countByType(@RequestParam CustomerType type) {
-        long count = customerService.countByType(type);
-        return ApiResponse.success(count);
+    /**
+     * Validate and map sort field name to actual entity field
+     */
+    private String validateAndMapSortField(String sortBy) {
+        // Map common field names that might come from frontend
+        return switch (sortBy.toLowerCase()) {
+            case "name" -> "companyName"; // Frontend might use "name"
+            case "company" -> "companyName";
+            case "type" -> "customerType";
+            case "owner" -> "ownerId";
+            case "branch" -> "branchId";
+            case "organization" -> "organizationId";
+            // Valid field names as-is
+            case "companyname", "companyName" -> "companyName";
+            case "code" -> "code";
+            case "email" -> "email";
+            case "phone" -> "phone";
+            case "status" -> "status";
+            case "customertype", "customerType" -> "customerType";
+            case "industry" -> "industry";
+            case "acquisitiondate", "acquisitionDate" -> "acquisitionDate";
+            case "lastcontactdate", "lastContactDate" -> "lastContactDate";
+            case "rating" -> "rating";
+            case "isvip", "isVip" -> "isVip";
+            case "createdat", "createdAt" -> "createdAt";
+            case "updatedat", "updatedAt" -> "updatedAt";
+            default -> "companyName"; // Default to companyName if unknown field
+        };
     }
 
     /**

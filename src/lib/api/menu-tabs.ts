@@ -50,77 +50,49 @@ export class MenuTabApi {
    * Get all menu tabs with pagination
    */
   async getMenuTabs(params?: MenuTabQueryParams): Promise<PageResponse<MenuTab>> {
-    const response = await apiClient.get<PageResponse<MenuTab>>('/menu-tabs', params)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<PageResponse<MenuTab>>('/menu-tabs', params)
   }
 
   /**
    * Get menu tab by ID
    */
   async getMenuTabById(id: string): Promise<MenuTab> {
-    const response = await apiClient.get<MenuTab>(`/menu-tabs/${id}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<MenuTab>(`/menu-tabs/${id}`)
   }
 
   /**
    * Get menu tab by code
    */
   async getMenuTabByCode(code: string): Promise<MenuTab> {
-    const response = await apiClient.get<MenuTab>(`/menu-tabs/code/${code}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<MenuTab>(`/menu-tabs/code/${code}`)
   }
 
   /**
    * Get tabs by menu ID
    */
   async getTabsByMenu(menuId: string): Promise<MenuTab[]> {
-    const response = await apiClient.get<MenuTab[]>(`/menu-tabs/menu/${menuId}`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<MenuTab[]>(`/menu-tabs/menu/${menuId}`)
   }
 
   /**
    * Get visible tabs by menu ID
    */
   async getVisibleTabsByMenu(menuId: string): Promise<MenuTab[]> {
-    const response = await apiClient.get<MenuTab[]>(`/menu-tabs/menu/${menuId}/visible`)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.get<MenuTab[]>(`/menu-tabs/menu/${menuId}/visible`)
   }
 
   /**
    * Create new menu tab
    */
   async createMenuTab(request: CreateMenuTabRequest): Promise<MenuTab> {
-    const response = await apiClient.post<MenuTab>('/menu-tabs', request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.post<MenuTab>('/menu-tabs', request)
   }
 
   /**
    * Update menu tab
    */
   async updateMenuTab(id: string, request: UpdateMenuTabRequest): Promise<MenuTab> {
-    const response = await apiClient.put<MenuTab>(`/menu-tabs/${id}`, request)
-    if (!response.data) {
-      throw new Error('No data returned from API')
-    }
-    return response.data
+    return apiClient.put<MenuTab>(`/menu-tabs/${id}`, request)
   }
 
   /**

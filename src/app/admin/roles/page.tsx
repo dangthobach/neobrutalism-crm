@@ -1,15 +1,19 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useCallback } from "react"
 import { ColumnDef, ColumnFiltersState, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, PaginationState, useReactTable, flexRender } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Shield, Settings } from "lucide-react"
+import { ArrowUpDown, Trash2, Search, Loader2, PlayCircle, PauseCircle, Shield, Settings, Filter } from "lucide-react"
 import { useRoles, useCreateRole, useUpdateRole, useDeleteRole, useActivateRole, useSuspendRole } from "@/hooks/useRoles"
 import { Role, RoleStatus } from "@/lib/api/roles"
+import { PermissionGuard } from "@/components/auth/permission-guard"
+import { usePermission } from "@/hooks/usePermission"
+import { toast } from "sonner"
+import { AdvancedSearchDialog, roleSearchFilters } from "@/components/ui/advanced-search-dialog"
 
 type RoleFormData = Omit<Role, 'id' | 'deleted' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'> & { id?: string }
 
@@ -20,6 +24,7 @@ export default function RolesPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false)
 
   // Fetch roles with React Query
   const { data: rolesData, isLoading, error, refetch } = useRoles({
@@ -38,6 +43,30 @@ export default function RolesPage() {
 
   const roles = rolesData?.content || []
   const totalPages = rolesData?.totalPages || 0
+
+  // Define handlers before using them in useMemo
+  const onDelete = useCallback(async (id: string) => {
+    if (!confirm("Are you sure you want to delete this role?")) return
+    await deleteMutation.mutateAsync(id)
+    refetch()
+  }, [deleteMutation, refetch])
+
+  const onActivate = useCallback(async (id: string) => {
+    await activateMutation.mutateAsync(id)
+    refetch()
+  }, [activateMutation, refetch])
+
+  const onSuspend = useCallback(async (id: string) => {
+    await suspendMutation.mutateAsync(id)
+    refetch()
+  }, [suspendMutation, refetch])
+
+  const handleAdvancedSearch = useCallback((filters: Record<string, string>) => {
+    console.log('Advanced search filters:', filters)
+    toast.success('Filters applied', {
+      description: `${Object.keys(filters).length} filter(s) active`
+    })
+  }, [])
 
   const columns = useMemo<ColumnDef<Role>[]>(
     () => [
@@ -122,23 +151,27 @@ export default function RolesPage() {
           const role = row.original
           return (
             <div className="flex gap-2">
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => onEdit(role)}
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => window.location.href = `/admin/roles/${role.id}/permissions`}
-                title="Manage Permissions"
-                className="bg-blue-500 text-white border-2 border-black"
-              >
-                <Settings className="h-3 w-3" />
-              </Button>
+              <PermissionGuard routeOrCode="/roles" permission="canEdit">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => onEdit(role)}
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  Edit
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/roles" permission="canEdit">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => window.location.href = `/admin/roles/${role.id}/permissions`}
+                  title="Manage Permissions"
+                  className="bg-blue-500 text-white border-2 border-black"
+                >
+                  <Settings className="h-3 w-3" />
+                </Button>
+              </PermissionGuard>
               {role.status === RoleStatus.ACTIVE ? (
                 <Button
                   variant="noShadow"
@@ -170,26 +203,28 @@ export default function RolesPage() {
                   )}
                 </Button>
               )}
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => onDelete(role.id)}
-                disabled={deleteMutation.isPending || role.isSystem}
-                className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
-                title={role.isSystem ? "Cannot delete system role" : "Delete"}
-              >
-                {deleteMutation.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3" />
-                )}
-              </Button>
+              <PermissionGuard routeOrCode="/roles" permission="canDelete">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => onDelete(role.id)}
+                  disabled={deleteMutation.isPending || role.isSystem}
+                  className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
+                  title={role.isSystem ? "Cannot delete system role" : "Delete"}
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                </Button>
+              </PermissionGuard>
             </div>
           )
         },
       },
     ],
-    [createMutation.isPending, updateMutation.isPending, deleteMutation.isPending, activateMutation.isPending, suspendMutation.isPending],
+    [createMutation.isPending, updateMutation.isPending, deleteMutation.isPending, activateMutation.isPending, suspendMutation.isPending, onDelete, onActivate, onSuspend],
   )
 
   const table = useReactTable({
@@ -269,22 +304,6 @@ export default function RolesPage() {
     refetch()
   }
 
-  async function onDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this role?")) return
-    await deleteMutation.mutateAsync(id)
-    refetch()
-  }
-
-  async function onActivate(id: string) {
-    await activateMutation.mutateAsync(id)
-    refetch()
-  }
-
-  async function onSuspend(id: string) {
-    await suspendMutation.mutateAsync(id)
-    refetch()
-  }
-
   if (error) {
     return (
       <div className="space-y-4">
@@ -309,10 +328,12 @@ export default function RolesPage() {
               Manage user roles and permissions
             </p>
           </div>
-          <Button onClick={onCreate} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
-            <Shield className="h-4 w-4 mr-2" />
-            Add Role
-          </Button>
+          <PermissionGuard routeOrCode="/roles" permission="canCreate">
+            <Button onClick={onCreate} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
+              <Shield className="h-4 w-4 mr-2" />
+              Add Role
+            </Button>
+          </PermissionGuard>
         </div>
       </header>
 
@@ -327,6 +348,15 @@ export default function RolesPage() {
               className="pl-10 border-2 border-black font-base"
             />
           </div>
+          <Button
+            variant="noShadow"
+            size="sm"
+            onClick={() => setAdvancedSearchOpen(true)}
+            disabled={isLoading}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            Advanced Search
+          </Button>
         </div>
 
         {isLoading ? (
@@ -490,6 +520,15 @@ export default function RolesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Advanced Search Dialog */}
+      <AdvancedSearchDialog
+        open={advancedSearchOpen}
+        onOpenChange={setAdvancedSearchOpen}
+        filters={roleSearchFilters}
+        onSearch={handleAdvancedSearch}
+        title="Advanced Role Search"
+      />
     </div>
   )
 }

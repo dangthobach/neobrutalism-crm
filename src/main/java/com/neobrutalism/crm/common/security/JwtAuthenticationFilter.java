@@ -1,12 +1,14 @@
 package com.neobrutalism.crm.common.security;
 
 import com.neobrutalism.crm.common.multitenancy.TenantContext;
+import com.neobrutalism.crm.common.security.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,8 +31,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserSessionService userSessionService;
-    private final PermissionService permissionService;
     private final TokenBlacklistService tokenBlacklistService;
+    
+    // Optional: Only available when casbin.enabled=true
+    @Autowired(required = false)
+    private PermissionService permissionService;
 
     @Override
     protected void doFilterInternal(
@@ -70,20 +75,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // Load complete user principal with roles and permissions (cached)
                     UserPrincipal userPrincipal = userSessionService.buildUserPrincipal(userId, tenantId);
 
-                    // Check Casbin permission for this request
-                    String requestUri = request.getRequestURI();
-                    String method = request.getMethod();
-
-                    boolean hasPermission = checkPermission(userPrincipal, tenantId, requestUri, method);
-
-                    if (!hasPermission) {
-                        log.warn("User {} denied access to {} {} (tenant: {})",
-                                username, method, requestUri, tenantId);
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\":\"Access denied\",\"message\":\"You do not have permission to access this resource\"}");
-                        return;
-                    }
+                    // Note: Permission checking is handled by CasbinAuthorizationFilter
+                    // This filter only authenticates the user and sets SecurityContext
 
                     // Create authentication with full authorities
                     UsernamePasswordAuthenticationToken authentication =
@@ -96,8 +89,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
+                    // Populate DataScopeContext from UserPrincipal for data scope enforcement
+                    DataScopeContext dataScopeContext = DataScopeContext.builder()
+                            .userId(userPrincipal.getId())
+                            .tenantId(userPrincipal.getTenantId())
+                            .dataScope(userPrincipal.getDataScope())
+                            .branchId(userPrincipal.getBranchId())
+                            .accessibleBranchIds(userPrincipal.getAccessibleBranchIds())
+                            .build();
+                    DataScopeContext.set(dataScopeContext);
+
                     log.debug("Set authentication for user: {} (tenant: {}, roles: {})",
                             username, tenantId, userPrincipal.getRoles());
+                    log.debug("DataScopeContext populated: userId={}, scope={}, branchId={}, accessibleBranches={}",
+                            userPrincipal.getId(),
+                            userPrincipal.getDataScope(),
+                            userPrincipal.getBranchId(),
+                            userPrincipal.getAccessibleBranchIds() != null ? userPrincipal.getAccessibleBranchIds().size() : 0);
                 }
             }
         } catch (Exception ex) {
@@ -107,44 +115,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
-            // Clear tenant context after request
+            // Clear contexts after request
             TenantContext.clear();
+            DataScopeContext.clear();
         }
     }
 
-    /**
-     * Check permission using Casbin
-     */
-    private boolean checkPermission(UserPrincipal userPrincipal, String tenantId, String resource, String action) {
-        // Skip permission check for public endpoints
-        if (isPublicEndpoint(resource)) {
-            return true;
-        }
-
-        // Check each role's permissions
-        for (String role : userPrincipal.getRoles()) {
-            String subject = "ROLE_" + role;
-            boolean allowed = permissionService.hasPermission(subject, tenantId, resource, action);
-            if (allowed) {
-                log.debug("Permission granted for {} to {} {} (tenant: {})", subject, action, resource, tenantId);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Check if endpoint is public (doesn't require permission check)
-     */
-    private boolean isPublicEndpoint(String uri) {
-        return uri.startsWith("/api/auth/") ||
-               uri.startsWith("/h2-console") ||
-               uri.startsWith("/swagger-ui") ||
-               uri.startsWith("/v3/api-docs") ||
-               uri.equals("/actuator/health") ||
-               uri.startsWith("/api/public/");
-    }
 
     /**
      * Extract JWT token from Authorization header

@@ -6,7 +6,6 @@ import com.neobrutalism.crm.common.multitenancy.TenantContext;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Factory for creating entities with common setup

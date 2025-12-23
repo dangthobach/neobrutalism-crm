@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, Trash2, Plus, Menu as MenuIcon, ChevronRight, Eye, EyeOff } from "lucide-react"
+import { Loader2, Trash2, Plus, Menu as MenuIcon, ChevronRight, Eye, EyeOff, RefreshCw } from "lucide-react"
 import { useMenus, useCreateMenu, useUpdateMenu, useDeleteMenu } from "@/hooks/useMenus"
 import { Menu } from "@/lib/api/menus"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PermissionGuard } from "@/components/auth/permission-guard"
+import { syncUIMenusToDatabase, countUIMenus, getUIMenuStructure } from "@/lib/menu-sync-util"
+import { toast } from "sonner"
+import { MenuAuditReport } from "./menu-audit-report"
 
 type MenuFormData = Omit<Menu, 'id' | 'deleted' | 'createdAt' | 'path' | 'level'> & { id?: string }
 
@@ -18,6 +22,8 @@ export default function MenusPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<MenuFormData | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [syncing, setSyncing] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   // Fetch all menus
   const { data: menusData, isLoading, error, refetch } = useMenus({ page: 0, size: 1000 })
@@ -52,7 +58,11 @@ export default function MenusPage() {
     // Sort by displayOrder
     const sortChildren = (items: (Menu & { children: Menu[] })[]) => {
       items.sort((a, b) => a.displayOrder - b.displayOrder)
-      items.forEach(item => sortChildren(item.children))
+      items.forEach(item => {
+        if (item.children && item.children.length > 0) {
+          sortChildren(item.children as (Menu & { children: Menu[] })[])
+        }
+      })
     }
     sortChildren(roots)
 
@@ -139,7 +149,55 @@ export default function MenusPage() {
     refetch()
   }
 
-  function renderMenuRow(menu: Menu & { children: Menu[] }, depth: number = 0) {
+  async function handleSyncFromUI() {
+    if (!confirm(`This will import ${countUIMenus()} menus from the UI code to the database. Existing menus with the same code will be skipped. Continue?`)) {
+      return
+    }
+
+    setSyncing(true)
+    try {
+      const result = await syncUIMenusToDatabase()
+
+      if (result.success) {
+        toast.success('Menu synchronization completed', {
+          description: `Created: ${result.menusCreated}, Skipped: ${result.menusSkipped}`,
+        })
+        refetch()
+      } else {
+        toast.error('Menu synchronization completed with errors', {
+          description: `Created: ${result.menusCreated}, Errors: ${result.errors.length}`,
+        })
+        console.error('Sync errors:', result.errors)
+      }
+    } catch (error: any) {
+      toast.error('Menu synchronization failed', {
+        description: error.message,
+      })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  function renderUIMenuPreview(item: any, depth: number = 0): React.ReactNode {
+    const indent = depth * 24
+    return (
+      <div key={item.code}>
+        <div className="flex items-center gap-2 p-2 border-b" style={{ paddingLeft: `${12 + indent}px` }}>
+          {item.icon && <span>{item.icon}</span>}
+          <div>
+            <div className="font-bold text-sm">{item.name}</div>
+            <div className="text-xs text-foreground/60">{item.code}</div>
+          </div>
+          {item.route && (
+            <code className="text-xs ml-auto">{item.route}</code>
+          )}
+        </div>
+        {item.children?.map((child: any) => renderUIMenuPreview(child, depth + 1))}
+      </div>
+    )
+  }
+
+  function renderMenuRow(menu: Menu & { children: Menu[] }, depth: number = 0): React.ReactNode {
     const hasChildren = menu.children.length > 0
     const isExpanded = expandedIds.has(menu.id)
     const indent = depth * 24
@@ -189,26 +247,32 @@ export default function MenusPage() {
           </TableCell>
           <TableCell>
             <div className="flex gap-2">
-              <Button variant="noShadow" size="sm" onClick={() => onCreate(menu.id)}>
-                <Plus className="h-3 w-3" />
-              </Button>
-              <Button variant="noShadow" size="sm" onClick={() => onEdit(menu)}>
-                Edit
-              </Button>
-              <Button
-                variant="noShadow"
-                size="sm"
-                onClick={() => onDelete(menu.id)}
-                disabled={deleteMutation.isPending || hasChildren}
-                className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
-                title={hasChildren ? "Cannot delete menu with children" : "Delete"}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <PermissionGuard routeOrCode="/menus" permission="canCreate">
+                <Button variant="noShadow" size="sm" onClick={() => onCreate(menu.id)}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/menus" permission="canEdit">
+                <Button variant="noShadow" size="sm" onClick={() => onEdit(menu)}>
+                  Edit
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard routeOrCode="/menus" permission="canDelete">
+                <Button
+                  variant="noShadow"
+                  size="sm"
+                  onClick={() => onDelete(menu.id)}
+                  disabled={deleteMutation.isPending || hasChildren}
+                  className="bg-red-500 text-white border-2 border-black disabled:opacity-50"
+                  title={hasChildren ? "Cannot delete menu with children" : "Delete"}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </PermissionGuard>
             </div>
           </TableCell>
         </TableRow>
-        {isExpanded && menu.children.map(child => renderMenuRow(child, depth + 1))}
+        {isExpanded && menu.children.map(child => renderMenuRow(child as Menu & { children: Menu[] }, depth + 1))}
       </>
     )
   }
@@ -229,6 +293,9 @@ export default function MenusPage() {
 
   return (
     <div className="space-y-4">
+      {/* Audit Report */}
+      <MenuAuditReport />
+
       <header className="border-4 border-black bg-main text-main-foreground p-4 shadow-[8px_8px_0_#000]">
         <div className="flex items-center justify-between">
           <div>
@@ -237,10 +304,41 @@ export default function MenusPage() {
               Manage hierarchical menu structure
             </p>
           </div>
-          <Button onClick={() => onCreate()} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
-            <MenuIcon className="h-4 w-4 mr-2" />
-            Add Root Menu
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setPreviewOpen(true)}
+              variant="noShadow"
+              className="border-2 border-black"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Preview UI Menus ({countUIMenus()})
+            </Button>
+            <PermissionGuard routeOrCode="/menus" permission="canCreate">
+              <Button
+                onClick={handleSyncFromUI}
+                disabled={syncing}
+                className="bg-blue-500 text-white border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]"
+              >
+                {syncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync from UI
+                  </>
+                )}
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard routeOrCode="/menus" permission="canCreate">
+              <Button onClick={() => onCreate()} className="bg-background text-foreground border-2 border-black hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]">
+                <MenuIcon className="h-4 w-4 mr-2" />
+                Add Root Menu
+              </Button>
+            </PermissionGuard>
+          </div>
         </div>
       </header>
 
@@ -391,6 +489,53 @@ export default function MenusPage() {
                 </>
               ) : (
                 "Save"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview UI Menus Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="border-4 border-black shadow-[8px_8px_0_#000] max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl">
+              Preview UI Menu Structure
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[60vh] border-2 border-black">
+            {getUIMenuStructure().map(item => renderUIMenuPreview(item))}
+          </div>
+          <div className="text-sm text-foreground/60">
+            Total menus: <strong>{countUIMenus()}</strong>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="noShadow"
+              onClick={() => setPreviewOpen(false)}
+              className="border-2 border-black"
+            >
+              Close
+            </Button>
+            <Button
+              variant="noShadow"
+              onClick={() => {
+                setPreviewOpen(false)
+                handleSyncFromUI()
+              }}
+              disabled={syncing}
+              className="border-2 border-black bg-blue-500 text-white"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sync to Database
+                </>
               )}
             </Button>
           </DialogFooter>
