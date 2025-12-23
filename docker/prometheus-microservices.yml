@@ -1,0 +1,59 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'crm-microservices'
+    environment: 'development'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files: []
+
+# Scrape configurations
+scrape_configs:
+  # API Gateway metrics
+  - job_name: 'gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['gateway:8080']
+        labels:
+          service: 'gateway'
+          tier: 'edge'
+
+  # IAM Service metrics
+  - job_name: 'iam-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['iam-service:8081']
+        labels:
+          service: 'iam-service'
+          tier: 'core'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          tier: 'monitoring'
+
+  # Redis monitoring (if redis-exporter is added)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         service: 'redis'
+  #         tier: 'infrastructure'
+
+  # PostgreSQL monitoring (if postgres-exporter is added)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres'
+  #         tier: 'infrastructure'

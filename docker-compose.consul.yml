@@ -1,0 +1,63 @@
+version: '3.8'
+
+# Optional Consul Service Discovery Extension
+# Use this file to add service discovery capabilities
+# Start with: docker-compose -f docker-compose.microservices.yml -f docker-compose.consul.yml up -d
+
+services:
+  # Consul Server - Service Discovery & Configuration
+  consul:
+    image: consul:1.17
+    container_name: crm-consul
+    command: agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
+    environment:
+      CONSUL_BIND_INTERFACE: eth0
+    ports:
+      - "8500:8500"  # HTTP API & UI
+      - "8600:8600/tcp"  # DNS
+      - "8600:8600/udp"  # DNS
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Update Gateway to register with Consul
+  gateway:
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: "true"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HEALTH_CHECK_PATH: /actuator/health
+      SPRING_CLOUD_CONSUL_DISCOVERY_HEALTH_CHECK_INTERVAL: 10s
+      SPRING_CLOUD_CONSUL_DISCOVERY_INSTANCE_ID: ${HOSTNAME:-gateway-1}
+      SPRING_CLOUD_CONSUL_DISCOVERY_SERVICE_NAME: gateway
+    depends_on:
+      consul:
+        condition: service_healthy
+
+  # Update IAM Service to register with Consul
+  iam-service:
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: "true"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HEALTH_CHECK_PATH: /actuator/health
+      SPRING_CLOUD_CONSUL_DISCOVERY_HEALTH_CHECK_INTERVAL: 10s
+      SPRING_CLOUD_CONSUL_DISCOVERY_INSTANCE_ID: ${HOSTNAME:-iam-service-1}
+      SPRING_CLOUD_CONSUL_DISCOVERY_SERVICE_NAME: iam-service
+    depends_on:
+      consul:
+        condition: service_healthy
+
+volumes:
+  consul_data:
+    driver: local
+
+networks:
+  crm-network:
+    external: true
