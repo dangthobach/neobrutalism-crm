@@ -2,8 +2,11 @@ package com.neobrutalism.crm.gateway.config;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
+import com.neobrutalism.crm.gateway.service.AdaptiveTTLService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -24,16 +27,22 @@ import java.time.Duration;
 @Slf4j
 public class CacheConfig {
 
-    @Value("${app.gateway.cache.jwt-validation.max-size:100000}")
+    private final AdaptiveTTLService adaptiveTTLService;
+
+    public CacheConfig(ObjectProvider<AdaptiveTTLService> adaptiveTTLServiceProvider) {
+        this.adaptiveTTLService = adaptiveTTLServiceProvider.getIfAvailable();
+    }
+
+    @Value("${app.gateway.cache.jwt-validation.max-size:500000}")
     private long jwtCacheMaxSize;
 
-    @Value("${app.gateway.cache.jwt-validation.ttl:60}")
+    @Value("${app.gateway.cache.jwt-validation.ttl:300}")
     private long jwtCacheTtl;
 
-    @Value("${app.gateway.cache.permission-check.max-size:50000}")
+    @Value("${app.gateway.cache.permission-check.max-size:200000}")
     private long permissionCacheMaxSize;
 
-    @Value("${app.gateway.cache.permission-check.ttl:60}")
+    @Value("${app.gateway.cache.permission-check.ttl:300}")
     private long permissionCacheTtl;
 
     /**
@@ -48,13 +57,25 @@ public class CacheConfig {
         log.info("Initializing JWT Validation Cache: maxSize={}, ttl={}s",
                 jwtCacheMaxSize, jwtCacheTtl);
 
-        return Caffeine.newBuilder()
+        Caffeine<Object, Object> builder = Caffeine.newBuilder()
                 .maximumSize(jwtCacheMaxSize)
-                .expireAfterWrite(Duration.ofSeconds(jwtCacheTtl))
                 .recordStats()
                 .removalListener((key, value, cause) ->
                         log.trace("JWT cache eviction: cause={}", cause))
-                .build();
+                .scheduler(com.github.benmanes.caffeine.cache.Scheduler.systemScheduler());
+
+        if (adaptiveTTLService != null) {
+            builder.expireAfter(
+                    adaptiveExpiry(
+                            AdaptiveTTLService.ResourceType.SESSION_DATA,
+                            AdaptiveTTLService.FreshnessLevel.NORMAL
+                    )
+            );
+        } else {
+            builder.expireAfterWrite(Duration.ofSeconds(jwtCacheTtl));
+        }
+
+        return builder.<String, UserContext>build();
     }
 
     /**
@@ -69,13 +90,61 @@ public class CacheConfig {
         log.info("Initializing Permission Check Cache: maxSize={}, ttl={}s",
                 permissionCacheMaxSize, permissionCacheTtl);
 
-        return Caffeine.newBuilder()
+        Caffeine<Object, Object> builder = Caffeine.newBuilder()
                 .maximumSize(permissionCacheMaxSize)
-                .expireAfterWrite(Duration.ofSeconds(permissionCacheTtl))
                 .recordStats()
                 .removalListener((key, value, cause) ->
                         log.trace("Permission cache eviction: key={}, cause={}", key, cause))
-                .build();
+                .scheduler(com.github.benmanes.caffeine.cache.Scheduler.systemScheduler());
+
+        if (adaptiveTTLService != null) {
+            builder.expireAfter(
+                    adaptiveExpiry(
+                            AdaptiveTTLService.ResourceType.USER_PERMISSIONS,
+                            AdaptiveTTLService.FreshnessLevel.IMPORTANT
+                    )
+            );
+        } else {
+            builder.expireAfterWrite(Duration.ofSeconds(permissionCacheTtl));
+        }
+
+        return builder.<String, Boolean>build();
+    }
+
+    /**
+     * Adaptive TTL expiry policy for Caffeine caches.
+     *
+     * Recomputes TTL on read/write so hot keys get extended TTL and cold keys shrink.
+     */
+    private <K, V> Expiry<K, V> adaptiveExpiry(
+            AdaptiveTTLService.ResourceType resourceType,
+            AdaptiveTTLService.FreshnessLevel freshnessLevel
+    ) {
+        return new Expiry<>() {
+            @Override
+            public long expireAfterCreate(K key, V value, long currentTime) {
+                return ttlNanos(key);
+            }
+
+            @Override
+            public long expireAfterUpdate(K key, V value, long currentTime, long currentDuration) {
+                return ttlNanos(key);
+            }
+
+            @Override
+            public long expireAfterRead(K key, V value, long currentTime, long currentDuration) {
+                return ttlNanos(key);
+            }
+
+            private long ttlNanos(K key) {
+                Duration ttl = adaptiveTTLService.calculateTTLInstant(
+                        String.valueOf(key),
+                        resourceType,
+                        freshnessLevel
+                );
+                return ttl.toNanos();
+            }
+        };
     }
 
     /**

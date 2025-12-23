@@ -1,0 +1,214 @@
+# Enterprise Production Configuration
+# Optimized for 100K+ concurrent users
+# Target: 150K RPS, <2ms latency, 98%+ cache hit rate
+
+spring:
+  application:
+    name: api-gateway-enterprise
+
+  cloud:
+    gateway:
+      httpclient:
+        pool:
+          type: fixed  # Fixed pool for better performance
+          max-connections: 100000  # Support 100K connections
+          max-idle-time: 90s
+          max-life-time: 180s
+          eviction-interval: 30s
+        connect-timeout: 2000  # 2s connection timeout
+        response-timeout: 10s  # 10s response timeout
+        wiretap: false
+        compression: true
+
+      # Enable HTTP/2 for better multiplexing
+      http2:
+        enabled: true
+
+  # Redis Configuration - High Performance
+  data:
+    redis:
+      cluster:
+        nodes:
+          - redis-node-1:6379
+          - redis-node-2:6379
+          - redis-node-3:6379
+          - redis-node-4:6379
+          - redis-node-5:6379
+          - redis-node-6:6379
+        max-redirects: 3
+      password: ${REDIS_PASSWORD}
+      timeout: 500ms  # Reduced from 2000ms for faster failover
+      lettuce:
+        pool:
+          max-active: 5000  # Support high concurrency
+          max-idle: 500
+          min-idle: 100
+          max-wait: 500ms  # Reduced from 2000ms
+        shutdown-timeout: 100ms
+        cluster:
+          refresh:
+            adaptive: true  # Adaptive topology refresh
+            period: 30s
+
+# Resilience4j - Enterprise Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 1000  # Larger window for better statistics
+        minimumNumberOfCalls: 50
+        failureRateThreshold: 20  # More sensitive
+        waitDurationInOpenState: 15s
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 3s
+
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 10000  # 10K requests per period
+        limitRefreshPeriod: 1s
+        timeoutDuration: 10ms
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 1000  # Higher concurrency
+        maxWaitDuration: 5ms
+
+# Application-specific Configuration
+app:
+  gateway:
+    # Cache Configuration - Optimized for 100K CCU
+    cache:
+      jwt-validation:
+        ttl: 900  # 15 minutes (longer for hot data)
+        max-size: 2000000  # 2M entries (100K users × 20 tokens each)
+        redis-ttl: 900
+      permission-check:
+        ttl: 600  # 10 minutes
+        max-size: 1000000  # 1M permission checks
+
+    # Enterprise Performance Features
+    performance:
+      # Bloom Filter Configuration
+      bloom-filter:
+        enabled: true
+        expected-insertions: 10000000  # 10M permissions
+        fpp: 0.0001  # 0.01% false positive rate
+        redis-sync-enabled: true
+
+      # Request Coalescing Configuration
+      request-coalescing:
+        enabled: true
+        max-inflight-requests: 500000  # 500K concurrent deduplications
+
+      # Adaptive TTL Configuration
+      adaptive-ttl:
+        enabled: true
+        min-ttl-seconds: 60  # 1 minute minimum
+        max-ttl-seconds: 3600  # 60 minutes maximum
+        default-ttl-seconds: 600  # 10 minutes default
+
+    # Security Configuration
+    security:
+      jwt:
+        cache-enabled: true
+        cache-size: 2000000
+        cache-ttl-seconds: 900
+        redis-ttl: 900
+
+    # IAM Service Client Configuration
+    iam-service:
+      url: ${IAM_SERVICE_URL:http://iam-service:8081}
+      timeout: 3000  # 3s timeout
+      max-connections: 1000
+      connection-timeout: 2000
+
+# Management & Monitoring - Enterprise
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway,refresh,caches,threaddump,heapdump
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    redis:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 5s  # More frequent metrics
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.9,0.95,0.99,0.999
+      slo:
+        http.server.requests: 1ms,5ms,10ms,50ms,100ms
+    tags:
+      application: ${spring.application.name}
+      environment: production
+  tracing:
+    sampling:
+      probability: 0.001  # 0.1% sampling for production
+
+# Logging - Production
+logging:
+  level:
+    root: WARN
+    com.neobrutalism.crm.gateway: INFO
+    com.neobrutalism.crm.gateway.service: INFO  # Performance services
+    com.neobrutalism.crm.gateway.filter: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: WARN
+    io.lettuce: WARN
+    reactor.netty: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg - traceId=%X{traceId} spanId=%X{spanId}%n"
+
+# Server Configuration - Enterprise
+server:
+  port: 8080
+  netty:
+    connection-timeout: 10s
+    idle-timeout: 120s
+    max-keep-alive-requests: 10000
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+      - application/xml
+      - text/html
+      - text/xml
+      - text/plain
+    min-response-size: 1024
+
+# JVM Configuration Recommendations (via environment variables)
+# -Xms4g -Xmx4g
+# -XX:+UseG1GC
+# -XX:MaxGCPauseMillis=200
+# -XX:ParallelGCThreads=4
+# -XX:ConcGCThreads=2
+# -XX:InitiatingHeapOccupancyPercent=70
+# -XX:+UseStringDeduplication
+# -Dreactor.netty.ioWorkerCount=16
+# -Dreactor.netty.pool.maxConnections=10000

@@ -156,3 +156,21 @@ app:
     rate-limit:
       enabled: true
       requests-per-second: 1000
+
+  # JWT Key Management Configuration
+  security:
+    jwt:
+      # Dev mode: Auto-generate and save keys to src/main/resources/jwt-keys/
+      # Keys will be reused across restarts
+      key-generation-enabled: true
+      private-key-path: classpath:jwt-keys/private_key.pem
+      public-key-path: classpath:jwt-keys/public_key.pem
+      issuer: neobrutalism-crm
+      access-token-validity-seconds: 900  # 15 minutes
+
+  # Scheduler Configuration (Non-blocking architecture)
+  scheduler:
+    # Casbin worker pool size (for blocking enforcer calls)
+    casbin-pool-size: 50  # Dev: 50 threads
+    # DB worker pool size (for blocking DB operations)
+    db-pool-size: 20  # Dev: 20 threads

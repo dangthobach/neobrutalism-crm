@@ -1,0 +1,274 @@
+# Kubernetes Deployment Example - IAM Service with JWT Key Externalization
+#
+# CRITICAL: This deployment mounts JWT keypair from Kubernetes Secret
+# Ensures tokens remain valid across pod restarts and rolling updates
+#
+# Prerequisites:
+# 1. Generate RSA keypair (see instructions below)
+# 2. Create Kubernetes Secret
+# 3. Apply this deployment
+#
+# -----------------------------------------------------------------------------
+# STEP 1: Generate JWT Keypair (ONE TIME, on secure machine)
+# -----------------------------------------------------------------------------
+#
+# # Generate 2048-bit RSA private key
+# openssl genrsa -out private_key.pem 2048
+#
+# # Extract public key
+# openssl rsa -in private_key.pem -pubout -out public_key.pem
+#
+# # Verify keys
+# openssl rsa -in private_key.pem -check
+# openssl rsa -pubin -in public_key.pem -text -noout
+#
+# # IMPORTANT: Store these keys securely!
+# # NEVER commit to git!
+# # Consider using HashiCorp Vault or AWS Secrets Manager for production
+#
+# -----------------------------------------------------------------------------
+# STEP 2: Create Kubernetes Secret
+# -----------------------------------------------------------------------------
+#
+# kubectl create secret generic jwt-keypair \
+#   --from-file=private_key.pem=./private_key.pem \
+#   --from-file=public_key.pem=./public_key.pem \
+#   -n neobrutalism-crm
+#
+# # Verify secret created
+# kubectl get secret jwt-keypair -n neobrutalism-crm
+# kubectl describe secret jwt-keypair -n neobrutalism-crm
+#
+# # Optional: Verify contents (base64 encoded)
+# kubectl get secret jwt-keypair -n neobrutalism-crm -o yaml
+#
+# -----------------------------------------------------------------------------
+# STEP 3: Apply Deployment
+# -----------------------------------------------------------------------------
+#
+# kubectl apply -f k8s-deployment-example.yaml
+#
+# # Verify deployment
+# kubectl get pods -n neobrutalism-crm
+# kubectl logs -f deployment/iam-service -n neobrutalism-crm
+#
+# # Look for log: "Successfully loaded JWT keypair (RSA-2048)"
+#
+# -----------------------------------------------------------------------------
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neobrutalism-crm
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iam-service
+  namespace: neobrutalism-crm
+  labels:
+    app: iam-service
+    version: v1
+spec:
+  replicas: 3  # High availability
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero downtime
+  selector:
+    matchLabels:
+      app: iam-service
+  template:
+    metadata:
+      labels:
+        app: iam-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: iam-service
+        image: neobrutalism-crm/iam-service:latest
+        imagePullPolicy: Always
+
+        ports:
+        - name: http
+          containerPort: 8081
+          protocol: TCP
+
+        env:
+        # Spring Profile - CRITICAL for production
+        - name: SPRING_PROFILES_ACTIVE
+          value: "enterprise"
+
+        # Database Configuration
+        - name: DB_HOST
+          value: "postgresql-cluster"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "iam_db"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: password
+
+        # Redis Configuration
+        - name: REDIS_NODE_1
+          value: "redis-cluster-0.redis-cluster:6379"
+        - name: REDIS_NODE_2
+          value: "redis-cluster-1.redis-cluster:6379"
+        - name: REDIS_NODE_3
+          value: "redis-cluster-2.redis-cluster:6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+
+        # JVM Configuration
+        - name: JAVA_OPTS
+          value: >-
+            -Xms2g -Xmx2g
+            -XX:+UseG1GC
+            -XX:MaxGCPauseMillis=200
+            -XX:+UseStringDeduplication
+            -Dreactor.netty.ioWorkerCount=8
+            -Dspring.profiles.active=enterprise
+
+        # CRITICAL: JWT keys mounted from Kubernetes Secret
+        volumeMounts:
+        - name: jwt-keys
+          mountPath: /etc/jwt-keys
+          readOnly: true  # Read-only for security
+
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        # Resource limits
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+      # CRITICAL: Mount JWT keypair secret
+      volumes:
+      - name: jwt-keys
+        secret:
+          secretName: jwt-keypair
+          defaultMode: 0400  # Read-only for owner (security)
+          items:
+          - key: private_key.pem
+            path: private_key.pem
+          - key: public_key.pem
+            path: public_key.pem
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iam-service
+  namespace: neobrutalism-crm
+  labels:
+    app: iam-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: http
+  selector:
+    app: iam-service
+
+---
+# Horizontal Pod Autoscaler - Scale based on CPU/Memory
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: iam-service-hpa
+  namespace: neobrutalism-crm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: iam-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Pod Disruption Budget - Ensure availability during rolling updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: iam-service-pdb
+  namespace: neobrutalism-crm
+spec:
+  minAvailable: 2  # Always keep at least 2 pods running
+  selector:
+    matchLabels:
+      app: iam-service
+
+---
+# ConfigMap for application-enterprise.yml overrides (optional)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iam-service-config
+  namespace: neobrutalism-crm
+data:
+  # Additional application properties
+  # These will override application-enterprise.yml
+  application-override.yml: |
+    app:
+      security:
+        jwt:
+          # CRITICAL: Disable auto-generation in production
+          key-generation-enabled: false
+          # CRITICAL: Load from mounted secret volume
+          private-key-path: file:/etc/jwt-keys/private_key.pem
+          public-key-path: file:/etc/jwt-keys/public_key.pem
+          issuer: neobrutalism-crm-production
+          access-token-validity-seconds: 900
