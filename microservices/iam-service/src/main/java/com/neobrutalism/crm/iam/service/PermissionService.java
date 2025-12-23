@@ -39,14 +39,14 @@ public class PermissionService {
 
     private final Enforcer enforcer;
     private final Cache<String, Boolean> permissionCheckCache;
-    private final Cache<CacheConfig.UserPermissionContext, CacheConfig.UserPermissionContext> userPermissionsCache;
+    private final Cache<String, CacheConfig.UserPermissionContext> userPermissionsCache;
     private final ReactiveRedisTemplate<String, Object> redisTemplate;
     private final MeterRegistry meterRegistry;
 
     public PermissionService(
             Enforcer enforcer,
             @Qualifier("permissionCheckCache") Cache<String, Boolean> permissionCheckCache,
-            @Qualifier("userPermissionsCache") Cache<CacheConfig.UserPermissionContext, CacheConfig.UserPermissionContext> userPermissionsCache,
+            @Qualifier("userPermissionsCache") Cache<String, CacheConfig.UserPermissionContext> userPermissionsCache,
             ReactiveRedisTemplate<String, Object> redisTemplate,
             MeterRegistry meterRegistry
     ) {

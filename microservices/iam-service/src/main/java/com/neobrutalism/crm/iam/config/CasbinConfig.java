@@ -36,7 +36,7 @@ public class CasbinConfig {
      * Connects to PostgreSQL to read/write policies
      */
     @Bean
-    public Adapter casbinAdapter(DataSource dataSource) {
+    public Adapter casbinAdapter(DataSource dataSource) throws Exception {
         return new JDBCAdapter(dataSource);
     }
 

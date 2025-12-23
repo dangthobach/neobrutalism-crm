@@ -12,8 +12,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
@@ -94,12 +95,13 @@ public class SecurityConfig {
                 .build();
 
         // Cache JWK keys for performance
-        decoder.setJwtValidator(new org.springframework.security.oauth2.jwt.DelegatingOAuth2TokenValidator<>(
-                new org.springframework.security.oauth2.jwt.JwtTimestampValidator(),
-                new org.springframework.security.oauth2.jwt.JwtIssuerValidator(
+        OAuth2TokenValidator<Jwt> validators = new DelegatingOAuth2TokenValidator<>(
+                new JwtTimestampValidator(),
+                new JwtIssuerValidator(
                         jwkSetUri.replace("/protocol/openid-connect/certs", "")
                 )
-        ));
+        );
+        decoder.setJwtValidator(validators);
 
         return decoder;
     }
