@@ -259,8 +259,11 @@ public class NotificationService {
 
     /**
      * Send notification via WebSocket and Email
+     * 
+     * ⭐ OPTIMIZATION: Uses dedicated notificationExecutor thread pool for 100k CCU
+     * This prevents notification sending from blocking main request threads
      */
-    @Async
+    @Async("notificationExecutor")
     protected void sendNotificationAsync(Notification notification) {
         try {
             // Send via WebSocket for real-time notification

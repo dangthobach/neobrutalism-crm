@@ -28,9 +28,12 @@ public class AuditService {
      * Log audit event asynchronously
      * Uses separate transaction to ensure audit logs are saved even if main transaction fails
      * 
+     * ⭐ OPTIMIZATION: Uses dedicated auditExecutor thread pool for 100k CCU
+     * This prevents audit logging from blocking main request threads
+     * 
      * @param event Audit event to log
      */
-    @Async
+    @Async("auditExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logAuditEvent(AuditEvent event) {
         try {

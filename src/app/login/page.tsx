@@ -1,178 +1,64 @@
 "use client"
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, Eye, EyeOff } from 'lucide-react'
-import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
+/**
+ * ⭐ CHANGED: OAuth2 Login Page
+ *
+ * BEFORE: Traditional username/password form → POST /auth/login → JWT tokens in localStorage
+ * AFTER: Automatic redirect → OAuth2 Authorization Code Flow → Session cookies
+ *
+ * Flow:
+ * 1. User visits /login
+ * 2. Automatic redirect to Gateway OAuth2 endpoint
+ * 3. Gateway redirects to Keycloak login page
+ * 4. User enters credentials in Keycloak
+ * 5. Keycloak redirects back to Gateway with authorization code
+ * 6. Gateway exchanges code for tokens, creates session in Redis
+ * 7. Gateway sets SESSION_ID cookie (HttpOnly, Secure)
+ * 8. Gateway redirects to frontend (/admin or returnUrl)
+ * 9. Frontend API calls automatically include session cookie
+ *
+ * Benefits:
+ * - No JWT tokens in localStorage (XSS protection)
+ * - No manual token refresh (OAuth2 handles it)
+ * - HttpOnly session cookies (cannot be accessed by JavaScript)
+ * - Centralized authentication via Keycloak SSO
+ */
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    rememberMe: false
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  
-  const { login } = useAuth()
-  const router = useRouter()
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  useEffect(() => {
+    // Redirect to OAuth2 authorization endpoint
+    if (typeof window !== 'undefined') {
+      console.log('[Login] Redirecting to OAuth2 login (Keycloak)...')
 
-    if (!formData.username || !formData.password) {
-      toast.error('Please fill in all fields')
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      console.log('Attempting login with:', { username: formData.username })
-
-      await login({
-        username: formData.username,
-        password: formData.password,
-        rememberMe: formData.rememberMe
-      })
-
-      console.log('Login successful, redirecting...')
-      toast.success('Login successful!')
-
-      // Check for returnUrl from query params (set by middleware)
+      // Preserve returnUrl if present
       const returnUrl = searchParams?.get('returnUrl')
-      const redirectPath = returnUrl || '/admin'
+      const state = returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''
 
-      console.log('Redirecting to:', redirectPath)
-
-      // Use window.location for full page reload to ensure auth state is fresh
-      if (typeof window !== 'undefined') {
-        window.location.href = redirectPath
-      } else {
-        router.push(redirectPath)
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      toast.error('Login failed', {
-        description: error instanceof Error ? error.message : 'Invalid credentials'
-      })
-    } finally {
-      setIsLoading(false)
+      // Redirect to Gateway OAuth2 authorization endpoint
+      // Gateway will redirect to Keycloak login page
+      window.location.href = `/login/oauth2/authorization/keycloak${state}`
     }
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
+  }, [searchParams])
 
   return (
     <div className="min-h-screen bg-secondary-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md border-4 border-black shadow-[8px_8px_0_#000]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-heading">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-heading">Redirecting to Login</CardTitle>
           <CardDescription className="font-base">
-            Sign in to your account to continue
+            Please wait while we redirect you to the login page...
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="font-base">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                placeholder="Enter your username"
-                value={formData.username}
-                onChange={handleInputChange}
-                className="border-2 border-black font-base"
-                disabled={isLoading}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password" className="font-base">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="border-2 border-black font-base pr-10"
-                  disabled={isLoading}
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="noShadow"
-                  size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                id="rememberMe"
-                name="rememberMe"
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={handleInputChange}
-                disabled={isLoading}
-                className="border-2 border-black"
-              />
-              <Label htmlFor="rememberMe" className="font-base text-sm">
-                Remember me
-              </Label>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full border-2 border-black bg-main text-main-foreground hover:translate-x-1 hover:translate-y-1 transition-all shadow-[4px_4px_0_#000]"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm font-base text-foreground/70">
-              Demo credentials:
-            </p>
-            <p className="text-sm font-base text-foreground/70">
-              Username: <span className="font-mono">admin</span>
-            </p>
-            <p className="text-sm font-base text-foreground/70">
-              Password: <span className="font-mono">admin123</span>
-            </p>
-          </div>
+        <CardContent className="flex flex-col items-center justify-center py-8">
+          <Loader2 className="h-12 w-12 animate-spin text-main mb-4" />
+          <p className="text-sm font-base text-foreground/70">
+            Redirecting to Keycloak SSO...
+          </p>
         </CardContent>
       </Card>
     </div>

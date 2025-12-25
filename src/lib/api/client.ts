@@ -46,58 +46,37 @@ function isApiResponse<T>(data: any): data is ApiResponse<T> {
 
 class ApiClient {
   private baseUrl: string
-  private accessToken: string | null = null
-  private refreshInProgress: Promise<void> | null = null
   private activeRequests = new Map<string, AbortController>()
   private cache = new Map<string, { data: any; timestamp: number }>()
   private readonly DEFAULT_TIMEOUT = 30000 // 30 seconds
   private readonly CACHE_TTL = 60000 // 1 minute
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+    // ⭐ NEW: Use Gateway URL (not direct /api) to leverage OAuth2 session
+    this.baseUrl = baseUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
   }
 
-  setAccessToken(token: string | null) {
-    this.accessToken = token
-
-    // Only access localStorage in browser environment
-    if (typeof window === 'undefined') {
-      console.warn('[ApiClient] Cannot set token in SSR environment')
-      return
-    }
-
-    if (token) {
-      localStorage.setItem('access_token', token)
-      console.log('[ApiClient] Token saved to localStorage')
-
-      // Also set as cookie for middleware to check
-      if (typeof document !== 'undefined') {
-        document.cookie = `access_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-        console.log('[ApiClient] Token saved to cookie')
-      }
-    } else {
-      localStorage.removeItem('access_token')
-      console.log('[ApiClient] Token removed from localStorage')
-
-      // Clear cookie
-      if (typeof document !== 'undefined') {
-        document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-        console.log('[ApiClient] Token removed from cookie')
-      }
-    }
+  /**
+   * ⭐ DEPRECATED: OAuth2 session-based auth doesn't use access tokens
+   * Session cookies are managed automatically by the browser
+   * Keeping for backward compatibility during migration
+   */
+  setAccessToken(_token: string | null) {
+    console.warn('[ApiClient] setAccessToken is deprecated - using OAuth2 session cookies instead')
   }
 
+  /**
+   * ⭐ DEPRECATED: No refresh token needed with OAuth2
+   */
   clearRefreshToken() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('refresh_token')
-    }
+    console.warn('[ApiClient] clearRefreshToken is deprecated - OAuth2 handles token refresh automatically')
   }
 
+  /**
+   * ⭐ DEPRECATED: Session cookies replace access tokens
+   */
   getAccessToken(): string | null {
-    if (!this.accessToken && typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('access_token')
-    }
-    return this.accessToken
+    return null
   }
 
   private async request<T>(
@@ -107,13 +86,12 @@ class ApiClient {
     maxRetries = 3
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
-    const token = this.getAccessToken()
-    
+
     // Create abort controller for timeout and cancellation
     const controller = new AbortController()
     const requestId = `${options.method || 'GET'}_${endpoint}`
     this.activeRequests.set(requestId, controller)
-    
+
     // Set timeout
     const timeoutId = setTimeout(() => {
       controller.abort()
@@ -128,9 +106,7 @@ class ApiClient {
       Object.assign(headers, options.headers)
     }
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+    // ⭐ REMOVED: No Authorization header needed - using OAuth2 session cookies
 
     // Log request in development
     if (process.env.NODE_ENV === 'development') {
@@ -147,6 +123,8 @@ class ApiClient {
         ...options,
         headers,
         signal: controller.signal,
+        // ⭐ CRITICAL: Include credentials (cookies) for OAuth2 session
+        credentials: 'include',
       })
 
       // Parse JSON response
@@ -164,37 +142,14 @@ class ApiClient {
 
       // Handle HTTP errors
       if (!response.ok) {
-        // Handle 401 Unauthorized - try to refresh token
-        if (response.status === 401 && retryCount === 0 && token) {
-          // If a refresh is already in progress, wait for it instead of starting a new one
-          if (this.refreshInProgress) {
-            try {
-              await this.refreshInProgress
-              return this.request(endpoint, options, retryCount + 1)
-            } catch (e) {
-              // refresh failed
-              this.setAccessToken(null)
-              this.clearRefreshToken()
-              if (typeof window !== 'undefined') window.location.href = '/login'
-              throw new ApiError(401, 'UNAUTHORIZED', 'Session expired')
-            }
+        // ⭐ Handle 401 Unauthorized - OAuth2 session expired
+        if (response.status === 401 && retryCount === 0) {
+          console.error('❌ Session expired (401) - redirecting to OAuth2 login')
+          if (typeof window !== 'undefined') {
+            // Redirect to Gateway OAuth2 login
+            window.location.href = '/login/oauth2/authorization/keycloak'
           }
-
-          // Start refresh flow
-          this.refreshInProgress = this.refreshToken()
-          try {
-            await this.refreshInProgress
-            // refresh succeeded, clear the marker and retry
-            this.refreshInProgress = null
-            return this.request(endpoint, options, retryCount + 1)
-          } catch (refreshError) {
-            // If refresh fails, clear tokens and redirect to login
-            this.refreshInProgress = null
-            this.setAccessToken(null)
-            this.clearRefreshToken()
-            if (typeof window !== 'undefined') window.location.href = '/login'
-            throw new ApiError(401, 'UNAUTHORIZED', 'Session expired')
-          }
+          throw new ApiError(401, 'UNAUTHORIZED', 'Session expired')
         }
 
         // Extract error message from ApiResponse wrapper or raw response
@@ -328,41 +283,10 @@ class ApiClient {
     }
   }
 
-  private async refreshToken(): Promise<void> {
-    const refreshTokenValue = typeof window !== 'undefined' 
-      ? localStorage.getItem('refresh_token') 
-      : null
-    
-    if (!refreshTokenValue) {
-      throw new Error('No refresh token available')
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken: refreshTokenValue }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Token refresh failed')
-      }
-
-      const data = await response.json()
-      
-      if (data.data) {
-        this.setAccessToken(data.data.accessToken)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('refresh_token', data.data.refreshToken)
-        }
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error)
-      throw error
-    }
-  }
+  /**
+   * ⭐ REMOVED: OAuth2 Gateway handles token refresh automatically
+   * No manual refresh needed - Spring Security OAuth2 Client manages this
+   */
 
   /**
    * GET request with optional caching
