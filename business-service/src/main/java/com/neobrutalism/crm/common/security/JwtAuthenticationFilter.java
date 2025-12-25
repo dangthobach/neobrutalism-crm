@@ -44,6 +44,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
         try {
+            // ⭐ OPTIMIZATION: Skip JWT validation if already authenticated by Gateway
+            // GatewayAuthenticationFilter runs first and sets SecurityContext
+            if (SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
+                log.debug("✅ User already authenticated by Gateway, skipping JWT validation");
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
