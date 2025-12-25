@@ -51,6 +51,10 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final Environment environment;
 
+    // Gateway authentication filter (trusts X-User-Id header)
+    @Autowired(required = false)
+    private com.neobrutalism.crm.common.security.GatewayAuthenticationFilter gatewayAuthenticationFilter;
+
     // Optional: Rate limiting filter (only available when rate-limit.enabled=true)
     @Autowired(required = false)
     private RateLimitFilter rateLimitFilter;
@@ -116,7 +120,15 @@ public class SecurityConfig {
             http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         }
 
-        // JWT authentication filter
+        // ⭐ NEW: Gateway authentication filter (trusts X-User-Id header)
+        // Priority: HIGHEST - runs before JWT filter
+        // If X-User-Id header present (from Gateway), skip JWT validation
+        if (gatewayAuthenticationFilter != null) {
+            http.addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+
+        // JWT authentication filter (backward compatibility)
+        // Only runs if Gateway filter didn't authenticate
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Casbin authorization filter (dynamic role-based authorization) - only if enabled
