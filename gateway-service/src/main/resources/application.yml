@@ -1,0 +1,199 @@
+spring:
+  application:
+    name: gateway-service
+
+  profiles:
+    active: dev
+
+  cloud:
+    gateway:
+      # Global CORS configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      # Default filters for all routes
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+        - Retry=3
+
+      # Route definitions
+      routes:
+        # Business Service Route
+        - id: business-service
+          uri: lb://business-service
+          predicates:
+            - Path=/api/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${gateway.rate-limit.default-limit.replenish-rate:100}
+                redis-rate-limiter.burstCapacity: ${gateway.rate-limit.default-limit.burst-capacity:200}
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@rateLimitKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: businessServiceCircuitBreaker
+                fallbackUri: forward:/fallback/business-service
+            - name: CacheRequestBody
+            - name: DedupeResponseHeader
+              args:
+                name: Access-Control-Allow-Credentials
+                strategy: RETAIN_FIRST
+
+        # Health check route (bypass gateway)
+        - id: health
+          uri: lb://business-service
+          predicates:
+            - Path=/actuator/health
+          filters:
+            - StripPrefix=0
+
+        # Metrics route
+        - id: metrics
+          uri: lb://business-service
+          predicates:
+            - Path=/actuator/prometheus
+          filters:
+            - StripPrefix=0
+
+    # Consul Service Discovery
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      discovery:
+        enabled: true
+        health-check-interval: 10s
+        health-check-critical-timeout: 30s
+        instance-id: ${spring.application.name}-${spring.cloud.client.ip-address}-${server.port}
+        prefer-ip-address: true
+        tags:
+          - gateway
+          - api
+
+  # Redis Configuration for L2 Cache and Rate Limiting
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 60000
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+        shutdown-timeout: 100ms
+      reactive:
+        timeout: 5000ms
+
+  # Caffeine Cache Configuration (L1 Cache)
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=5m,expireAfterAccess=2m
+    cache-names:
+      - route-cache
+      - response-cache
+      - service-instance-cache
+
+server:
+  port: 8080
+  # Netty configuration for high performance
+  netty:
+    connection-timeout: 20000
+    idle-timeout: 60s
+
+# Gateway-specific configuration
+gateway:
+  # Rate Limiting Configuration
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    default-limit:
+      replenish-rate: 100      # Requests per second
+      burst-capacity: 200      # Burst capacity
+    per-ip-limit:
+      replenish-rate: 50
+      burst-capacity: 100
+    per-user-limit:
+      replenish-rate: 200
+      burst-capacity: 400
+
+  # Caching Configuration
+  cache:
+    l1:
+      enabled: true
+      max-size: 10000
+      ttl-seconds: 300        # 5 minutes
+    l2:
+      enabled: true
+      ttl-seconds: 600        # 10 minutes
+    response-cache:
+      enabled: true
+      ttl-seconds: 60         # 1 minute for GET requests
+      cacheable-status-codes: 200,304
+
+  # Request Coalescing Configuration
+  coalescing:
+    enabled: true
+    window-ms: 100            # Coalesce requests within 100ms window
+    max-wait-ms: 500          # Maximum wait time
+    enabled-for-methods:
+      - GET
+      - HEAD
+
+  # Circuit Breaker Configuration
+  circuit-breaker:
+    enabled: true
+    failure-rate-threshold: 50
+    wait-duration-in-open-state: 10s
+    sliding-window-size: 10
+    minimum-number-of-calls: 5
+
+  # Service Discovery Configuration
+  service-discovery:
+    refresh-interval: 30s
+    health-check-interval: 10s
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.1
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.neobrutalism.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.consul: INFO
+    reactor.netty: WARN
+
