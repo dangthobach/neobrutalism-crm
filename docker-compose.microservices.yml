@@ -8,20 +8,31 @@ services:
   # Infrastructure Layer
   # ====================
 
-  # PostgreSQL Database - Main database for monolith + microservices
+  # PostgreSQL Database - Main database (Master for Write)
   postgres:
     image: postgres:16-alpine
-    container_name: crm-postgres
+    container_name: crm-postgres-master
     environment:
       POSTGRES_DB: neobrutalism_crm
       POSTGRES_USER: crm_user
       POSTGRES_PASSWORD: crm_password_2024
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+      POSTGRES_REPLICATION_MODE: master
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: repl_password_2024
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/init-microservices-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_master_data:/var/lib/postgresql/data
+      - ./docker/init-microservices-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./docker/init-replication.sql:/docker-entrypoint-initdb.d/02-replication.sql
+    command: |
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby=on
+      -c shared_preload_libraries=pg_stat_statements
     networks:
       - crm-network
     healthcheck:
@@ -30,57 +41,267 @@ services:
       timeout: 5s
       retries: 5
 
+  # PostgreSQL Read Replica - For Read operations
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: crm-postgres-replica
+    environment:
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password_2024
+      PGPASSWORD: crm_password_2024
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication_slot --host=postgres --port=5432 --username=replicator --password; do
+        echo 'Waiting for primary to be ready...'
+        sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak Database (Separate from app DB)
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: crm-keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak_user
+      POSTGRES_PASSWORD: keycloak_password_2024
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak_user -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Redis Cluster - L2 cache and rate limiting
-  # Node 1 (Master)
-  redis-node-1:
+  # Master Nodes
+  redis-master-1:
     image: redis:7-alpine
-    container_name: crm-redis-1
-    command: redis-server --port 6379 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --requirepass redis_password_2024
+    container_name: crm-redis-master-1
+    command: >
+      sh -c "redis-server
+      --port 7000
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --requirepass redis_password_2024
+      --masterauth redis_password_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --dir /data"
     ports:
-      - "6379:6379"
+      - "7000:7000"
+      - "17000:17000"
     volumes:
-      - redis_node_1_data:/data
+      - redis_master_1_data:/data
     networks:
       - crm-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis_password_2024", "ping"]
+      test: ["CMD", "redis-cli", "-p", "7000", "-a", "redis_password_2024", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Node 2 (Master)
-  redis-node-2:
+  redis-master-2:
     image: redis:7-alpine
-    container_name: crm-redis-2
-    command: redis-server --port 6380 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --requirepass redis_password_2024
+    container_name: crm-redis-master-2
+    command: >
+      sh -c "redis-server
+      --port 7001
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --requirepass redis_password_2024
+      --masterauth redis_password_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --dir /data"
     ports:
-      - "6380:6380"
+      - "7001:7001"
+      - "17001:17001"
     volumes:
-      - redis_node_2_data:/data
+      - redis_master_2_data:/data
     networks:
       - crm-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6380", "-a", "redis_password_2024", "ping"]
+      test: ["CMD", "redis-cli", "-p", "7001", "-a", "redis_password_2024", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Node 3 (Master)
-  redis-node-3:
+  redis-master-3:
     image: redis:7-alpine
-    container_name: crm-redis-3
-    command: redis-server --port 6381 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --requirepass redis_password_2024
+    container_name: crm-redis-master-3
+    command: >
+      sh -c "redis-server
+      --port 7002
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_password_2024
+      --masterauth redis_password_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru"
     ports:
-      - "6381:6381"
+      - "7002:7002"
+      - "17002:17002"
     volumes:
-      - redis_node_3_data:/data
+      - redis_master_3_data:/data
     networks:
       - crm-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6381", "-a", "redis_password_2024", "ping"]
+      test: ["CMD", "redis-cli", "-p", "7002", "-a", "redis_password_2024", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Slave Nodes
+  redis-slave-1:
+    image: redis:7-alpine
+    container_name: crm-redis-slave-1
+    command: >
+      sh -c "redis-server
+      --port 7003
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_password_2024
+      --masterauth redis_password_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru"
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    volumes:
+      - redis_slave_1_data:/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7003", "-a", "redis_password_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-slave-2:
+    image: redis:7-alpine
+    container_name: crm-redis-slave-2
+    command: >
+      sh -c "redis-server
+      --port 7004
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_password_2024
+      --masterauth redis_password_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru"
+    ports:
+      - "7004:7004"
+      - "17004:17004"
+    volumes:
+      - redis_slave_2_data:/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7004", "-a", "redis_password_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-slave-3:
+    image: redis:7-alpine
+    container_name: crm-redis-slave-3
+    command: >
+      sh -c "redis-server
+      --port 7005
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --requirepass redis_password_2024
+      --masterauth redis_password_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru"
+    ports:
+      - "7005:7005"
+      - "17005:17005"
+    volumes:
+      - redis_slave_3_data:/data
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7005", "-a", "redis_password_2024", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cluster Initialization
+  redis-cluster-init:
+    image: redis:7-alpine
+    container_name: crm-redis-cluster-init
+    command: >
+      sh -c "sleep 10 &&
+      redis-cli --cluster create
+      crm-redis-master-1:7000
+      crm-redis-master-2:7001
+      crm-redis-master-3:7002
+      crm-redis-slave-1:7003
+      crm-redis-slave-2:7004
+      crm-redis-slave-3:7005
+      --cluster-replicas 1
+      --cluster-yes
+      -a redis_password_2024"
+    depends_on:
+      redis-master-1:
+        condition: service_healthy
+      redis-master-2:
+        condition: service_healthy
+      redis-master-3:
+        condition: service_healthy
+      redis-slave-1:
+        condition: service_healthy
+      redis-slave-2:
+        condition: service_healthy
+      redis-slave-3:
+        condition: service_healthy
+    networks:
+      - crm-network
 
   # Keycloak - Identity Provider
   keycloak:
@@ -90,17 +311,21 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: crm_user
-      KC_DB_PASSWORD: crm_password_2024
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: keycloak_password_2024
       KC_HOSTNAME_STRICT: false
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
-    command: start-dev
+      KC_METRICS_ENABLED: true
+      KC_LOG_LEVEL: INFO
+    command: start-dev --import-realm
     ports:
       - "8180:8080"
+    volumes:
+      - ./docker/keycloak/realms:/opt/keycloak/data/import
     depends_on:
-      postgres:
+      keycloak-db:
         condition: service_healthy
     networks:
       - crm-network
@@ -109,7 +334,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
 
   # MinIO Object Storage
   minio:
@@ -148,9 +373,8 @@ services:
       # EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
       # IAM Service
       IAM_SERVICE_URL: http://iam-service:8081
-      # Redis
-      SPRING_DATA_REDIS_HOST: redis-node-1
-      SPRING_DATA_REDIS_PORT: 6379
+      # Redis Cluster
+      SPRING_DATA_REDIS_CLUSTER_NODES: redis-master-1:7000,redis-master-2:7001,redis-master-3:7002
       SPRING_DATA_REDIS_PASSWORD: redis_password_2024
       # JWT
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production-min-256-bits-long}
@@ -162,8 +386,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      redis-node-1:
-        condition: service_healthy
+      redis-cluster-init:
+        condition: service_completed_successfully
       iam-service:
         condition: service_healthy
     networks:
@@ -190,11 +414,9 @@ services:
       DB_NAME: iam_db
       DB_USERNAME: crm_user
       DB_PASSWORD: crm_password_2024
-      # Redis
-      REDIS_NODE_1: redis-node-1:6379
-      REDIS_NODE_2: redis-node-2:6380
-      REDIS_NODE_3: redis-node-3:6381
-      REDIS_PASSWORD: redis_password_2024
+      # Redis Cluster
+      SPRING_DATA_REDIS_CLUSTER_NODES: redis-master-1:7000,redis-master-2:7001,redis-master-3:7002
+      SPRING_DATA_REDIS_PASSWORD: redis_password_2024
       # Keycloak
       KEYCLOAK_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: crm
@@ -212,12 +434,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis-node-1:
-        condition: service_healthy
-      redis-node-2:
-        condition: service_healthy
-      redis-node-3:
-        condition: service_healthy
+      redis-cluster-init:
+        condition: service_completed_successfully
       keycloak:
         condition: service_healthy
     networks:
@@ -239,15 +457,33 @@ services:
     image: prom/prometheus:latest
     container_name: crm-prometheus
     volumes:
-      - ./docker/prometheus-microservices.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     ports:
       - "9090:9090"
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # Alertmanager - Alert management
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: crm-alertmanager
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
     networks:
       - crm-network
     restart: unless-stopped
@@ -296,17 +532,29 @@ services:
       MH_UI_WEB_PATH: mailhog
 
 volumes:
-  postgres_data:
+  postgres_master_data:
     driver: local
-  redis_node_1_data:
+  postgres_replica_data:
     driver: local
-  redis_node_2_data:
+  keycloak_db_data:
     driver: local
-  redis_node_3_data:
+  redis_master_1_data:
+    driver: local
+  redis_master_2_data:
+    driver: local
+  redis_master_3_data:
+    driver: local
+  redis_slave_1_data:
+    driver: local
+  redis_slave_2_data:
+    driver: local
+  redis_slave_3_data:
     driver: local
   minio_data:
     driver: local
   prometheus_data:
+    driver: local
+  alertmanager_data:
     driver: local
   grafana_data:
     driver: local

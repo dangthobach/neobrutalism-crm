@@ -1,0 +1,55 @@
+# ========================================
+# Crontab Example for Automated Backups
+# ========================================
+# Install: crontab -e
+# Then add these lines
+
+# Environment variables
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Database credentials
+DB_PASSWORD=crm_password_2024
+REDIS_PASSWORD=redis_password_2024
+KEYCLOAK_DB_PASSWORD=keycloak_password_2024
+
+# Backup directory
+BACKUP_BASE=/var/backups
+
+# ========================================
+# Backup Schedule
+# ========================================
+
+# PostgreSQL: Daily at 2:00 AM
+0 2 * * * /path/to/neobrutalism-crm/docker/backup/backup-postgres.sh >> /var/log/backup-postgres.log 2>&1
+
+# Redis Cluster: Every 6 hours
+0 */6 * * * /path/to/neobrutalism-crm/docker/backup/backup-redis.sh >> /var/log/backup-redis.log 2>&1
+
+# Keycloak: Daily at 3:00 AM
+0 3 * * * /path/to/neobrutalism-crm/docker/backup/backup-keycloak.sh >> /var/log/backup-keycloak.log 2>&1
+
+# Full backup: Weekly on Sunday at 1:00 AM
+0 1 * * 0 /path/to/neobrutalism-crm/docker/backup/backup-all.sh >> /var/log/backup-all.log 2>&1
+
+# ========================================
+# Optional: Upload to S3 (if configured)
+# ========================================
+# Sync backups to S3 daily at 4:00 AM
+# 0 4 * * * aws s3 sync /var/backups s3://your-bucket/backups/ --exclude "*" --include "*.dump" --include "*.tar.gz"
+
+# ========================================
+# Restore Commands (for reference)
+# ========================================
+
+# PostgreSQL:
+# pg_restore -h localhost -U crm_user -d neobrutalism_crm /var/backups/postgres/postgres_neobrutalism_crm_20241225.dump
+
+# Redis (restore to node):
+# docker cp backup.rdb crm-redis-master-1:/data/dump.rdb
+# docker restart crm-redis-master-1
+
+# Keycloak:
+# 1. Extract: tar -xzf keycloak-full_20241225.tar.gz
+# 2. Restore DB: pg_restore -h localhost -U keycloak_user -d keycloak keycloak-db_20241225.dump
+# 3. Import realm: docker exec crm-keycloak /opt/keycloak/bin/kc.sh import --file /tmp/realm.json

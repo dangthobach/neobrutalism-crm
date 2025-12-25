@@ -1,0 +1,70 @@
+# ========================================
+# Alertmanager Configuration
+# ========================================
+
+global:
+  resolve_timeout: 5m
+
+  # SMTP Configuration for Email Alerts
+  smtp_smarthost: '${SMTP_HOST:-smtp.gmail.com}:${SMTP_PORT:-587}'
+  smtp_from: '${SMTP_FROM:-alerts@neobrutalism.com}'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route Configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'team-email'
+
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'team-email'
+      continue: true
+
+    # Warning alerts - grouped notification
+    - match:
+        severity: warning
+      receiver: 'team-email'
+      group_wait: 1m
+      group_interval: 5m
+
+# Inhibition Rules (suppress alerts)
+inhibit_rules:
+  # Suppress warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+# Receivers
+receivers:
+  - name: 'team-email'
+    email_configs:
+      - to: '${ALERT_EMAIL:-admin@neobrutalism.com}'
+        html: '{{ template "email.html" . }}'
+        headers:
+          Subject: '[CRM Alert] {{ .GroupLabels.alertname }}'
+
+  # Optional: Slack notifications
+  # - name: 'slack-notifications'
+  #   slack_configs:
+  #     - api_url: '${SLACK_WEBHOOK_URL}'
+  #       channel: '#alerts'
+  #       title: '{{ .GroupLabels.alertname }}'
+  #       text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+
+  # Optional: PagerDuty for critical alerts
+  # - name: 'pagerduty'
+  #   pagerduty_configs:
+  #     - routing_key: '${PAGERDUTY_KEY}'
