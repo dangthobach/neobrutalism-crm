@@ -5,6 +5,13 @@ spring:
   profiles:
     active: dev  # Default to dev profile (H2)
 
+  # ⭐ OPTIMIZATION: Virtual Threads (Java 21) for 100k CCU
+  # Enables Project Loom virtual threads for high concurrency
+  # Virtual threads allow millions of concurrent requests without OS thread exhaustion
+  threads:
+    virtual:
+      enabled: true
+
   # Consul Service Discovery
   cloud:
     consul:

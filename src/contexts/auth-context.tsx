@@ -43,66 +43,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Stable reference to refreshToken function
   const refreshTokenRef = React.useRef<(() => Promise<void>) | null>(null)
 
-  // Initialize auth state from localStorage
+  /**
+   * ⭐ CHANGED: Initialize auth state from OAuth2 session (not localStorage)
+   * Checks if user has active OAuth2 session by fetching profile from backend
+   */
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('[AuthContext] Initializing auth...')
+      console.log('[AuthContext] Initializing OAuth2 auth...')
       try {
-        const token = apiClient.getAccessToken()
-        console.log('[AuthContext] Token from localStorage:', token ? 'EXISTS' : 'NULL')
+        // Try to fetch current user profile (will use session cookie automatically)
+        console.log('[AuthContext] Checking OAuth2 session...')
+        const profile = await userApi.getCurrentUserProfile()
+        console.log('[AuthContext] OAuth2 session active, profile fetched:', profile)
 
-        if (token) {
-          // Try to fetch full current user profile from backend
-          try {
-            console.log('[AuthContext] Fetching user profile...')
-            const profile = await userApi.getCurrentUserProfile()
-            console.log('[AuthContext] Profile fetched:', profile)
-
-            if (profile) {
-              setUser({
-                id: profile.id,
-                username: profile.username,
-                email: profile.email,
-                firstName: profile.firstName,
-                lastName: profile.lastName,
-                fullName: profile.fullName,
-                avatar: profile.avatar,
-                organizationId: profile.organizationId,
-                roles: (profile as any).roles || [],
-                permissions: (profile as any).permissions || [],
-              })
-              console.log('[AuthContext] User set successfully')
-              
-              // Schedule background refresh if we have an expiry stored
-              if (typeof window !== 'undefined') {
-                const expiresAt = localStorage.getItem('access_token_expires_at')
-                if (expiresAt) {
-                  const ms = Number(expiresAt) - Date.now()
-                  // schedule only if expiry in future
-                  if (ms > 0) {
-                    // set to refresh 60s before expiry
-                    const timeout = Math.max(ms - 60_000, 5_000)
-                    const id = setTimeout(() => {
-                      refreshTokenRef.current?.().catch(() => {})
-                    }, timeout)
-                    setRefreshTimer(id)
-                  }
-                }
-              }
-            }
-          } catch (err) {
-            // Token invalid or profile fetch failed -> clear tokens
-            console.error('[AuthContext] Profile fetch failed:', err)
-            apiClient.setAccessToken(null)
-            if (typeof window !== 'undefined') localStorage.removeItem('refresh_token')
-          }
-        } else {
-          console.log('[AuthContext] No token found, user not authenticated')
+        if (profile) {
+          setUser({
+            id: profile.id,
+            username: profile.username,
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            fullName: profile.fullName,
+            avatar: profile.avatar,
+            organizationId: profile.organizationId,
+            roles: (profile as any).roles || [],
+            permissions: (profile as any).permissions || [],
+          })
+          console.log('[AuthContext] User authenticated via OAuth2 session')
         }
-      } catch (error) {
-        console.error('[AuthContext] Failed to initialize auth:', error)
-        // Clear invalid token
-        apiClient.setAccessToken(null)
+      } catch (err: any) {
+        // No session or session expired
+        if (err?.status === 401) {
+          console.log('[AuthContext] No active OAuth2 session (401)')
+        } else {
+          console.error('[AuthContext] Failed to check OAuth2 session:', err)
+        }
       } finally {
         console.log('[AuthContext] Initialization complete, isLoading = false')
         setIsLoading(false)
@@ -110,139 +85,62 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     initializeAuth()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // refreshToken is handled via ref to avoid dependency
+  }, [])
 
-  const login = async (credentials: LoginRequest) => {
+  /**
+   * ⭐ CHANGED: OAuth2 login via redirect (not POST /auth/login)
+   * Redirects to Gateway OAuth2 authorization endpoint (Keycloak)
+   */
+  const login = async (_credentials: LoginRequest) => {
     try {
       setIsLoading(true)
-      console.log('[AuthContext] Login attempt for:', credentials.username)
+      console.log('[AuthContext] Redirecting to OAuth2 login (Keycloak)...')
 
-      const response: LoginResponse = await authApi.login(credentials)
-      console.log('[AuthContext] Login response received:', { userId: response.userId, username: response.username })
-
-      // Store tokens
-      apiClient.setAccessToken(response.accessToken)
-      console.log('[AuthContext] Access token stored')
-
-      // Store refresh token
+      // Redirect to Gateway OAuth2 authorization endpoint
       if (typeof window !== 'undefined') {
-        localStorage.setItem('refresh_token', response.refreshToken)
-        // store expiry timestamp
-        const expiresAt = Date.now() + (response.expiresIn * 1000)
-        localStorage.setItem('access_token_expires_at', String(expiresAt))
-        console.log('[AuthContext] Refresh token and expiry stored')
-
-        // schedule a refresh 60s before expiry
-        const timeout = Math.max(response.expiresIn * 1000 - 60_000, 5_000)
-        if (refreshTimer) {
-          clearTimeout(refreshTimer)
-        }
-        const id = setTimeout(() => {
-          refreshToken().catch(() => {})
-        }, timeout)
-        setRefreshTimer(id)
+        window.location.href = '/login/oauth2/authorization/keycloak'
       }
-
-      // Set user data - Map backend response to User interface
-      const userData = {
-        id: response.userId,
-        username: response.username,
-        email: response.email,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        fullName: response.fullName,
-        avatar: undefined, // Backend doesn't return avatar in login
-        organizationId: response.tenantId || '', // Map tenantId to organizationId
-        roles: Array.from(response.roles || []),
-        permissions: [], // Will be fetched separately or from user profile
-      }
-
-      setUser(userData)
-      console.log('[AuthContext] User data set:', userData)
     } catch (error) {
-      console.error('Login failed:', error)
+      console.error('OAuth2 redirect failed:', error)
       throw error
     } finally {
       setIsLoading(false)
     }
   }
 
+  /**
+   * ⭐ CHANGED: OAuth2 logout via Gateway (clears session + redirects to Keycloak logout)
+   */
   const logout = () => {
     try {
-      // Clear tokens
-      apiClient.setAccessToken(null)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('access_token_expires_at')
-      }
-      
-      // clear any scheduled refresh
+      console.log('[AuthContext] Logging out via OAuth2...')
+
+      // Clear any scheduled refresh timer
       if (refreshTimer) {
         clearTimeout(refreshTimer)
         setRefreshTimer(null)
       }
-      
+
       // Clear user data
       setUser(null)
-      
-      // Call logout API (optional)
-      authApi.logout().catch(console.error)
+
+      // Redirect to Gateway logout endpoint (POST /logout)
+      // Gateway will clear session and redirect to Keycloak logout
+      if (typeof window !== 'undefined') {
+        window.location.href = '/logout'
+      }
     } catch (error) {
       console.error('Logout failed:', error)
     }
   }
 
+  /**
+   * ⭐ REMOVED: OAuth2 Gateway handles token refresh automatically
+   * No manual refresh needed - Spring Security manages this transparently
+   */
   const refreshToken = async () => {
-    try {
-      const refreshTokenValue = typeof window !== 'undefined' 
-        ? localStorage.getItem('refresh_token') 
-        : null
-      
-      if (!refreshTokenValue) {
-        throw new Error('No refresh token available')
-      }
-
-      const response: LoginResponse = await authApi.refreshToken({
-        refreshToken: refreshTokenValue
-      })
-      
-      // Update tokens
-      apiClient.setAccessToken(response.accessToken)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('refresh_token', response.refreshToken)
-        const expiresAt = Date.now() + (response.expiresIn * 1000)
-        localStorage.setItem('access_token_expires_at', String(expiresAt))
-        // reschedule refresh
-        const timeout = Math.max(response.expiresIn * 1000 - 60_000, 5_000)
-        if (refreshTimer) {
-          clearTimeout(refreshTimer)
-        }
-        const id = setTimeout(() => {
-          refreshTokenRef.current?.().catch(() => {})
-        }, timeout)
-        setRefreshTimer(id)
-      }
-      
-      // Update user data - Map backend response to User interface
-      setUser({
-        id: response.userId,
-        username: response.username,
-        email: response.email,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        fullName: response.fullName,
-        avatar: undefined,
-        organizationId: response.tenantId || '',
-        roles: Array.from(response.roles || []),
-        permissions: [],
-      })
-    } catch (error) {
-      console.error('Token refresh failed:', error)
-      // If refresh fails, logout user
-      logout()
-      throw error
-    }
+    console.warn('[AuthContext] refreshToken is deprecated - OAuth2 handles token refresh automatically')
+    // No-op for backward compatibility
   }
 
   // Update ref when refreshToken function changes

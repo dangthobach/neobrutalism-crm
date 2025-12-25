@@ -91,6 +91,60 @@ public class AsyncConfig implements AsyncConfigurer {
     }
 
     /**
+     * Audit executor - Dedicated thread pool for audit logging
+     * 
+     * ⭐ OPTIMIZATION: Separate pool for audit operations to prevent blocking main requests
+     * Configuration for 100k CCU:
+     * - corePoolSize: 4 threads for concurrent audit writes
+     * - maxPoolSize: 8 threads for peak load
+     * - queueCapacity: 1000 to handle bursts
+     */
+    @Bean(name = "auditExecutor")
+    public ThreadPoolTaskExecutor auditExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(1000);
+        executor.setKeepAliveSeconds(60);
+        executor.setThreadNamePrefix("audit-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setAllowCoreThreadTimeOut(true);
+        executor.initialize();
+        
+        log.info("Initialized auditExecutor with core={}, max={}, queue={}", 4, 8, 1000);
+        return executor;
+    }
+
+    /**
+     * Notification executor - Dedicated thread pool for notification sending
+     * 
+     * ⭐ OPTIMIZATION: Separate pool for notification operations (WebSocket, Email)
+     * Configuration for 100k CCU:
+     * - corePoolSize: 6 threads for concurrent notifications
+     * - maxPoolSize: 12 threads for peak load
+     * - queueCapacity: 2000 to handle notification bursts
+     */
+    @Bean(name = "notificationExecutor")
+    public ThreadPoolTaskExecutor notificationExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(6);
+        executor.setMaxPoolSize(12);
+        executor.setQueueCapacity(2000);
+        executor.setKeepAliveSeconds(60);
+        executor.setThreadNamePrefix("notification-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setAllowCoreThreadTimeOut(true);
+        executor.initialize();
+        
+        log.info("Initialized notificationExecutor with core={}, max={}, queue={}", 6, 12, 2000);
+        return executor;
+    }
+
+    /**
      * Default async executor for other async operations
      */
     @Override
