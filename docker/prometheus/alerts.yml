@@ -1,0 +1,196 @@
+# ========================================
+# Prometheus Alert Rules
+# ========================================
+
+groups:
+  # ========================================
+  # Service Health Alerts
+  # ========================================
+  - name: service_health
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "{{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on {{ $labels.instance }}"
+          description: "Error rate is {{ humanize $value }} errors/sec on {{ $labels.instance }}."
+
+  # ========================================
+  # Performance Alerts
+  # ========================================
+  - name: performance
+    interval: 1m
+    rules:
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.instance }}"
+          description: "95th percentile latency is {{ humanize $value }}s on {{ $labels.instance }}."
+
+      - alert: HighCPUUsage
+        expr: process_cpu_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ humanizePercentage $value }} on {{ $labels.instance }}."
+
+  # ========================================
+  # Database Alerts
+  # ========================================
+  - name: database
+    interval: 1m
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Connection pool usage is {{ humanizePercentage $value }} on {{ $labels.instance }}."
+
+      - alert: SlowDatabaseQueries
+        expr: rate(hikaricp_connections_acquire_seconds_sum[5m]) / rate(hikaricp_connections_acquire_seconds_count[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is {{ humanize $value }}s on {{ $labels.instance }}."
+
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database on {{ $labels.instance }} is not responding."
+
+  # ========================================
+  # Redis Cluster Alerts
+  # ========================================
+  - name: redis
+    interval: 1m
+    rules:
+      - alert: RedisNodeDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis node {{ $labels.instance }} is down"
+          description: "Redis cluster node {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is {{ humanizePercentage $value }} on {{ $labels.instance }}."
+
+      - alert: RedisClusterSlotsCoverage
+        expr: redis_cluster_slots_ok < 16384
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis cluster has missing slots"
+          description: "Only {{ $value }} out of 16384 slots are covered."
+
+  # ========================================
+  # JVM Memory Alerts
+  # ========================================
+  - name: jvm_memory
+    interval: 1m
+    rules:
+      - alert: HighHeapMemoryUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM heap memory usage"
+          description: "Heap memory usage is {{ humanizePercentage $value }} on {{ $labels.instance }}."
+
+      - alert: HighGCRate
+        expr: rate(jvm_gc_pause_seconds_count[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High garbage collection rate"
+          description: "GC rate is {{ humanize $value }} collections/sec on {{ $labels.instance }}."
+
+  # ========================================
+  # Circuit Breaker Alerts
+  # ========================================
+  - name: circuit_breaker
+    interval: 1m
+    rules:
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker {{ $labels.name }} is OPEN"
+          description: "Circuit breaker for {{ $labels.name }} has been open for more than 2 minutes."
+
+  # ========================================
+  # Rate Limiting Alerts
+  # ========================================
+  - name: rate_limiting
+    interval: 1m
+    rules:
+      - alert: HighRateLimitRejects
+        expr: rate(redis_rate_limiter_rejected_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate limit rejection rate"
+          description: "Rate limiter is rejecting {{ humanize $value }} req/sec on {{ $labels.instance }}."
+
+  # ========================================
+  # Disk Space Alerts
+  # ========================================
+  - name: disk
+    interval: 5m
+    rules:
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ humanizePercentage $value }} disk space remaining on {{ $labels.mountpoint }}."
+
+      - alert: CriticalDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Only {{ humanizePercentage $value }} disk space remaining on {{ $labels.mountpoint }}."
