@@ -23,8 +23,8 @@ ALTER TABLE branches ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(100);
 ALTER TABLE branches ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) NOT NULL DEFAULT 'default';
 
 -- Fix audit columns type mismatch (entity expects VARCHAR, V2 created UUID)
-ALTER TABLE branches ALTER COLUMN created_by VARCHAR(100);
-ALTER TABLE branches ALTER COLUMN updated_by VARCHAR(100);
+ALTER TABLE branches ALTER COLUMN created_by TYPE VARCHAR(100);
+ALTER TABLE branches ALTER COLUMN updated_by TYPE VARCHAR(100);
 
 -- Add indexes if they don't exist (H2 will skip if exists)
 CREATE INDEX IF NOT EXISTS idx_branch_org_id ON branches(organization_id);

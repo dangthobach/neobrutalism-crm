@@ -23,9 +23,9 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS status_changed_by VARCHAR(100
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS status_reason VARCHAR(500);
 
 -- Fix audit columns type (entity expects VARCHAR, V1 created without proper length)
--- Note: H2 syntax for ALTER COLUMN
-ALTER TABLE organizations ALTER COLUMN created_by VARCHAR(100);
-ALTER TABLE organizations ALTER COLUMN updated_by VARCHAR(100);
+-- Note: PostgreSQL syntax for ALTER COLUMN
+ALTER TABLE organizations ALTER COLUMN created_by TYPE VARCHAR(100);
+ALTER TABLE organizations ALTER COLUMN updated_by TYPE VARCHAR(100);
 
 -- ============================================================================
 -- 2. FIX USERS TABLE
@@ -46,8 +46,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS status_changed_by VARCHAR(100);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS status_reason VARCHAR(500);
 
 -- Fix audit columns type (entity expects VARCHAR)
-ALTER TABLE users ALTER COLUMN created_by VARCHAR(100);
-ALTER TABLE users ALTER COLUMN updated_by VARCHAR(100);
+ALTER TABLE users ALTER COLUMN created_by TYPE VARCHAR(100);
+ALTER TABLE users ALTER COLUMN updated_by TYPE VARCHAR(100);
 
 -- ============================================================================
 -- 3. FIX ROLES TABLE
@@ -70,8 +70,8 @@ ALTER TABLE roles ADD COLUMN IF NOT EXISTS status_changed_by VARCHAR(100);
 ALTER TABLE roles ADD COLUMN IF NOT EXISTS status_reason VARCHAR(500);
 
 -- Fix audit columns type (entity expects VARCHAR)
-ALTER TABLE roles ALTER COLUMN created_by VARCHAR(100);
-ALTER TABLE roles ALTER COLUMN updated_by VARCHAR(100);
+ALTER TABLE roles ALTER COLUMN created_by TYPE VARCHAR(100);
+ALTER TABLE roles ALTER COLUMN updated_by TYPE VARCHAR(100);
 
 -- ============================================================================
 -- 4. FIX USER_ROLES TABLE
@@ -108,12 +108,12 @@ ALTER TABLE menus ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALS
 ALTER TABLE menus ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(100);
 
 -- Fix audit columns type (entity expects VARCHAR, V3 created UUID)
-ALTER TABLE menus ALTER COLUMN created_by VARCHAR(100);
-ALTER TABLE menus ALTER COLUMN updated_by VARCHAR(100);
+ALTER TABLE menus ALTER COLUMN created_by TYPE VARCHAR(100);
+ALTER TABLE menus ALTER COLUMN updated_by TYPE VARCHAR(100);
 
 -- Make menu_type nullable (V3 has this as NOT NULL, but Menu entity doesn't have this field)
 -- This allows inserts without menu_type for now
-ALTER TABLE menus ALTER COLUMN menu_type VARCHAR(50) NULL;
+ALTER TABLE menus ALTER COLUMN menu_type DROP NOT NULL;
 
 -- ============================================================================
 -- 6. FIX MENU_SCREENS TABLE
@@ -130,7 +130,7 @@ ALTER TABLE menu_screens ADD COLUMN IF NOT EXISTS component VARCHAR(500);
 ALTER TABLE menu_screens ADD COLUMN IF NOT EXISTS requires_permission BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- Make screen_type nullable (V3 has this as NOT NULL, but MenuScreen entity doesn't have this field)
-ALTER TABLE menu_screens ALTER COLUMN screen_type VARCHAR(50) NULL;
+ALTER TABLE menu_screens ALTER COLUMN screen_type DROP NOT NULL;
 
 -- ============================================================================
 -- 7. FIX ROLE_MENUS TABLE
@@ -144,8 +144,8 @@ ALTER TABLE role_menus ADD COLUMN IF NOT EXISTS can_edit BOOLEAN NOT NULL DEFAUL
 ALTER TABLE role_menus ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) NOT NULL DEFAULT 'default';
 
 -- Fix audit columns type (entity expects VARCHAR, V3 created UUID)
-ALTER TABLE role_menus ALTER COLUMN created_by VARCHAR(100);
-ALTER TABLE role_menus ALTER COLUMN updated_by VARCHAR(100);
+ALTER TABLE role_menus ALTER COLUMN created_by TYPE VARCHAR(100);
+ALTER TABLE role_menus ALTER COLUMN updated_by TYPE VARCHAR(100);
 
 -- Add version column (from BaseEntity)
 ALTER TABLE role_menus ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 0;
