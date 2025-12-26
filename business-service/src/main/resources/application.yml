@@ -287,3 +287,24 @@ casbin:
       ttl-minutes: 10      # Cache entry TTL (Time To Live)
       # L1 cache provides additional ~10x-100x speedup on top of Casbin's built-in cache
       # Expected performance: ~0.001ms per check (~1,000,000 ops/sec)
+
+  # ⭐ NEW: Policy Monitoring Configuration (100k CCU Optimization)
+  # Prevents policy explosion that degrades performance
+  policy:
+    monitoring:
+      enabled: true                    # Enable policy monitoring and alerts
+      check-interval-ms: 300000        # Check every 5 minutes
+    threshold:
+      warning: 10000                   # WARNING alert at 10k policies
+      critical: 50000                  # CRITICAL alert at 50k policies
+      emergency: 100000                # EMERGENCY alert at 100k policies
+    max-policies-per-role: 1000        # Maximum policies per role (prevent bloat)
+    max-policies-per-tenant: 10000     # Maximum policies per tenant (multi-tenancy limit)
+
+  # ⭐ NEW: Role Hierarchy Configuration (100k CCU Optimization)
+  # Enables role inheritance to reduce policy count by 30-70%
+  role-hierarchy:
+    enabled: true                      # Enable role inheritance (RBAC with hierarchy)
+    # Example: ADMIN inherits from MANAGER, MANAGER inherits from USER
+    # This reduces duplicate policies and improves performance
+    # Performance impact: 30-70% reduction in policy count
