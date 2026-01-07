@@ -1,0 +1,90 @@
+{
+  "service": {
+    "name": "gateway-service",
+    "id": "gateway-service-1",
+    "port": 8080,
+    "tags": [
+      "api-gateway",
+      "spring-cloud-gateway",
+      "public"
+    ],
+    "meta": {
+      "version": "1.0.0",
+      "protocol": "http",
+      "framework": "spring-boot-3.5.7"
+    },
+    "checks": [
+      {
+        "id": "gateway-health",
+        "name": "Gateway Health Check",
+        "http": "http://gateway-service:8080/actuator/health",
+        "method": "GET",
+        "interval": "10s",
+        "timeout": "5s",
+        "deregister_critical_service_after": "30s",
+        "success_before_passing": 2,
+        "failures_before_critical": 3
+      },
+      {
+        "id": "gateway-ready",
+        "name": "Gateway Readiness Check",
+        "http": "http://gateway-service:8080/actuator/health/readiness",
+        "method": "GET",
+        "interval": "15s",
+        "timeout": "3s"
+      }
+    ],
+    "connect": {
+      "sidecar_service": {
+        "port": 20000,
+        "checks": [
+          {
+            "name": "Connect Envoy Sidecar",
+            "tcp": "localhost:20000",
+            "interval": "10s"
+          }
+        ],
+        "proxy": {
+          "upstreams": [
+            {
+              "destination_name": "business-service",
+              "local_bind_port": 8081,
+              "config": {
+                "protocol": "http",
+                "connect_timeout_ms": 5000
+              },
+              "limits": {
+                "max_connections": 1024,
+                "max_pending_requests": 1024,
+                "max_concurrent_requests": 512
+              },
+              "passive_health_check": {
+                "interval": "10s",
+                "max_failures": 3
+              }
+            },
+            {
+              "destination_name": "iam-service",
+              "local_bind_port": 8082,
+              "config": {
+                "protocol": "http",
+                "connect_timeout_ms": 3000
+              }
+            }
+          ],
+          "config": {
+            "protocol": "http",
+            "envoy_prometheus_bind_addr": "0.0.0.0:9102",
+            "envoy_stats_tags": [
+              "service_name=gateway-service"
+            ]
+          }
+        }
+      }
+    },
+    "weights": {
+      "passing": 10,
+      "warning": 1
+    }
+  }
+}

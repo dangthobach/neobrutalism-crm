@@ -1,0 +1,53 @@
+{
+  "Kind": "service-defaults",
+  "Name": "business-service",
+  "Protocol": "http",
+  "MeshGateway": {
+    "Mode": "local"
+  },
+  "Expose": {
+    "Checks": true,
+    "Paths": [
+      {
+        "Path": "/actuator/health",
+        "LocalPathPort": 8081,
+        "ListenerPort": 8081,
+        "Protocol": "http"
+      },
+      {
+        "Path": "/actuator/prometheus",
+        "LocalPathPort": 8081,
+        "ListenerPort": 8081,
+        "Protocol": "http"
+      }
+    ]
+  },
+  "UpstreamConfig": {
+    "Overrides": [
+      {
+        "Name": "iam-service",
+        "ConnectTimeoutMs": 3000,
+        "Protocol": "http",
+        "Limits": {
+          "MaxConnections": 256,
+          "MaxPendingRequests": 256,
+          "MaxConcurrentRequests": 128
+        },
+        "PassiveHealthCheck": {
+          "Interval": "10s",
+          "MaxFailures": 3
+        }
+      }
+    ],
+    "Defaults": {
+      "ConnectTimeoutMs": 5000,
+      "Protocol": "http"
+    }
+  },
+  "Meta": {
+    "service_type": "core-business",
+    "database": "postgresql",
+    "cache": "redis",
+    "managed_by": "consul-service-mesh"
+  }
+}

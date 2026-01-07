@@ -1,0 +1,86 @@
+{
+  "service": {
+    "name": "business-service",
+    "id": "business-service-1",
+    "port": 8081,
+    "tags": [
+      "core-service",
+      "spring-boot",
+      "cqrs",
+      "event-sourcing"
+    ],
+    "meta": {
+      "version": "1.0.0",
+      "protocol": "http",
+      "framework": "spring-boot-3.5.7",
+      "database": "postgresql",
+      "cache": "redis"
+    },
+    "checks": [
+      {
+        "id": "business-health",
+        "name": "Business Service Health Check",
+        "http": "http://business-service:8081/actuator/health",
+        "method": "GET",
+        "interval": "10s",
+        "timeout": "5s",
+        "deregister_critical_service_after": "30s",
+        "success_before_passing": 2,
+        "failures_before_critical": 3
+      },
+      {
+        "id": "business-db",
+        "name": "Database Connection Check",
+        "http": "http://business-service:8081/actuator/health/db",
+        "method": "GET",
+        "interval": "30s",
+        "timeout": "5s"
+      },
+      {
+        "id": "business-redis",
+        "name": "Redis Connection Check",
+        "http": "http://business-service:8081/actuator/health/redis",
+        "method": "GET",
+        "interval": "30s",
+        "timeout": "5s"
+      }
+    ],
+    "connect": {
+      "sidecar_service": {
+        "port": 20000,
+        "checks": [
+          {
+            "name": "Connect Envoy Sidecar",
+            "tcp": "localhost:20000",
+            "interval": "10s"
+          }
+        ],
+        "proxy": {
+          "upstreams": [
+            {
+              "destination_name": "iam-service",
+              "local_bind_port": 8082,
+              "config": {
+                "protocol": "http",
+                "connect_timeout_ms": 3000
+              }
+            }
+          ],
+          "config": {
+            "protocol": "http",
+            "envoy_prometheus_bind_addr": "0.0.0.0:9102",
+            "envoy_stats_tags": [
+              "service_name=business-service"
+            ],
+            "local_connect_timeout_ms": 5000,
+            "local_request_timeout_ms": 30000
+          }
+        }
+      }
+    },
+    "weights": {
+      "passing": 10,
+      "warning": 1
+    }
+  }
+}

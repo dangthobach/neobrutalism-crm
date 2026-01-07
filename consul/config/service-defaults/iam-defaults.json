@@ -1,0 +1,42 @@
+{
+  "Kind": "service-defaults",
+  "Name": "iam-service",
+  "Protocol": "http",
+  "MeshGateway": {
+    "Mode": "local"
+  },
+  "Expose": {
+    "Checks": true,
+    "Paths": [
+      {
+        "Path": "/actuator/health",
+        "LocalPathPort": 8081,
+        "ListenerPort": 8081,
+        "Protocol": "http"
+      },
+      {
+        "Path": "/actuator/prometheus",
+        "LocalPathPort": 8081,
+        "ListenerPort": 8081,
+        "Protocol": "http"
+      }
+    ]
+  },
+  "UpstreamConfig": {
+    "Defaults": {
+      "ConnectTimeoutMs": 3000,
+      "Protocol": "http",
+      "Limits": {
+        "MaxConnections": 512,
+        "MaxPendingRequests": 512,
+        "MaxConcurrentRequests": 256
+      }
+    }
+  },
+  "Meta": {
+    "service_type": "auth-service",
+    "auth_provider": "keycloak",
+    "policy_engine": "casbin",
+    "managed_by": "consul-service-mesh"
+  }
+}

@@ -1,0 +1,419 @@
+version: '3.8'
+
+networks:
+  consul-mesh:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  consul-data:
+  postgres-data:
+  redis-data:
+  minio-data:
+  prometheus-data:
+  grafana-data:
+  jaeger-data:
+
+services:
+  # ============================================================
+  # CONSUL SERVER - Service Mesh Control Plane
+  # ============================================================
+  consul-server:
+    image: hashicorp/consul:1.17
+    container_name: consul-server
+    hostname: consul-server
+    command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0 -config-file=/consul/config/consul-server.json
+    volumes:
+      - ./consul/config/consul-server.json:/consul/config/consul-server.json:ro
+      - consul-data:/consul/data
+    ports:
+      - "8500:8500"   # HTTP API & UI
+      - "8600:8600/udp" # DNS
+      - "8502:8502"   # gRPC
+    networks:
+      consul-mesh:
+        ipv4_address: 172.20.0.10
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+      - CONSUL_CLIENT_INTERFACE=eth0
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ============================================================
+  # INFRASTRUCTURE SERVICES
+  # ============================================================
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: crm_db
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - consul-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - consul-mesh
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - consul-mesh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Keycloak (OAuth2/OIDC Provider)
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: crm_user
+      KC_DB_PASSWORD: crm_password
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    networks:
+      - consul-mesh
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================================================
+  # MICROSERVICES WITH CONSUL CONNECT SIDECARS
+  # ============================================================
+
+  # Gateway Service
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CLOUD_CONSUL_HOST: consul-server
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: "true"
+      SPRING_CLOUD_CONSUL_DISCOVERY_REGISTER: "true"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HEALTH_CHECK_INTERVAL: 10s
+      SPRING_CLOUD_CONSUL_DISCOVERY_INSTANCE_ID: gateway-service-1
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      IAM_SERVICE_URL: http://localhost:8082
+      BUSINESS_SERVICE_URL: http://localhost:8081
+      JAVA_OPTS: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+    ports:
+      - "8080:8080"
+    networks:
+      - consul-mesh
+    depends_on:
+      consul-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - ./consul/config/gateway-service.json:/consul/config/gateway-service.json:ro
+
+  # Gateway Envoy Sidecar
+  gateway-envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    container_name: gateway-envoy
+    command: >
+      consul connect envoy
+      -sidecar-for gateway-service-1
+      -admin-bind 0.0.0.0:19000
+      --
+      -l debug
+    environment:
+      CONSUL_HTTP_ADDR: consul-server:8500
+    ports:
+      - "19000:19000"  # Envoy admin
+      - "20000:20000"  # Envoy proxy
+      - "9102:9102"    # Prometheus metrics
+    networks:
+      - consul-mesh
+    depends_on:
+      consul-server:
+        condition: service_healthy
+      gateway-service:
+        condition: service_started
+
+  # Business Service
+  business-service:
+    build:
+      context: ./business-service
+      dockerfile: Dockerfile
+    container_name: business-service
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CLOUD_CONSUL_HOST: consul-server
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: "true"
+      SPRING_CLOUD_CONSUL_DISCOVERY_REGISTER: "true"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HEALTH_CHECK_INTERVAL: 10s
+      SPRING_CLOUD_CONSUL_DISCOVERY_INSTANCE_ID: business-service-1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/crm_db
+      SPRING_DATASOURCE_USERNAME: crm_user
+      SPRING_DATASOURCE_PASSWORD: crm_password
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      IAM_SERVICE_URL: http://localhost:8082
+      JAVA_OPTS: "-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+    ports:
+      - "8081:8081"
+    networks:
+      - consul-mesh
+    depends_on:
+      consul-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    volumes:
+      - ./consul/config/business-service.json:/consul/config/business-service.json:ro
+
+  # Business Envoy Sidecar
+  business-envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    container_name: business-envoy
+    command: >
+      consul connect envoy
+      -sidecar-for business-service-1
+      -admin-bind 0.0.0.0:19000
+      --
+      -l debug
+    environment:
+      CONSUL_HTTP_ADDR: consul-server:8500
+    ports:
+      - "19001:19000"  # Envoy admin
+      - "20001:20000"  # Envoy proxy
+      - "9103:9102"    # Prometheus metrics
+    networks:
+      - consul-mesh
+    depends_on:
+      consul-server:
+        condition: service_healthy
+      business-service:
+        condition: service_started
+
+  # IAM Service (Placeholder - to be implemented)
+  # iam-service:
+  #   build:
+  #     context: ./iam-service
+  #     dockerfile: Dockerfile
+  #   container_name: iam-service
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: dev
+  #     SPRING_CLOUD_CONSUL_HOST: consul-server
+  #     SPRING_CLOUD_CONSUL_PORT: 8500
+  #   ports:
+  #     - "8082:8081"
+  #   networks:
+  #     - consul-mesh
+
+  # ============================================================
+  # OBSERVABILITY STACK
+  # ============================================================
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./consul/observability/prometheus/consul-prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./consul/observability/prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - consul-mesh
+    depends_on:
+      - consul-server
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Alertmanager - Alert Management
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./consul/observability/alertmanager:/etc/alertmanager:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - consul-mesh
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource,grafana-consul-datasource
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - ./consul/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - consul-mesh
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      METRICS_STORAGE_TYPE: prometheus
+      PROMETHEUS_SERVER_URL: http://prometheus:9090
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "14250:14250"  # gRPC collector
+      - "9411:9411"    # Zipkin compatible
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    networks:
+      - consul-mesh
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:14269/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================
+  # EXPORTERS FOR INFRASTRUCTURE MONITORING
+  # ============================================================
+
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://crm_user:crm_password@postgres:5432/crm_db?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - consul-mesh
+    depends_on:
+      - postgres
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - consul-mesh
+    depends_on:
+      - redis
+
+  # MailHog - Email Testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - consul-mesh

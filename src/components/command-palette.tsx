@@ -164,7 +164,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         toast.error(`Failed to execute: ${command.label}`)
       }
     },
-    [router, recordExecution, searchQuery]
+    [router, recordExecution, searchQuery, handleOpenChange]
   )
 
   const toggleFavorite = React.useCallback(

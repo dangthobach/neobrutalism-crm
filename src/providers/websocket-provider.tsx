@@ -88,12 +88,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     // Cleanup on unmount
     return () => {
       console.log('[WebSocket] Cleaning up connection')
-      
-      // Unsubscribe from all topics
-      subscriptionsRef.current.forEach((subscription) => {
+
+      const currentSubs = subscriptionsRef.current
+      currentSubs.forEach((subscription) => {
         subscription.unsubscribe()
       })
-      subscriptionsRef.current.clear()
+      currentSubs.clear()
 
       // Deactivate client
       stompClient.deactivate()

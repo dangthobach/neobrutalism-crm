@@ -14,6 +14,7 @@ import {
   List,
   Database
 } from "lucide-react"
+import { useSidebar } from "@/components/app/sidebar-context"
 import { cn } from "@/lib/utils"
 
 const adminLinks = [
@@ -96,14 +97,26 @@ const adminLinks = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const { collapsed } = useSidebar()
 
   return (
-    <aside className="fixed left-0 top-[70px] h-[calc(100vh-70px)] w-64 border-r-4 border-border bg-secondary-background overflow-y-auto">
-      <div className="p-4 space-y-6">
+    <aside
+      className={cn(
+        "fixed left-0 top-[70px] h-[calc(100vh-70px)] border-r-4 border-border bg-secondary-background overflow-y-auto transition-all duration-200",
+        collapsed ? "w-20" : "w-64",
+      )}
+    >
+      <div className={cn("p-4 space-y-6", collapsed && "px-2")}>
         {adminLinks.map((section) => (
           <div key={section.title} className="space-y-2">
-            <h3 className="font-heading text-sm uppercase tracking-wide text-muted-foreground px-2">
-              {section.title}
+            <h3
+              className={cn(
+                "font-heading text-sm uppercase tracking-wide text-muted-foreground px-2",
+                collapsed && "text-center text-[11px] px-0",
+              )}
+              title={collapsed ? section.title : undefined}
+            >
+              {collapsed ? section.title.slice(0, 3) : section.title}
             </h3>
             <div className="space-y-1">
               {section.items.map((item) => {
@@ -118,12 +131,13 @@ export function AdminSidebar() {
                       "flex items-center gap-3 px-3 py-2 rounded-base border-2 transition-all font-base text-sm",
                       isActive
                         ? "bg-main text-main-foreground border-black shadow-[4px_4px_0_#000]"
-                        : "bg-background border-border hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_#000]"
+                        : "bg-background border-border hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_#000]",
+                      collapsed && "justify-center",
                     )}
                     title={item.description}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
+                    {!collapsed && <span>{item.label}</span>}
                   </Link>
                 )
               })}

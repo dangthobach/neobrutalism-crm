@@ -31,7 +31,7 @@ export default function GroupMembersPage() {
 
   // Fetch all available users
   const { data: allUsersData } = useUsers({ page: 0, size: 100 })
-  const allUsers = allUsersData?.content || []
+  const allUsers = useMemo(() => allUsersData?.content || [], [allUsersData])
 
   // Mutations
   const addMutation = useAssignUserToGroup()

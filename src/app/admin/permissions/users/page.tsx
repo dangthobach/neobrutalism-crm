@@ -66,12 +66,12 @@ export default function UserManagementPage() {
     enabled: !!selectedUserId,
   });
 
-  const users = usersData?.content || [];
-  const roles = rolesData?.content || [];
-  const groups = groupsData?.content || [];
+  const users = useMemo(() => usersData?.content || [], [usersData]);
+  const roles = useMemo(() => rolesData?.content || [], [rolesData]);
+  const groups = useMemo(() => groupsData?.content || [], [groupsData]);
 
   // Set initial selected user
-  useMemo(() => {
+  useEffect(() => {
     if (!selectedUserId && users.length > 0) {
       setSelectedUserId(users[0].id);
     }

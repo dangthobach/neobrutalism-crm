@@ -6,6 +6,7 @@ import { DM_Sans } from "next/font/google"
 import Navbar from "@/components/app/navbar"
 import ScrollToTop from "@/components/app/scroll-to-top"
 import SetStylingPref from "@/components/app/set-styling-pref"
+import { SidebarProvider } from "@/components/app/sidebar-context"
 import { ThemeProvider } from "@/components/app/theme-provider"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { AuthProvider } from "@/contexts/auth-context"
@@ -67,18 +68,20 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>
             <WebSocketProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="light"
-                disableTransitionOnChange
-              >
-                <Navbar />
-                {children}
-                <SetStylingPref />
-                <ScrollToTop />
-                <CommandPalette />
-                <Toaster />
-              </ThemeProvider>
+              <SidebarProvider>
+                <ThemeProvider
+                  attribute="class"
+                  defaultTheme="light"
+                  disableTransitionOnChange
+                >
+                  <Navbar />
+                  {children}
+                  <SetStylingPref />
+                  <ScrollToTop />
+                  <CommandPalette />
+                  <Toaster />
+                </ThemeProvider>
+              </SidebarProvider>
             </WebSocketProvider>
           </AuthProvider>
         </QueryProvider>

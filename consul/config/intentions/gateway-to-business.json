@@ -1,0 +1,24 @@
+{
+  "Kind": "service-intentions",
+  "Name": "business-service",
+  "Sources": [
+    {
+      "Name": "gateway-service",
+      "Action": "allow",
+      "Permissions": [
+        {
+          "Action": "allow",
+          "HTTP": {
+            "PathPrefix": "/api/",
+            "Methods": ["GET", "POST", "PUT", "DELETE", "PATCH"]
+          }
+        }
+      ],
+      "Description": "Allow gateway to access business service APIs"
+    }
+  ],
+  "Meta": {
+    "created_by": "service-mesh-config",
+    "purpose": "gateway-business-communication"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "Kind": "service-resolver",
+  "Name": "business-service",
+  "DefaultSubset": "stable",
+  "ConnectTimeout": "5s",
+  "Subsets": {
+    "stable": {
+      "Filter": "Service.Meta.version == \"1.0.0\""
+    },
+    "canary": {
+      "Filter": "Service.Meta.version == \"1.1.0-canary\""
+    },
+    "v2": {
+      "Filter": "Service.Meta.version startswith \"2.\""
+    }
+  },
+  "LoadBalancer": {
+    "Policy": "least_request",
+    "LeastRequestConfig": {
+      "ChoiceCount": 2
+    }
+  },
+  "Failover": {
+    "*": {
+      "Datacenters": ["dc1"]
+    },
+    "canary": {
+      "Service": "business-service",
+      "ServiceSubset": "stable"
+    }
+  },
+  "Meta": {
+    "load_balancing": "least_request",
+    "failover_enabled": "true"
+  }
+}

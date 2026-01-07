@@ -29,7 +29,7 @@ export default function GroupRolesPage() {
 
   // Fetch all available roles
   const { data: allRolesData } = useRoles({ page: 0, size: 100 })
-  const allRoles = allRolesData?.content || []
+  const allRoles = useMemo(() => allRolesData?.content || [], [allRolesData])
 
   // Mutations
   const assignMutation = useAssignRoleToGroup()

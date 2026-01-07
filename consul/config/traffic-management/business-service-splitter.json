@@ -1,0 +1,19 @@
+{
+  "Kind": "service-splitter",
+  "Name": "business-service",
+  "Splits": [
+    {
+      "Weight": 90,
+      "ServiceSubset": "stable"
+    },
+    {
+      "Weight": 10,
+      "ServiceSubset": "canary"
+    }
+  ],
+  "Meta": {
+    "deployment_strategy": "canary",
+    "canary_percentage": "10",
+    "description": "90% traffic to stable, 10% to canary for gradual rollout"
+  }
+}

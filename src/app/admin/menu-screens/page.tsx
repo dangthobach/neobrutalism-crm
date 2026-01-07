@@ -145,7 +145,7 @@ export default function MenuScreensPage() {
         ),
       },
     ],
-    [deleteMutation.isPending, menus]
+    [deleteMutation.isPending, menus, getMenuName, onDelete]
   )
 
   function openApiDialog(screen: MenuScreen) {

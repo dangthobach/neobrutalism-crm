@@ -54,7 +54,7 @@ export default function RolePermissionsPage() {
   const bulkUpdateMutation = useBulkUpdateMenuPermissions()
   const copyMutation = useCopyPermissionsFromRole()
 
-  const menus = menusData?.content || []
+  const menus = useMemo(() => menusData?.content || [], [menusData])
 
   // Initialize permissions from API data
   useEffect(() => {

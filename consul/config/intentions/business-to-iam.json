@@ -1,0 +1,31 @@
+{
+  "Kind": "service-intentions",
+  "Name": "iam-service",
+  "Sources": [
+    {
+      "Name": "business-service",
+      "Action": "allow",
+      "Permissions": [
+        {
+          "Action": "allow",
+          "HTTP": {
+            "PathPrefix": "/api/iam/validate",
+            "Methods": ["POST"]
+          }
+        },
+        {
+          "Action": "allow",
+          "HTTP": {
+            "PathPrefix": "/api/iam/permissions",
+            "Methods": ["GET", "POST"]
+          }
+        }
+      ],
+      "Description": "Allow business service to validate tokens and check permissions via IAM"
+    }
+  ],
+  "Meta": {
+    "created_by": "service-mesh-config",
+    "purpose": "business-iam-communication"
+  }
+}

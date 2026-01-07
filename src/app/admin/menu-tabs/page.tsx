@@ -118,7 +118,7 @@ export default function MenuTabsPage() {
         ),
       },
     ],
-    [deleteMutation.isPending, menus]
+    [deleteMutation.isPending, menus, getMenuName, onDelete]
   )
 
   function onEdit(item: MenuTab) {

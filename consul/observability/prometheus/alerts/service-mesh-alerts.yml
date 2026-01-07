@@ -1,0 +1,151 @@
+groups:
+  - name: service_mesh_alerts
+    interval: 30s
+    rules:
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: up{job=~".*-service.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: service-mesh
+        annotations:
+          summary: "Service {{ $labels.service }} is down"
+          description: "Service {{ $labels.service }} (instance {{ $labels.instance }}) has been down for more than 2 minutes."
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+          /
+          rate(http_server_requests_seconds_count[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: service-mesh
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has error rate above 5% (current: {{ $value | humanizePercentage }})"
+
+      # High Response Time
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_server_requests_seconds_bucket[5m])
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: service-mesh
+        annotations:
+          summary: "High response time on {{ $labels.service }}"
+          description: "Service {{ $labels.service }} P95 latency is above 1s (current: {{ $value }}s)"
+
+      # Circuit Breaker Open
+      - alert: CircuitBreakerOpen
+        expr: |
+          sum by (service) (envoy_cluster_circuit_breakers_default_rq_open) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: service-mesh
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.service }}"
+          description: "Circuit breaker has been open for {{ $labels.service }} for more than 2 minutes"
+
+      # High Connection Pool Usage
+      - alert: HighConnectionPoolUsage
+        expr: |
+          (envoy_cluster_upstream_cx_active / envoy_cluster_upstream_cx_max) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: service-mesh
+        annotations:
+          summary: "High connection pool usage for {{ $labels.cluster_name }}"
+          description: "Connection pool usage is above 80% for {{ $labels.cluster_name }}"
+
+      # Service Discovery Health
+      - alert: ConsulServiceUnhealthy
+        expr: |
+          consul_health_service_status{status="critical"} > 0
+        for: 3m
+        labels:
+          severity: warning
+          component: consul
+        annotations:
+          summary: "Consul reports unhealthy service"
+          description: "Service {{ $labels.service_name }} is in critical state in Consul"
+
+      # Envoy Sidecar Down
+      - alert: EnvoySidecarDown
+        expr: up{job="envoy-sidecars"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service-mesh
+        annotations:
+          summary: "Envoy sidecar proxy is down"
+          description: "Envoy sidecar for {{ $labels.service }} is down"
+
+      # High Request Volume
+      - alert: HighRequestVolume
+        expr: |
+          rate(http_server_requests_seconds_count[5m]) > 1000
+        for: 10m
+        labels:
+          severity: info
+          component: service-mesh
+        annotations:
+          summary: "High request volume on {{ $labels.service }}"
+          description: "Service {{ $labels.service }} is receiving more than 1000 req/s"
+
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "HikariCP connection pool is at {{ $value | humanizePercentage }} capacity for {{ $labels.pool }}"
+
+      # Cache Hit Ratio Low
+      - alert: LowCacheHitRatio
+        expr: |
+          rate(cache_gets_hit[5m]) / rate(cache_gets[5m]) < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low cache hit ratio"
+          description: "Cache hit ratio is below 70% (current: {{ $value | humanizePercentage }})"
+
+      # Memory Usage High
+      - alert: HighMemoryUsage
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: jvm
+        annotations:
+          summary: "High JVM heap memory usage on {{ $labels.service }}"
+          description: "JVM heap usage is above 85% on {{ $labels.service }} ({{ $labels.instance }})"
+
+      # Too Many Retries
+      - alert: HighRetryRate
+        expr: |
+          rate(envoy_cluster_upstream_rq_retry[5m])
+          /
+          rate(envoy_cluster_upstream_rq_total[5m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          component: service-mesh
+        annotations:
+          summary: "High retry rate to {{ $labels.cluster_name }}"
+          description: "Retry rate is above 20% for {{ $labels.cluster_name }}"

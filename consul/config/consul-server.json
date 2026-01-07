@@ -1,0 +1,44 @@
+{
+  "datacenter": "dc1",
+  "data_dir": "/consul/data",
+  "log_level": "INFO",
+  "node_name": "consul-server",
+  "server": true,
+  "bootstrap_expect": 1,
+  "ui_config": {
+    "enabled": true
+  },
+  "client_addr": "0.0.0.0",
+  "bind_addr": "0.0.0.0",
+  "advertise_addr": "{{ GetInterfaceIP \"eth0\" }}",
+  "retry_join": [
+    "consul-server"
+  ],
+  "performance": {
+    "raft_multiplier": 1
+  },
+  "connect": {
+    "enabled": true
+  },
+  "ports": {
+    "http": 8500,
+    "https": -1,
+    "grpc": 8502,
+    "grpc_tls": 8503,
+    "dns": 8600
+  },
+  "telemetry": {
+    "prometheus_retention_time": "24h",
+    "disable_hostname": false
+  },
+  "acl": {
+    "enabled": false,
+    "default_policy": "allow",
+    "enable_token_persistence": true
+  },
+  "limits": {
+    "http_max_conns_per_client": 200,
+    "https_handshake_timeout": "5s",
+    "rpc_max_conns_per_client": 100
+  }
+}

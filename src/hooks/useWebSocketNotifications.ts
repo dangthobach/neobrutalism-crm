@@ -222,7 +222,7 @@ export function useWebSocketNotifications(options: UseWebSocketNotificationsOpti
     return () => {
       disconnect();
     };
-  }, [userId, enabled]); // Only reconnect when userId or enabled changes
+  }, [userId, enabled, connect, disconnect]); // Only reconnect when userId or enabled changes
 
   return {
     ...state,

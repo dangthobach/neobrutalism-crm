@@ -28,22 +28,16 @@ import { Loader2 } from 'lucide-react'
  * - Centralized authentication via Keycloak SSO
  */
 export default function LoginPage() {
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
-
   useEffect(() => {
-    // Redirect to OAuth2 authorization endpoint
-    if (typeof window !== 'undefined') {
-      console.log('[Login] Redirecting to OAuth2 login (Keycloak)...')
+    if (typeof window === 'undefined') return
 
-      // Preserve returnUrl if present
-      const returnUrl = searchParams?.get('returnUrl')
-      const state = returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''
+    const params = new URLSearchParams(window.location.search)
+    const returnUrl = params.get('returnUrl')
+    const state = returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''
 
-      // Redirect to Gateway OAuth2 authorization endpoint
-      // Gateway will redirect to Keycloak login page
-      window.location.href = `/login/oauth2/authorization/keycloak${state}`
-    }
-  }, [searchParams])
+    console.log('[Login] Redirecting to OAuth2 login (Keycloak)...')
+    window.location.href = `/login/oauth2/authorization/keycloak${state}`
+  }, [])
 
   return (
     <div className="min-h-screen bg-secondary-background flex items-center justify-center p-4">

@@ -1,0 +1,66 @@
+{
+  "service": {
+    "name": "iam-service",
+    "id": "iam-service-1",
+    "port": 8081,
+    "tags": [
+      "auth-service",
+      "spring-webflux",
+      "oauth2",
+      "casbin"
+    ],
+    "meta": {
+      "version": "1.0.0",
+      "protocol": "http",
+      "framework": "spring-boot-3.2.5",
+      "auth": "keycloak",
+      "policy-engine": "jcasbin"
+    },
+    "checks": [
+      {
+        "id": "iam-health",
+        "name": "IAM Service Health Check",
+        "http": "http://iam-service:8081/actuator/health",
+        "method": "GET",
+        "interval": "10s",
+        "timeout": "5s",
+        "deregister_critical_service_after": "30s",
+        "success_before_passing": 2,
+        "failures_before_critical": 3
+      },
+      {
+        "id": "iam-keycloak",
+        "name": "Keycloak Connection Check",
+        "http": "http://iam-service:8081/actuator/health/keycloak",
+        "method": "GET",
+        "interval": "30s",
+        "timeout": "5s"
+      }
+    ],
+    "connect": {
+      "sidecar_service": {
+        "port": 20000,
+        "checks": [
+          {
+            "name": "Connect Envoy Sidecar",
+            "tcp": "localhost:20000",
+            "interval": "10s"
+          }
+        ],
+        "proxy": {
+          "config": {
+            "protocol": "http",
+            "envoy_prometheus_bind_addr": "0.0.0.0:9102",
+            "envoy_stats_tags": [
+              "service_name=iam-service"
+            ]
+          }
+        }
+      }
+    },
+    "weights": {
+      "passing": 10,
+      "warning": 1
+    }
+  }
+}

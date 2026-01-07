@@ -116,7 +116,7 @@ export default function ApiEndpointsPage() {
         ),
       },
     ],
-    [deleteMutation.isPending]
+    [deleteMutation.isPending, onDelete, onEdit]
   )
 
   function onEdit(item: ApiEndpoint) {

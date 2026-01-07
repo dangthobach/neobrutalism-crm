@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
-import { LayoutDashboard, Users, Shield, Lock, Building2, Menu, ChevronLeft, LogOut, UsersRound, List, Network, Layers, Monitor, FileText, BookOpen, UserCheck, MessageSquare, ListTodo } from "lucide-react"
+import { useCallback } from "react"
+import { LayoutDashboard, Users, Shield, Lock, Building2, LogOut, UsersRound, List, Network, Layers, Monitor, FileText, BookOpen, UserCheck, MessageSquare, ListTodo, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { notificationKeys } from "@/hooks/useNotifications"
 import { Notification } from "@/types/notification"
 import { toast } from "sonner"
+import { useSidebar } from "@/components/app/sidebar-context"
 
 const menuItems = [
   { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
@@ -40,10 +41,10 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
+  const { collapsed, toggle } = useSidebar()
 
   // WebSocket notification handler
   const handleNotification = useCallback((notification: Notification) => {
@@ -72,10 +73,10 @@ export default function AdminLayout({
             <Button
               variant="noShadow"
               size="sm"
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={toggle}
               className="ml-auto"
             >
-              {collapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </Button>
           </div>
           <nav className="flex flex-col gap-2 p-3 font-base flex-1">

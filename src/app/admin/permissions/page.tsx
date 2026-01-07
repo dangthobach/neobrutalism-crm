@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import { ColumnDef, ColumnFiltersState, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, PaginationState, useReactTable } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +26,15 @@ export default function PermissionsPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
+  const onEdit = useCallback((item: Permission) => {
+    setEditing(item)
+    setOpen(true)
+  }, [])
+
+  const onDelete = useCallback((id: string) => {
+    setRows((r) => r.filter((x) => x.id !== id))
+  }, [])
+
   const columns = useMemo<ColumnDef<Permission>[]>(
     () => [
       { accessorKey: "key", header: "Key" },
@@ -41,7 +50,7 @@ export default function PermissionsPage() {
         ),
       },
     ],
-    [rows],
+    [onDelete, onEdit],
   )
 
   const table = useReactTable({
@@ -56,15 +65,6 @@ export default function PermissionsPage() {
     onPaginationChange: setPagination,
     globalFilterFn: "includesString",
   })
-
-  function onEdit(item: Permission) {
-    setEditing(item)
-    setOpen(true)
-  }
-
-  function onDelete(id: string) {
-    setRows((r) => r.filter((x) => x.id !== id))
-  }
 
   function onCreate() {
     setEditing({ id: "", key: "", description: "" })

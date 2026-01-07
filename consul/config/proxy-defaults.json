@@ -1,0 +1,44 @@
+{
+  "Kind": "proxy-defaults",
+  "Name": "global",
+  "Config": {
+    "protocol": "http",
+    "envoy_extra_static_clusters_json": "",
+    "envoy_prometheus_bind_addr": "0.0.0.0:9102"
+  },
+  "MeshGateway": {
+    "Mode": "local"
+  },
+  "Mode": "transparent",
+  "TransparentProxy": {
+    "OutboundListenerPort": 15001,
+    "DialedDirectly": false
+  },
+  "AccessLogs": {
+    "Enabled": true,
+    "DisableListenerLogs": false,
+    "Type": "stdout",
+    "JSONFormat": "{\"start_time\":\"%START_TIME%\",\"method\":\"%REQ(:METHOD)%\",\"path\":\"%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%\",\"protocol\":\"%PROTOCOL%\",\"response_code\":\"%RESPONSE_CODE%\",\"duration\":\"%DURATION%\",\"upstream_service\":\"%UPSTREAM_CLUSTER%\",\"user_agent\":\"%REQ(USER-AGENT)%\",\"request_id\":\"%REQ(X-REQUEST-ID)%\",\"authority\":\"%REQ(:AUTHORITY)%\"}"
+  },
+  "EnvoyExtensions": [
+    {
+      "Name": "builtin/http/retry",
+      "Arguments": {
+        "RetryOn": "5xx,gateway-error,reset,connect-failure,refused-stream",
+        "NumRetries": 3,
+        "PerTryTimeout": "3s",
+        "RetryHostPredicate": [
+          {
+            "Name": "envoy.retry_host_predicates.previous_hosts"
+          }
+        ],
+        "HostSelectionRetryMaxAttempts": "3"
+      }
+    }
+  ],
+  "Meta": {
+    "managed_by": "consul-service-mesh",
+    "retry_enabled": "true",
+    "access_logs": "enabled"
+  }
+}

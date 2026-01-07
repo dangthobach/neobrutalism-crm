@@ -1,0 +1,146 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'neobrutalism-crm'
+    environment: 'dev'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - '/etc/prometheus/alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Consul Server metrics
+  - job_name: 'consul-server'
+    static_configs:
+      - targets: ['consul-server:8500']
+    metrics_path: '/v1/agent/metrics'
+    params:
+      format: ['prometheus']
+    scrape_interval: 30s
+
+  # Consul Services Discovery
+  - job_name: 'consul-services'
+    consul_sd_configs:
+      - server: 'consul-server:8500'
+        datacenter: 'dc1'
+        services: []
+    relabel_configs:
+      # Service name label
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      # Service ID label
+      - source_labels: [__meta_consul_service_id]
+        target_label: service_id
+      # Node name label
+      - source_labels: [__meta_consul_node]
+        target_label: node
+      # Service tags
+      - source_labels: [__meta_consul_tags]
+        target_label: tags
+      # Service metadata
+      - source_labels: [__meta_consul_service_metadata_version]
+        target_label: version
+      - source_labels: [__meta_consul_service_metadata_framework]
+        target_label: framework
+      # Only scrape services with 'prometheus' tag
+      - source_labels: [__meta_consul_tags]
+        regex: '.*,prometheus,.*'
+        action: keep
+
+  # Gateway Service Actuator
+  - job_name: 'gateway-service-actuator'
+    consul_sd_configs:
+      - server: 'consul-server:8500'
+        services: ['gateway-service']
+    metrics_path: '/actuator/prometheus'
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_service_id]
+        target_label: instance
+
+  # Business Service Actuator
+  - job_name: 'business-service-actuator'
+    consul_sd_configs:
+      - server: 'consul-server:8500'
+        services: ['business-service']
+    metrics_path: '/actuator/prometheus'
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_service_id]
+        target_label: instance
+
+  # IAM Service Actuator
+  - job_name: 'iam-service-actuator'
+    consul_sd_configs:
+      - server: 'consul-server:8500'
+        services: ['iam-service']
+    metrics_path: '/actuator/prometheus'
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_service_id]
+        target_label: instance
+
+  # Envoy Sidecar Proxies metrics
+  - job_name: 'envoy-sidecars'
+    consul_sd_configs:
+      - server: 'consul-server:8500'
+        services: []
+    metrics_path: '/stats/prometheus'
+    relabel_configs:
+      # Only scrape Connect sidecar services
+      - source_labels: [__meta_consul_service]
+        regex: '.*-sidecar-proxy'
+        action: keep
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_service_id]
+        target_label: service_id
+      - source_labels: [__address__]
+        regex: '([^:]+):\\d+'
+        replacement: '${1}:9102'
+        target_label: __address__
+
+  # PostgreSQL Exporter
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+
+  # MinIO metrics
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    metrics_path: '/minio/v2/metrics/cluster'
+    scrape_interval: 30s
+
+  # Keycloak metrics (if enabled)
+  - job_name: 'keycloak'
+    static_configs:
+      - targets: ['keycloak:8080']
+    metrics_path: '/auth/realms/master/metrics'
+    scrape_interval: 60s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

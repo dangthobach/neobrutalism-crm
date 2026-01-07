@@ -1,0 +1,66 @@
+{
+  "Kind": "service-defaults",
+  "Name": "gateway-service",
+  "Protocol": "http",
+  "MeshGateway": {
+    "Mode": "local"
+  },
+  "Expose": {
+    "Checks": true,
+    "Paths": [
+      {
+        "Path": "/actuator/health",
+        "LocalPathPort": 8080,
+        "ListenerPort": 8080,
+        "Protocol": "http"
+      },
+      {
+        "Path": "/actuator/prometheus",
+        "LocalPathPort": 8080,
+        "ListenerPort": 8080,
+        "Protocol": "http"
+      }
+    ]
+  },
+  "UpstreamConfig": {
+    "Overrides": [
+      {
+        "Name": "business-service",
+        "ConnectTimeoutMs": 5000,
+        "Protocol": "http",
+        "Limits": {
+          "MaxConnections": 1024,
+          "MaxPendingRequests": 1024,
+          "MaxConcurrentRequests": 512
+        },
+        "PassiveHealthCheck": {
+          "Interval": "10s",
+          "MaxFailures": 3,
+          "EnforcingConsecutive5xx": 100
+        }
+      },
+      {
+        "Name": "iam-service",
+        "ConnectTimeoutMs": 3000,
+        "Protocol": "http",
+        "Limits": {
+          "MaxConnections": 512,
+          "MaxPendingRequests": 512,
+          "MaxConcurrentRequests": 256
+        },
+        "PassiveHealthCheck": {
+          "Interval": "10s",
+          "MaxFailures": 3
+        }
+      }
+    ],
+    "Defaults": {
+      "ConnectTimeoutMs": 5000,
+      "Protocol": "http"
+    }
+  },
+  "Meta": {
+    "service_type": "api-gateway",
+    "managed_by": "consul-service-mesh"
+  }
+}

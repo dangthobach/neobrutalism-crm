@@ -102,8 +102,8 @@ export default function TasksPage() {
     isBulkDeleting
   } = useBulkOperations()
 
-  const tasks = tasksData?.content || []
-  const users = usersData?.content || []
+  const tasks = React.useMemo(() => tasksData?.content || [], [tasksData])
+  const users = React.useMemo(() => usersData?.content || [], [usersData])
 
   const handleStatusChange = useCallback(
     (taskId: string, newStatus: TaskStatus) => {

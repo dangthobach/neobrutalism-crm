@@ -33,7 +33,7 @@ export default function MenusPage() {
   const updateMutation = useUpdateMenu()
   const deleteMutation = useDeleteMenu()
 
-  const menus = menusData?.content || []
+  const menus = useMemo(() => menusData?.content || [], [menusData])
 
   // Build tree structure
   const menuTree = useMemo(() => {

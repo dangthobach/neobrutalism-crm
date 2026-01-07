@@ -1,0 +1,16 @@
+{
+  "Kind": "service-defaults",
+  "Name": "business-service",
+  "Protocol": "http",
+  "UpstreamConfig": {
+    "Defaults": {
+      "EnvoyClusterJSON": "{\"outlier_detection\":{\"consecutive_5xx\":5,\"interval\":\"10s\",\"base_ejection_time\":\"30s\",\"max_ejection_percent\":50,\"enforcing_consecutive_5xx\":100,\"enforcing_success_rate\":100,\"success_rate_minimum_hosts\":3,\"success_rate_request_volume\":100,\"success_rate_stdev_factor\":1900,\"consecutive_gateway_failure\":5,\"enforcing_consecutive_gateway_failure\":100},\"circuit_breakers\":{\"thresholds\":[{\"priority\":\"DEFAULT\",\"max_connections\":1024,\"max_pending_requests\":1024,\"max_requests\":512,\"max_retries\":3}]}}"
+    }
+  },
+  "Meta": {
+    "purpose": "circuit-breaker-and-outlier-detection",
+    "consecutive_errors": "5",
+    "ejection_time": "30s",
+    "max_ejection_percent": "50"
+  }
+}
